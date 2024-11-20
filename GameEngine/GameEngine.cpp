@@ -5,6 +5,8 @@
 #include "Camera.h"
 #include <math.h>
 
+///깃허브 테스트
+ 
 Vector3 dir = { 1.f, -1.f, 1.f };
 
 GameEngine::GameEngine(HWND _hWnd, const int _screenWidth, const int _screenHeight)
