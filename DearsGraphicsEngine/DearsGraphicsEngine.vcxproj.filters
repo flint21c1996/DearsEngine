@@ -1,0 +1,316 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="PipelineStateObject.h">
+      <Filter>GraphicsModule\PipelineStateModule</Filter>
+    </ClCompile>
+    <ClCompile Include="DearsGraphicsEngine.cpp" />
+    <ClCompile Include="Renderer.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="RendererHelper.cpp">
+      <Filter>RenderHelper</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicsResourceManager.cpp">
+      <Filter>GraphicsResourceManager</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelInfo.cpp">
+      <Filter>GraphicsModule\ModelInfoModule</Filter>
+    </ClCompile>
+    <ClCompile Include="FBXLoader.cpp">
+      <Filter>GraphicsResourceManager\FBXLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="FBXLoadHelper.cpp">
+      <Filter>GraphicsResourceManager\FBXLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicsResourceContainer.cpp">
+      <Filter>GraphicsResourceManager\GraphicsResourceContainer</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="PipelineStateObject.cpp">
+      <Filter>GraphicsModule\PipelineStateModule</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelBuffer.h">
+      <Filter>GraphicsModule\BufferModule</Filter>
+    </ClCompile>
+    <ClCompile Include="DearsImGui.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="AnimationHelper.cpp">
+      <Filter>AnimationHelper</Filter>
+    </ClCompile>
+    <ClCompile Include="LightEnum.h">
+      <Filter>GraphicsModule\LightModule</Filter>
+    </ClCompile>
+    <ClCompile Include="LightHelper.cpp">
+      <Filter>Light</Filter>
+    </ClCompile>
+    <ClCompile Include="GeometryGenerator.cpp">
+      <Filter>GeometryGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicsCommon.cpp">
+      <Filter>GraphicsCommon</Filter>
+    </ClCompile>
+    <ClCompile Include="ParticleManager.cpp">
+      <Filter>Particle\ParticleModule</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="LayerEnum">
+      <UniqueIdentifier>{5f720161-09c1-4995-8092-7e8a14f87926}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsModule">
+      <UniqueIdentifier>{341553c6-0ddc-4c91-8304-c60771b9c5b0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsModule\PipelineStateModule">
+      <UniqueIdentifier>{7e6d3a58-9cb9-4090-9f5b-516239b883f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Renderer">
+      <UniqueIdentifier>{fb6d3aa5-3304-480e-a2c5-9158bf2e4838}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsResourceManager">
+      <UniqueIdentifier>{661af33c-50d6-4784-a2d4-f1952cc72669}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsModule\BufferModule">
+      <UniqueIdentifier>{2f4b032c-a7e0-4c53-9aa9-6453dc08e0c8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsResourceManager\FBXLoader">
+      <UniqueIdentifier>{b6bb28cf-4cf4-4ffb-a666-66517a7f6f93}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsModule\ModelInfoModule">
+      <UniqueIdentifier>{07a8c60f-90dd-4a2d-8cd2-5328b7ef0b68}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsModule\LightModule">
+      <UniqueIdentifier>{fbc5c933-dcf9-4431-a1eb-b912040d03ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader">
+      <UniqueIdentifier>{c8ed822c-9ce5-4c5f-bc47-a5a73594de87}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsModule\MaterialModule">
+      <UniqueIdentifier>{0a69d002-9545-45ca-809e-f4e483a5fa8f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsResourceManager\GraphicsResourceContainer">
+      <UniqueIdentifier>{dc4d46f9-8090-4f34-949b-2009b106f9b3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="RenderHelper">
+      <UniqueIdentifier>{028dd9aa-72cb-42a9-8c52-d1b4a05bed1c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Camera">
+      <UniqueIdentifier>{9f562dfd-e37f-4af8-b7ac-5bd8b1954709}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsResourceManager\BufferEnum">
+      <UniqueIdentifier>{bae5b049-24c5-45f2-8ae8-1535c6ffaad2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImGui">
+      <UniqueIdentifier>{6e0059a3-2476-4123-a3d3-a0a4500aec65}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AnimationHelper">
+      <UniqueIdentifier>{0383f50a-73e4-4ac3-91ff-236d3dad46da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Light">
+      <UniqueIdentifier>{e21970ba-e528-4196-94ba-1e7744d64599}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader\Shadow">
+      <UniqueIdentifier>{168a9d99-69f0-4f9f-9d07-42a6d469843c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsModule\CubeMap">
+      <UniqueIdentifier>{b4532d94-d834-4135-825a-5d06c1f3242a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader\CubeMap">
+      <UniqueIdentifier>{0d31971b-cc4a-41fe-bb45-24bee20917e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GeometryGenerator">
+      <UniqueIdentifier>{d49ba4c5-6e2f-4514-a3e1-ae2132ed9d64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GraphicsCommon">
+      <UniqueIdentifier>{9f6b9f52-5438-400f-8f4e-ed0def782a51}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader\Instance">
+      <UniqueIdentifier>{907a300e-be96-4100-9820-07a7eecd17d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader\EdgeShader">
+      <UniqueIdentifier>{7fc80009-ef1f-4f5c-b825-79a5986a604d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader\WaterShader">
+      <UniqueIdentifier>{1f2fd570-f8a4-41d8-a3e8-e19dbf387cc8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader\Particle Shader">
+      <UniqueIdentifier>{c6235a87-4f81-4692-96c9-b6b1a4e3917f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader\TestShader">
+      <UniqueIdentifier>{3037f433-c402-449e-8851-5ebbc57bb621}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Particle">
+      <UniqueIdentifier>{c147617e-4241-4d13-a613-8e5737541e61}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Particle\ObjectPool">
+      <UniqueIdentifier>{468cd176-bfff-4d1f-a331-a51b5b31e93c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader\ComputeShader">
+      <UniqueIdentifier>{ad0fefcd-c93a-404f-95d1-cb301b265b5d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Particle\ParticleModule">
+      <UniqueIdentifier>{f1536239-d49a-47e2-b6e3-9dfcd66ff027}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader\PostProcessing">
+      <UniqueIdentifier>{3ca51975-68ad-4714-8f22-13ce9fb3db09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shader\SamplerShader">
+      <UniqueIdentifier>{cb0306ce-46d1-4b87-99bc-8e0175493828}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="그래픽스 관련.txt" />
+    <Text Include="정리.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DearsGraphicsEngine.h" />
+    <ClInclude Include="LayerEnum.h">
+      <Filter>LayerEnum</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="RendererHelper.h">
+      <Filter>RenderHelper</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsResourceManager.h">
+      <Filter>GraphicsResourceManager</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelInfo.h">
+      <Filter>GraphicsModule\ModelInfoModule</Filter>
+    </ClInclude>
+    <ClInclude Include="Light.h">
+      <Filter>GraphicsModule\LightModule</Filter>
+    </ClInclude>
+    <ClInclude Include="FBXLoader.h">
+      <Filter>GraphicsResourceManager\FBXLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="BufferData.h">
+      <Filter>GraphicsModule\BufferModule</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.h">
+      <Filter>GraphicsModule\MaterialModule</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjectPool.h">
+      <Filter>Particle\ObjectPool</Filter>
+    </ClInclude>
+    <ClInclude Include="FBXLoadHelper.h">
+      <Filter>GraphicsResourceManager\FBXLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsResourceContainer.h">
+      <Filter>GraphicsResourceManager\GraphicsResourceContainer</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="BufferEnum.h">
+      <Filter>GraphicsResourceManager\BufferEnum</Filter>
+    </ClInclude>
+    <ClInclude Include="DearsImGui.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="AnimationHelper.h">
+      <Filter>AnimationHelper</Filter>
+    </ClInclude>
+    <ClInclude Include="LightHelper.h">
+      <Filter>Light</Filter>
+    </ClInclude>
+    <ClInclude Include="UIEnum.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="CubeMapInfo.h">
+      <Filter>GraphicsModule\CubeMap</Filter>
+    </ClInclude>
+    <ClInclude Include="GeometryGenerator.h">
+      <Filter>GeometryGenerator</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsCommon.h">
+      <Filter>GraphicsCommon</Filter>
+    </ClInclude>
+    <ClInclude Include="ParticleManager.h">
+      <Filter>Particle\ParticleModule</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shader\AniVertexShader.hlsl">
+      <Filter>shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PixelShader.hlsl">
+      <Filter>shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\VertexShader.hlsl">
+      <Filter>shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\EquipmentVertexShader.hlsl">
+      <Filter>shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\ShadowVertexShader.hlsl">
+      <Filter>shader\Shadow</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\ShadowPixelShader.hlsl">
+      <Filter>shader\Shadow</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\CubeMapPixelShader.hlsl">
+      <Filter>shader\CubeMap</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\CubeMapVertexShader.hlsl">
+      <Filter>shader\CubeMap</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\ShadowAniVertexShader.hlsl">
+      <Filter>shader\Shadow</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\ShadowEquipmentVertexShader.hlsl">
+      <Filter>shader\Shadow</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\InstancePixelShader.hlsl">
+      <Filter>shader\Instance</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\InstanceVertexShader.hlsl">
+      <Filter>shader\Instance</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\EdgePixelShader.hlsl">
+      <Filter>shader\EdgeShader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\EdgeVertexShader.hlsl">
+      <Filter>shader\EdgeShader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\WaterVertexShader.hlsl">
+      <Filter>shader\WaterShader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\ParticlePixelShader.hlsl">
+      <Filter>shader\Particle Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\ParticleVertexShader.hlsl">
+      <Filter>shader\Particle Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\TestPixelShader.hlsl">
+      <Filter>shader\TestShader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\TestVertexShader.hlsl">
+      <Filter>shader\TestShader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\TestComputeShader.hlsl">
+      <Filter>shader\ComputeShader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PostProcessingPixelShader.hlsl">
+      <Filter>shader\PostProcessing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PostProcessingVertexShader.hlsl">
+      <Filter>shader\PostProcessing</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\SamplerPixelShader.hlsl">
+      <Filter>shader\SamplerShader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\SamplerVertexShader.hlsl">
+      <Filter>shader\SamplerShader</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shader\Common.hlsli">
+      <Filter>shader</Filter>
+    </None>
+  </ItemGroup>
+</Project>

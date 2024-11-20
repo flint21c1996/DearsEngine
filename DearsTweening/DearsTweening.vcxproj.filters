@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="TweeningHelper">
+      <UniqueIdentifier>{acd38c2c-09bd-4c70-a359-dc902d348a41}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="EasingFunc">
+      <UniqueIdentifier>{0171e485-a4fe-4a01-bff7-4bd66cb562bc}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="EasingFunc.h">
+      <Filter>EasingFunc</Filter>
+    </ClInclude>
+    <ClInclude Include="FuntionManager.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="EasingFunc.cpp">
+      <Filter>EasingFunc</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
