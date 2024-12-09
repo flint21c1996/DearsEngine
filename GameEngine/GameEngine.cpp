@@ -4,6 +4,7 @@
 #include "FileManager.h"
 #include "Camera.h"
 #include <math.h>
+#include "Pool.h"
 
 ///깃허브 테스트
  
@@ -56,11 +57,11 @@ void GameEngine::Initialize()
 	//m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Tree_02.fbx");
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Rock_05.fbx");
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Sung.fbx");
-	//m_pDearsGraphicsEngine->AddModel("../TestAsset/", "box.fbx");
+	m_pDearsGraphicsEngine->AddModel("../TestAsset/", "Michelle.fbx");
 
 	///애니메이션 추가
-	//m_pDearsGraphicsEngine->AddAnimation("../TestAsset/", "CatwalkIdle.fbx");
-	//m_pDearsGraphicsEngine->AddAnimation("../TestAsset/", "CatwalkWalkForward.fbx");
+	m_pDearsGraphicsEngine->AddAnimation("../TestAsset/", "CatwalkIdle.fbx");
+	m_pDearsGraphicsEngine->AddAnimation("../TestAsset/", "CatwalkWalkForward.fbx");
 	m_pDearsGraphicsEngine->AddAnimation("../TestAsset/Test/", "Character@Cast Spell 02.FBX");
 	m_pDearsGraphicsEngine->AddAnimation("../TestAsset/Test/", "Character@Run Forward Bare Hands In Place.FBX");
 	m_pDearsGraphicsEngine->AddAnimation("../TestAsset/Test/", "Character@Die.FBX");
@@ -177,15 +178,15 @@ void GameEngine::Initialize()
 	tempObject4->CreateVSTargetBoneConstantBuffer();
 	tempObject4->CreatePSConstantBuffer();
 
-	tempObject4->SetVIBuffer("Hat 04");
+	tempObject4->SetVIBuffer("MySphere");
 	tempObject4->SetModelInfo("Hat 04.FBX");
 	tempObject4->SetDiffuseTexture("ss.png");
 	tempObject4->SetTargetBoneIndex(m_pDearsGraphicsEngine->Get_TargetModelBoneIndex("Character 01", "RigHead"));
 	tempObject4->GetObjectTargetBoneMatrix(tempObject1->mpVSBoneConstantBufferData);
 	tempObject4->SetObjectRot(Matrix::CreateRotationX(1.570));
 	//tempObject4->SetObjectPos(m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigHead", 0.1f));
-	tempObject4->SetObjectScl(Matrix::CreateScale(0.1));
-	tempObject4->SetObjectPos(Matrix::CreateTranslation({ 0,-35, -10 }));
+	tempObject4->SetObjectScl(Matrix::CreateScale(1));
+	tempObject4->SetObjectPos(Matrix::CreateTranslation({ 0,30, 0 }));
 
 	//tempObject4->SetObjectPos(Matrix::CreateTranslation({ 10,0,0 }));
 
@@ -255,7 +256,7 @@ void GameEngine::Initialize()
 	//m_pDearsGraphicsEngine->SetPointLight(&tempCCConstantBuffer, 1, 5.0f, 1.0f, 10.0f, Vector3(0.0f, -3.0f, -4.0f), Vector3(0.0f, 1.0f, 0.0f));
 	//m_pDearsGraphicsEngine->SetSpotLight(&tempCCConstantBuffer, 2, 20.0f, 10.f, 70.0f, Vector3(0.0f, -1.0f, 0.0f), Vector3(0.0f, 45.0f, -0.0f), 10.0f, Vector3(1.0f, 1.0f, 1.0f));
 	lightCamera->SetDirection(dir);
-
+	
 
 
 	lightCamera->SetEyePos(tempCCConstantBuffer.light[0].position);
@@ -264,6 +265,7 @@ void GameEngine::Initialize()
 	uiPoint = { 1720, 700 };
 
 	m_pDearsGraphicsEngine->Set_CubeMap("Atrium_diffuseIBL.dds", "Atrium_specularIBL.dds");
+
 
 }
 
@@ -558,13 +560,13 @@ void GameEngine::Render()
 	//혹시 메인 카메라에서 보고 싶을경우
  	m_pDearsGraphicsEngine->SetCamera(lightCamera);
  	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempLightCConstantBuffer);
-	m_pDearsGraphicsEngine->RenderDepthMap(tempObject7->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderDepthMap(tempObject5->GetModelBuffer());
- 	m_pDearsGraphicsEngine->RenderDepthMap(tempObject6->GetModelBuffer());
- 	m_pDearsGraphicsEngine->RenderAniDepthMap(tempObject1->GetModelBuffer());
- 	m_pDearsGraphicsEngine->RenderDepthMap(tempObject2->GetModelBuffer());
- 	m_pDearsGraphicsEngine->RenderDepthMap(tempObject3->GetModelBuffer());
- 	m_pDearsGraphicsEngine->RenderEquipDepthMap(tempObject4->GetModelBuffer());
+// 	m_pDearsGraphicsEngine->RenderDepthMap(tempObject7->GetModelBuffer());
+// 	m_pDearsGraphicsEngine->RenderDepthMap(tempObject5->GetModelBuffer());
+//  	m_pDearsGraphicsEngine->RenderDepthMap(tempObject6->GetModelBuffer());
+//  	m_pDearsGraphicsEngine->RenderAniDepthMap(tempObject1->GetModelBuffer());
+//  	m_pDearsGraphicsEngine->RenderDepthMap(tempObject2->GetModelBuffer());
+//  	m_pDearsGraphicsEngine->RenderDepthMap(tempObject3->GetModelBuffer());
+ 	//m_pDearsGraphicsEngine->RenderEquipDepthMap(tempObject4->GetModelBuffer());
 
 	m_pDearsGraphicsEngine->SetCamera(tempCamera);
 	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempCCConstantBuffer);
@@ -576,7 +578,7 @@ void GameEngine::Render()
  	m_pDearsGraphicsEngine->Rend_Model(tempObject2->GetModelBuffer());
 
 	m_pDearsGraphicsEngine->Rend_BillBoard(tempObject3->GetModelBuffer());		//애니메이션 모델을 랜더한다.
-	//m_pDearsGraphicsEngine->Rend_EquipmentModel(tempObject4->GetModelBuffer());
+	m_pDearsGraphicsEngine->Rend_Model(tempObject4->GetModelBuffer());
 
 
  	//m_pDearsGraphicsEngine->Rend_Model(tempObject5->GetModelBuffer());

@@ -62,7 +62,7 @@ struct PSEdgeConstantBufferData
 };
 
 
-#define MAX_BONES 30
+#define MAX_BONES 70
 struct VSBoneConstantBufferData
 {
 	Matrix bone[MAX_BONES];

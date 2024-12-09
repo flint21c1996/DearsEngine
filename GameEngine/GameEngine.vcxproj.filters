@@ -7,6 +7,12 @@
     <Filter Include="Manager">
       <UniqueIdentifier>{11654202-5f92-442f-9da4-f454c385301e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Entity">
+      <UniqueIdentifier>{e6c43e09-b981-4b7e-8868-ead0f554c509}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Manager\EntityManager">
+      <UniqueIdentifier>{dc7cab68-9c3f-4590-baf2-79945bce4a80}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GameEngine.h">
@@ -32,6 +38,15 @@
     </ClInclude>
     <ClInclude Include="AStar.h" />
     <ClInclude Include="tempObject.h" />
+    <ClInclude Include="Entity.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="EntityManager.h">
+      <Filter>Manager\EntityManager</Filter>
+    </ClInclude>
+    <ClInclude Include="Pool.h">
+      <Filter>Manager\EntityManager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameEngine.cpp">
@@ -51,5 +66,11 @@
     </ClCompile>
     <ClCompile Include="AStar.cpp" />
     <ClCompile Include="tempObject.cpp" />
+    <ClCompile Include="Entity.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="EntityManager.cpp">
+      <Filter>Manager\EntityManager</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

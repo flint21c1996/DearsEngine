@@ -97,6 +97,7 @@ float4 main(PixelShaderInput input) : SV_TARGET0
     
    float4 diffuse = g_diffuseCube.Sample(linearWrapSampler, input.normal);
    float4 specular = g_specularCube.Sample(linearWrapSampler, reflect(-toEye, input.normal));
+   //float4 specular = g_specularCube.Sample(linearWrapSampler, reflect(-toEye, input.normal));
     
    diffuse *= float4(material.diffuse, 1.0); //RGB채널끼리 다르게 할 수도 있다.
  
@@ -117,7 +118,8 @@ float4 main(PixelShaderInput input) : SV_TARGET0
    //return (input.normal, 1);
     
    ///이쁘게 보이게 하기위해 노력한 값.
-   float4 finalcolor = (color, 0) + (diffuse + specular*0.1f);
+   float4 finalcolor = diffuse+ specular;
+   //float4 finalcolor = (color, 0) + (diffuse + specular*0.1f);
    finalcolor.xyz *= shadowFactor;
    return finalcolor;
 

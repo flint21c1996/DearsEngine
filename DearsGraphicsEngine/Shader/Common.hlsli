@@ -11,7 +11,7 @@
 // Vector3(0.0f) -> float3(0.0, 0.0, 0.0) // 실수 뒤에 f 불필요
 // Vector4::Transform(v, M) -> mul(v, M)    //벡터 v와 행렬 M을 곱한다. 이는 C++의 'Vector4::Transform(v, M)함수와 유사한 역할을 한다.
 #define MAX_LIGHTS 3 // 쉐이더에서도 #define 사용 가능
-#define MAX_BONES 30
+#define MAX_BONES 70
 
 // 샘플러들을 모든 쉐이더에서 공통으로 사용
 SamplerState linearWrapSampler : register(s0);
