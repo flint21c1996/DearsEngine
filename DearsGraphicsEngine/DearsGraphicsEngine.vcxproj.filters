@@ -160,6 +160,9 @@
     <Filter Include="shader\SamplerShader">
       <UniqueIdentifier>{cb0306ce-46d1-4b87-99bc-8e0175493828}</UniqueIdentifier>
     </Filter>
+    <Filter Include="shader\PBR">
+      <UniqueIdentifier>{e7dfc1e5-6a72-433b-8033-ca2566a140fe}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="그래픽스 관련.txt" />
@@ -306,6 +309,9 @@
     </FxCompile>
     <FxCompile Include="Shader\SamplerVertexShader.hlsl">
       <Filter>shader\SamplerShader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PBRPixelShader.hlsl">
+      <Filter>shader\PBR</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

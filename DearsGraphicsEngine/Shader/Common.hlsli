@@ -197,12 +197,12 @@ float3 ComputeSpotLight(Light L, Material mat, float3 pos, float3 normal, float3
 //Gold    :( 1.0, 0.71, 0.29) 
 //Silver  :(0.95, 0.93, 0.88) 
 //Copper  :(0.95, 0.64, 0.54)
-float3 SchlickFresnel(float3 frenel, float3 normal, float3 toEye)
+float3 SchlickFresnel(float3 fresnel, float3 normal, float3 toEye)
 {
     float normalDotView = saturate(dot(normal, toEye));
     float f = 1.0f - normalDotView;     //90도에 가까울수록 1, 0도에 가까울수록 0
     
-    return frenel + (1.0f - frenel) * pow(f, 5.0);
+    return fresnel + (1.0f - fresnel) * pow(f, 5.0);
 
 }
 
