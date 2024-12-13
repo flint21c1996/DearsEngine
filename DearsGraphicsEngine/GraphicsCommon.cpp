@@ -117,6 +117,7 @@ namespace Dears {
 
 	void Graphics::InitSamplers(ComPtr<ID3D11Device>& device) {
 
+		// linear Warp - 텍스쳐 좌표가 범위를 초과할 경우 반복한다.
 		D3D11_SAMPLER_DESC sampDesc;
 		ZeroMemory(&sampDesc, sizeof(sampDesc));
 		sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -127,17 +128,19 @@ namespace Dears {
 		sampDesc.MinLOD = 0;
 		sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 		device->CreateSamplerState(&sampDesc, linearWrapSS.GetAddressOf());
+
+		// linear Clamp - 텍스쳐 좌표가 범위를 초과할 경우 가장자리 픽셀 값을 유지한다.
 		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 		device->CreateSamplerState(&sampDesc, linearClampSS.GetAddressOf());
 
-		// shadowPointSS
+		// shadowPointSS - 텍스쳐 좌표가 범위를 초과할경우 BorderColor을 사용한다.
 		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
 		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
 		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
 		sampDesc.BorderColor[0] = 100.0f; // 큰 Z값
-		sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+		sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;	///가장 가까운 픽셀을 선택하는 point Sampling
 		device->CreateSamplerState(&sampDesc, shadowPointSS.GetAddressOf());
 
 		// shadowCompareSS, 쉐이더 안에서는 SamplerComparisonState

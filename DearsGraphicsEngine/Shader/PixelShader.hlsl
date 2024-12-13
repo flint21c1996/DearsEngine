@@ -118,8 +118,8 @@ float4 main(PixelShaderInput input) : SV_TARGET0
    //return (input.normal, 1);
     
    ///이쁘게 보이게 하기위해 노력한 값.
-   float4 finalcolor = diffuse+ specular;
-   //float4 finalcolor = (color, 0) + (diffuse + specular*0.1f);
+   //float4 finalcolor = diffuse+ specular;
+   float4 finalcolor = (color, 0) + (diffuse + specular*0.1f);
    finalcolor.xyz *= shadowFactor;
    return finalcolor;
 

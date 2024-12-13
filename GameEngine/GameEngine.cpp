@@ -560,13 +560,13 @@ void GameEngine::Render()
 	//혹시 메인 카메라에서 보고 싶을경우
  	m_pDearsGraphicsEngine->SetCamera(lightCamera);
  	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempLightCConstantBuffer);
-// 	m_pDearsGraphicsEngine->RenderDepthMap(tempObject7->GetModelBuffer());
-// 	m_pDearsGraphicsEngine->RenderDepthMap(tempObject5->GetModelBuffer());
-//  	m_pDearsGraphicsEngine->RenderDepthMap(tempObject6->GetModelBuffer());
-//  	m_pDearsGraphicsEngine->RenderAniDepthMap(tempObject1->GetModelBuffer());
-//  	m_pDearsGraphicsEngine->RenderDepthMap(tempObject2->GetModelBuffer());
-//  	m_pDearsGraphicsEngine->RenderDepthMap(tempObject3->GetModelBuffer());
- 	//m_pDearsGraphicsEngine->RenderEquipDepthMap(tempObject4->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderDepthMap(tempObject7->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderDepthMap(tempObject5->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderDepthMap(tempObject6->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderAniDepthMap(tempObject1->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderDepthMap(tempObject2->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderDepthMap(tempObject3->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderEquipDepthMap(tempObject4->GetModelBuffer());
 
 	m_pDearsGraphicsEngine->SetCamera(tempCamera);
 	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempCCConstantBuffer);
