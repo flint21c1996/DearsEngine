@@ -11,6 +11,35 @@ cbuffer BoneTransforms : register(b2)
 {
     matrix boneTransforms[MAX_BONES];
 }
+float3x3 InverseMatrix3x3(float3x3 m)
+{
+    // Calculate the adjugate matrix (cofactor matrix)
+    float3x3 adj;
+    adj[0][0] = m[1][1] * m[2][2] - m[1][2] * m[2][1];
+    adj[0][1] = m[0][2] * m[2][1] - m[0][1] * m[2][2];
+    adj[0][2] = m[0][1] * m[1][2] - m[0][2] * m[1][1];
+
+    adj[1][0] = m[1][2] * m[2][0] - m[1][0] * m[2][2];
+    adj[1][1] = m[0][0] * m[2][2] - m[0][2] * m[2][0];
+    adj[1][2] = m[0][2] * m[1][0] - m[0][0] * m[1][2];
+
+    adj[2][0] = m[1][0] * m[2][1] - m[1][1] * m[2][0];
+    adj[2][1] = m[0][1] * m[2][0] - m[0][0] * m[2][1];
+    adj[2][2] = m[0][0] * m[1][1] - m[0][1] * m[1][0];
+
+    // Calculate the determinant
+    float det = m[0][0] * adj[0][0] + m[0][1] * adj[1][0] + m[0][2] * adj[2][0];
+
+    // Avoid division by zero (handle singular matrix)
+    if (abs(det) < 1e-6) {
+        return float3x3(0, 0, 0,   // Return zero matrix if determinant is near zero
+                        0, 0, 0,
+                        0, 0, 0);
+    }
+
+    // Calculate the inverse matrix
+    return adj / det;
+}
 
 PixelShaderInput main(AniVertexShaderInput input)
 {

@@ -76,6 +76,7 @@ namespace Dears {
 		extern PipelineStateObject ParticlePSO;
 		extern PipelineStateObject samplerPSO;
 		extern PipelineStateObject postEffectPSO;
+		extern PipelineStateObject PBRPSO;
 
 		// Blend States
 		extern ComPtr<ID3D11BlendState> OpacityBS;

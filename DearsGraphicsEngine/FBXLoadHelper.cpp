@@ -53,6 +53,13 @@ void FBXLoadHelper::Copy_Vertex(const aiMesh* _aiMesh, Mesh* _mesh)
 		_mesh->mVertices[i].mNormal.y = _aiMesh->mNormals[i].y;
 		_mesh->mVertices[i].mNormal.z = _aiMesh->mNormals[i].z;
 
+		if (_aiMesh->HasTangentsAndBitangents())
+		{
+		_mesh->mVertices[i].mTangentModel.x = _aiMesh->mTangents[i].x;
+		_mesh->mVertices[i].mTangentModel.y = _aiMesh->mTangents[i].y;
+		_mesh->mVertices[i].mTangentModel.z = _aiMesh->mTangents[i].z;
+		}
+
 		//AABB¼¼ÆÃ
 		auto& aabb = _mesh->mAABB;
 		const auto& vertex = _mesh->mVertices[i].mPosition;

@@ -351,6 +351,12 @@ void DearsGraphicsEngine::UpdateVSWaterConstantBuffer(ModelBuffer* _pModelBuffer
 
 }
 
+void DearsGraphicsEngine::UpdatePSPBRConstantBuffer(ModelBuffer* _pModelBuffer, PBRPixelShaderConstantData& _PBRConstantData)
+{
+//	RendererHelper::UpdateBuffer(m_pDeviceContext, _PBRConstantData, _pModelBuffer->m_PSPBRConstantBuffer);
+
+}
+
 void DearsGraphicsEngine::UpdateCommonConstantBuffer(CommonConstantBufferData& _CommonBufferData)
 {
  	_CommonBufferData.view = m_pTargetCamera->GetViewRow().Transpose();		// 시점 변환
@@ -442,6 +448,13 @@ void DearsGraphicsEngine::Rend_Model(ModelBuffer* _modelBuffer)
 	SetPipelineState(Dears::Graphics::BasicGeometryPSO);
 	mpRenderer->Render(_modelBuffer);
 }
+
+void DearsGraphicsEngine::Rend_PBR(ModelBuffer* _modelBuffer)
+{
+	SetPipelineState(Dears::Graphics::PBRPSO);
+	mpRenderer->Render(_modelBuffer);
+}
+
 
 void DearsGraphicsEngine::Rend_EquipmentModel(ModelBuffer* _modelBuffer)
 {

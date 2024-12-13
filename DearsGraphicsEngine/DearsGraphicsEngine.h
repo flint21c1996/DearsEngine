@@ -173,6 +173,7 @@ public:
 
 	//물을 표현할때 필요한 VSWaterConstnatBuffer을 업데이트한다.
 	void UpdateVSWaterConstantBuffer(ModelBuffer* _pModelBuffer, VSWaterConstantBufferData& _pPSEdgeConstantBuffer);
+	void UpdatePSPBRConstantBuffer(ModelBuffer* _pModelBuffer, PBRPixelShaderConstantData& _PBRConstantData);
 
 	void UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer, VSShadowConstantBufferData& _VsShadowConstantBufferData);
 	void UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer, PsShadowConstantBufferData& _VsShadowConstantBufferData);
@@ -184,6 +185,9 @@ public:
 	void SetPipelineState(PipelineStateObject& _pso);
 	void Rend_AnimateModel(ModelBuffer* _modelBuffer);
 	void Rend_Model(ModelBuffer* _modelBuffer);
+
+	void Rend_PBR(ModelBuffer* _modelBuffer);
+
 	void Rend_EquipmentModel(ModelBuffer* _modelBuffer);
 	void SetOpacityFactor(float blendFactor[4]);							//투명도를 설정한다.
 	void Rend_OpacitiyModel(ModelBuffer* _modelBuffer);						//투명한 정적 오브젝트를 렌더한다.

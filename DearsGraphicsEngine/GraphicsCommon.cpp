@@ -39,6 +39,7 @@ namespace Dears {
 		ComPtr<ID3D11VertexShader> particleVS;
 		ComPtr<ID3D11VertexShader> samplerVS;
 		ComPtr<ID3D11VertexShader> postProcessingVS;
+		ComPtr<ID3D11VertexShader> PBRVS;
 
 
 		ComPtr<ID3D11PixelShader> basicPS;
@@ -49,6 +50,7 @@ namespace Dears {
 		ComPtr<ID3D11PixelShader> particlePS;
 		ComPtr<ID3D11PixelShader> samplerPS;
 		ComPtr<ID3D11PixelShader> postProcessingPS;
+		ComPtr<ID3D11PixelShader> PBRPS;
 
 		//ComputeShader
 		ComPtr<ID3D11ComputeShader> particleComputeShader;
@@ -75,6 +77,7 @@ namespace Dears {
 		//postprocessing Layouts
 		ComPtr<ID3D11InputLayout> samplerIL;
 		ComPtr<ID3D11InputLayout> postProcessingIL;
+		ComPtr<ID3D11InputLayout> PBRIL;
 
 		// Graphics Pipeline States
 		PipelineStateObject BasicGeometryPSO;
@@ -97,6 +100,8 @@ namespace Dears {
 
 		PipelineStateObject samplerPSO;
 		PipelineStateObject postEffectPSO;
+		
+		PipelineStateObject PBRPSO;
 
 		// Blend States
 		ComPtr<ID3D11BlendState> OpacityBS;
@@ -298,7 +303,8 @@ namespace Dears {
 		vector<D3D11_INPUT_ELEMENT_DESC> basicInputElements = {
 			{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
 			{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0}
+			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
+			{"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0}
 		};
 
 		std::vector<D3D11_INPUT_ELEMENT_DESC> AnimeInputElements =
@@ -306,10 +312,11 @@ namespace Dears {
 			{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},				   //위치
 			{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},				   //노말
 			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},				   //텍스쳐 좌표
-			{"BONEINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0},		   //본 인덱스
-			{"BONEINDICES", 1, DXGI_FORMAT_R32G32B32A32_UINT, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0},		   //본 인덱스2
-			{"BONEWEIGHTS", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 64, D3D11_INPUT_PER_VERTEX_DATA, 0},		   //본의 가중치
-			{"BONEWEIGHTS", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 80, D3D11_INPUT_PER_VERTEX_DATA, 0}		   //본으 가중치2
+			{"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0},
+			{"BONEINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0, 44, D3D11_INPUT_PER_VERTEX_DATA, 0},		   //본 인덱스
+			{"BONEINDICES", 1, DXGI_FORMAT_R32G32B32A32_UINT, 0, 60, D3D11_INPUT_PER_VERTEX_DATA, 0},		   //본 인덱스2
+			{"BONEWEIGHTS", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 76, D3D11_INPUT_PER_VERTEX_DATA, 0},		   //본의 가중치
+			{"BONEWEIGHTS", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 92, D3D11_INPUT_PER_VERTEX_DATA, 0}		   //본으 가중치2
 		};
 		//DirectX::BoundingBox& objectBounds
 
@@ -320,6 +327,8 @@ namespace Dears {
 			 D3D11_INPUT_PER_VERTEX_DATA, 0},
 			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24,
 			 D3D11_INPUT_PER_VERTEX_DATA, 0},
+			{"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0}
+
 		};
 
 		vector<D3D11_INPUT_ELEMENT_DESC> EquipmentInputElements = {
@@ -329,20 +338,26 @@ namespace Dears {
 			 D3D11_INPUT_PER_VERTEX_DATA, 0},
 			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24,
 			 D3D11_INPUT_PER_VERTEX_DATA, 0},
+			{"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0}
+
 		};
 
 		vector<D3D11_INPUT_ELEMENT_DESC> BasicInstanceElements = {
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "SV_InstanceID", 0, DXGI_FORMAT_R32_UINT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 }
+			{"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0},
+
+			{ "SV_InstanceID", 0, DXGI_FORMAT_R32_UINT, 1, 44, D3D11_INPUT_PER_INSTANCE_DATA, 1 }
 		};
 		
 		vector< D3D11_INPUT_ELEMENT_DESC> dummyElement =
 		{
 			{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
 			{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0}
+			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
+			{"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0}
+
 		};
 
 		std::string VSfilename = "../DearsGraphicsEngine/Shader/VertexShader.hlsl";
@@ -402,6 +417,10 @@ namespace Dears {
 		RendererHelper::CreateVertexShaderAndInputLayout(device, VSfilename,
 			basicInputElements, postProcessingVS, postProcessingIL);
 
+		VSfilename = "../DearsGraphicsEngine/Shader/PBRVertexShader.hlsl";
+		RendererHelper::CreateVertexShaderAndInputLayout(device, VSfilename,
+			basicInputElements, PBRVS, PBRIL);
+
 		//Create PixelSahder
 		std::string PSfilename = "../DearsGraphicsEngine/Shader/PixelShader.hlsl";
 		RendererHelper::CreatePixelShader(device, PSfilename, basicPS);
@@ -426,6 +445,9 @@ namespace Dears {
 
 		PSfilename = "../DearsGraphicsEngine/Shader/PostProcessingPixelShader.hlsl";
 		RendererHelper::CreatePixelShader(device, PSfilename, postProcessingPS);
+
+		PSfilename = "../DearsGraphicsEngine/Shader/PBRPixelShader.hlsl";
+		RendererHelper::CreatePixelShader(device, PSfilename, PBRPS);
 
 		//Create ComputeShader
 		std::string CSfilename = "../DearsGraphicsEngine/Shader/TestComputeShader.hlsl";
@@ -540,6 +562,11 @@ namespace Dears {
 		postEffectPSO.m_pVertexShader = postProcessingVS;
 		postEffectPSO.m_pInputLayout = postProcessingIL;
 		postEffectPSO.m_pPixelShader = postProcessingPS;
+
+		PBRPSO = BasicGeometryPSO;
+		postEffectPSO.m_pVertexShader = PBRVS;
+		postEffectPSO.m_pInputLayout = PBRIL;
+		postEffectPSO.m_pPixelShader = PBRPS;
 	}
 
 }

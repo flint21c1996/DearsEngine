@@ -313,6 +313,9 @@
     <FxCompile Include="Shader\PBRPixelShader.hlsl">
       <Filter>shader\PBR</Filter>
     </FxCompile>
+    <FxCompile Include="Shader\PBRVertexShader.hlsl">
+      <Filter>shader\PBR</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Common.hlsli">

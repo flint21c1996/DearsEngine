@@ -134,11 +134,6 @@ void tempObject::SetDiffuseTexture(std::string _TextureName)
 
 }
 
-void tempObject::SetNormalMapTexture(std::string _TextureName)
-{
-	mpModelBuffer->m_normaltexture = mpGraphicsEngine->Get_Textures(_TextureName);
-
-}
 
 void tempObject::SetCubeMapTexture(std::string _DiffuseTextureName, std::string _SpecularTextureName)
 {
@@ -148,6 +143,11 @@ void tempObject::SetCubeMapTexture(std::string _DiffuseTextureName, std::string 
 	{
 	mpModelBuffer->m_cubeMapSpecularResourceView = mpGraphicsEngine->Get_Textures(_SpecularTextureName);
 	}
+}
+
+void tempObject::SetPBRTextures(std::string albedoTex, std::string normalTex, std::string aoTex, std::string metallicTex, std::string roughnessTex)
+{
+
 }
 
 void tempObject::SetAnimation(std::string _Aname)

@@ -121,6 +121,7 @@ void Renderer::Render(ModelBuffer* _modelbuffer)
 	m_pDeviceContext->VSSetConstantBuffers(5, 1, _modelbuffer->m_pVSWaterConstantBuffer.GetAddressOf());
 
 	m_pDeviceContext->PSSetConstantBuffers(0, 1, _modelbuffer->m_pPSConstantBuffer.GetAddressOf());
+	m_pDeviceContext->PSSetConstantBuffers(1, 1, _modelbuffer->m_pPSConstantBuffer.GetAddressOf());
 
 	ID3D11ShaderResourceView* pixelResources[1] = 
 	{

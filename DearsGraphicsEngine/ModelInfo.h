@@ -25,6 +25,7 @@ public:
 	Vector3 mPosition;
 	Vector3 mNormal;
 	Vector2 mTexcoords[MAX_NUM_TEXCOORD];
+	Vector3 mTangentModel;
 	UINT mBoneIndex[MAX_BONES_INDICE] = { UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX };
 	float mBoneWeights[MAX_BONES_INDICE] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 };

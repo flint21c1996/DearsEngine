@@ -1,170 +1,154 @@
 #include "Common.hlsli"
 
-Texture2D g_texture0 : register(t0);
-Texture2D brdfTex : register(t1);
-Texture2D albedoTex : register(t2);
-Texture2D normalTex : register(t3);
-Texture2D aoTex : register(t4);
-Texture2D metallicTex : register(t5);
-Texture2D roughnessTex : register(t6);
+Texture2D albedoTex : register(t1);
+Texture2D normalTex : register(t2);
+Texture2D aoTex : register(t3);
+Texture2D metallicTex : register(t4);
+Texture2D roughnessTex : register(t5);
 
-cbuffer PixelConstantBuffer : register(b0)
+cbuffer PixelConstantBuffer : register(b1)
 {
     float maxLights;
-    float3 dummy;
-    Material material;
-
     int useAlbedoMap;
     int useNormalMap;
     int useAOMap; // Ambient Occlusion
-    int invertNormalMapY;
+    
     int useMetallicMap;
     int useRoughnessMap;
+    int dummy1;
+    int dummy2;
+    
+    PBRMaterial material;
 };
 
 #define LIGHT_DIRECTIONAL 1
 #define LIGHT_SPOT 2
-float3 LightRadiance(Light light, float3 posWorld, Texture2D shadowMap)
+#define Fdielectric  0.04  // 비금속(Dielectric) 재질의 F0
+//사실 common.hlsli에 있는 함수랑 똑같은 함수다..
+float3 PBRSchlickFresnel(float3 F0, float NdotH)
 {
-     // 월드 좌표에서 라이트 뷰-투영 좌표로 변환
-    float4 lightSpacePos = mul(float4(posWorld, 1.0f), light.viewProj);
-
-    // 클립 공간 좌표에서 NDC 좌표로 변환
-    lightSpacePos.xy /= float2(1920.0f, 1080.0f);
-
-    //float2 screenPos = input.pos.xy / float2(1920.0f, 1080.0f);
-    
-    // 텍스처 좌표로 변환 (0, 1 범위)
-    float2 shadowTexCoord = lightSpacePos.xy * 0.5f + 0.5f;
-
-    // 그림자 맵에서 깊이 값을 샘플링 (현재 좌표의 깊이)
-    float shadowMapDepth = shadowMap.Sample(shadowPointSampler, shadowTexCoord).r;
-
-    // 그림자 맵에서의 z 값과 비교
-    float bias = 0.005f; // 그림자 경계를 부드럽게 하기 위한 바이어스
-    float shadowFactor = (lightSpacePos.z - bias > shadowMapDepth) ? 0.0f : 1.0f;
-
-    // 빛의 색과 그림자 효과 적용
-    return light.lightColor * shadowFactor;
+    float f = 1.0f - NdotH;
+    return F0 + (1.0f - F0) * pow(f, 5.0);
 }
 
-float GetNormal(PixelShaderInput input)
+//노말맵에서 노말값을 가져온다.
+float GetNormal(PBRPixelShaderInput input)
 {
-    float normalWorld = input.normal;
-    if(useNormalMap)    //노말맵을 쓸것인가?
+    float3 normalWorld = input.normal;
+    float3 tangent = input.tangentWorld;
+    
+    if (useNormalMap)    //노말맵을 쓸것인가?
     {
-    float normal = normalTex.Sample(linearWrapSS, input.texcoord, 0.0).rgb; //mipmap - 0.0 (기본 Mip사용)
-    normal = 2.0 * normal - 1.0; //[-1.0 ~ 1.0]으로 범위를 조절
+        float3 normal = normalTex.Sample(linearWrapSampler, input.texcoord, 0.0).rgb; //mipmap - 0.0 (기본 Mip사용)
+        normal = 2.0 * normal - 1.0; //[-1.0 ~ 1.0]으로 범위를 조절
+        
+        float3 N = normalWorld;     //노말
+        float3 T = tangent;         //탄젠트
+        float3 B = cross(N, T);     //바이 탄젠트
+        
+        float3x3 TBN = float3x3(T, B, N);
+        normalWorld = normalize(mul(normal, TBN));
     }
+    return normalWorld;
 
 }
 
-float4 main(PixelShaderInput input) : SV_TARGET0
+float3 DiffuseIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
+                  float metallic)
 {
-   // float PixelToEye = normalize(eyeWorld - input.posWorld);
-   // float3 normalWorld = GetNormal(input);
-
-
-
-
-
-   float3 normalWorld = input.normal;
+    float3 F0 = lerp(Fdielectric, albedo, metallic);
+    float3 F = PBRSchlickFresnel(F0, max(0.0, dot(normalWorld, pixelToEye)));
+    float3 kd = lerp(1.0 - F, 0.0, metallic);
     
-   float3 toEye = normalize(eyeWorld - input.posWorld);
-
-   float3 color = float3(0, 0, 0);
-
-   int i = 0;
-
-   float3 lightColor = (1.0f, 1.0f, 1.0f);
-   color += ComputeDirectionalLight(lights[0], material, input.normal, toEye);
-
-   //lightColor = LightRadiance(lights[0], input.posWorld, shadowMaps[0]);
+    // 앞에서 사용했던 방법과 동일
+    // float3 irradiance = ... TODO
     
-    
-    // 월드 좌표에서 라이트 뷰-투영 좌표로 변환
-   float4 lightSpacePos = mul(float4(input.posWorld, 1.0f), lights[0].viewProj);
-
-   // 클립 공간 좌표에서 NDC 좌표로 변환
-   lightSpacePos.xyz /= lightSpacePos.w;
-    lightSpacePos.y *= -1;
-       
-   // 텍스처 좌표로 변환 (0, 1 범위)
-   float2 shadowTexCoord = lightSpacePos.xy * 0.5f + 0.5f;
-  
-   // 그림자 맵에서 깊이 값을 샘플링 (현재 좌표의 깊이)
-   float shadowMapDepth = shadowMaps[0].Sample(shadowPointSampler, shadowTexCoord).r;
-
-   // 그림자 맵에서의 z 값과 비교
-   float bias = 0.003f; // 그림자 경계를 부드럽게 하기 위한 바이어스
-   float shadowFactor = (lightSpacePos.z - bias > shadowMapDepth) ? 0.7f : 1.0f;
-
-   // 빛의 색과 그림자 효과 적용
-   //light.lightColor * shadowFactor;
-    
-    
-    
-   float4 diffuse = g_diffuseCube.Sample(linearWrapSampler, input.normal);
-   float4 specular = g_specularCube.Sample(linearWrapSampler, reflect(-toEye, input.normal));
-   //float4 specular = g_specularCube.Sample(linearWrapSampler, reflect(-toEye, input.normal));
-    
-   diffuse *= float4(material.diffuse, 1.0); //RGB채널끼리 다르게 할 수도 있다.
- 
-   //다양한 재질의 반사 특성을 더 현실적으로 표현하기위해
-   specular *= pow((specular.x + specular.y + specular.z) / 3.0, material.shininess);
-   specular *= float4(material.specular, 1.0);
-    
-   float3 f = SchlickFresnel(material.fresnel, input.normal, toEye);
-   specular.xyz *= f;
-
-
-   //if (useTexture) /후에 추가할 것.
-   diffuse *= g_texture0.Sample(linearWrapSampler, input.texcoord);
-   //specular *= float4(1.0,1.0,1.0,1.0);  /후에 specular texture가 있을경우
-    
-   //고전 IBL - 조명 연산은 안들어가 있다.
-   //return (diffuse + specular) * shadowFactor;
-   //return (input.normal, 1);
-    
-   ///이쁘게 보이게 하기위해 노력한 값.
-   float4 finalcolor = diffuse+ specular;
-   //float4 finalcolor = (color, 0) + (diffuse + specular*0.1f);
-   finalcolor.xyz *= shadowFactor;
-   return finalcolor;
-
-   // + 조명 연산까지 추가해서 만들어봄
-   //return float4(color, 1.0) * (diffuse + specular)* shadowFactor;
-    
-   //specularCube의 이미지 값에 맞춰 픽셀 색상만 결정하게 한다.
-   //return g_specularCube.Sample(g_sampler, reflect(-toEye, input.normal));
-    
-   //그냥 렌더 (+조명)
-   //return float4(color, 1.0) * g_texture0.Sample(linearWrapSampler, input.texcoord) * shadowFactor;
+    return kd * albedo;
 }
 
-// /혹시 메인 RT0에 깊이맵을 보고싶을경우.
-// 깊이 값을 선형화하는 함수
-// float LinearizeDepth(float depth, float nearPlane, float farPlane)
-// {
-//     return (2.0 * nearPlane) / (farPlane + nearPlane - depth * (farPlane - nearPlane));
-// }
-// 
-// float4 main(PixelShaderInput input) : SV_TARGET
-// {
-//     float2 screenPos = input.pos.xy / float2(1920.0f, 1080.0f); // 입력 좌표를 해상도로 나누어 -> NDC 좌표로 변환
-//      
-//     float4 texcoord = mul(float4(input.posWorld, 1.0f), viewproj);
-//     float2 screen = texcoord.xy / texcoord.w;                
-//     screen.y *= -1;
-//     screen = screen *0.5f +0.5f;
-// 
-//     // 깊이 값을 텍스처 좌표를 이용해 샘플링
-//     //float depthValue = shadowMaps[0].Sample(shadowPointSampler, screenPos).r;
-//     float depthValue = shadowMaps[0].Sample(shadowPointSampler, screen).r;
-//     
-//     //색상의 변화를 뚜렷히 하기 위해서.
-//     depthValue = LinearizeDepth(depthValue, 0.1, 100);
-// 
-//     // 깊이 값을 그레이스케일로 변환 (0.0 ~ 1.0)
-//     return float4(depthValue, depthValue, depthValue, 1.0f); // RGB에 동일한 값을 넣어 그레이스케일로 출력
-// }
+float3 SpecularIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
+                   float metallic, float roughness)
+{
+    // TODO: 슬라이드 Environment BRDF
+    // float2 specularBRDF = brdfTex.Sample(clampSampler, float2(... , ...)).rg;
+    
+    // 앞에서 사용했던 방법과 동일
+    // float3 specularIrradiance = specularIBLTex.SampleLevel(linearSampler, TODO, roughness * 10.0f).rgb;
+    float3 F0 = lerp(Fdielectric, albedo, metallic);
+
+    return float3(1, 1, 1);
+
+}
+
+float3 AmbientLightingByIBL(float3 albedo, float3 normalW, float3 pixelToEye, float ao,
+                            float metallic, float roughness)
+{
+    float3 diffuseIBL = DiffuseIBL(albedo, normalW, pixelToEye, metallic);
+    float3 specularIBL = SpecularIBL(albedo, normalW, pixelToEye, metallic, roughness);
+    
+    return (diffuseIBL + specularIBL) * ao;
+}
+
+float NdfGGX(float NdotH, float roughness)
+{
+    // TODO: 방정식 (3)
+    return 1.0;
+}
+
+// TODO: 방정식 (4)
+float SchlickGGX(float NdotI, float NdotO, float roughness)
+{
+    return 1.0;
+}
+
+float4 main(PBRPixelShaderInput input) : SV_TARGET0
+{
+    float pixelToEye = normalize(eyeWorld - input.posWorld);
+    float3 normalWorld = GetNormal(input);
+    
+    float albedo = useAlbedoMap ? albedoTex.Sample(linearWrapSampler, input.texcoord).rgb 
+                                 : material.albedo;
+    float ao = useAOMap ? aoTex.SampleLevel(linearWrapSampler, input.texcoord, 0.0).r : 1.0;
+    float metallic = useMetallicMap ? metallicTex.Sample(linearWrapSampler, input.texcoord).r 
+                                    : material.metallic; 
+    float roughness = useRoughnessMap ? roughnessTex.Sample(linearWrapSampler, input.texcoord).r 
+                                      : material.roughness;
+    
+    //GI
+    float3 ambientLighting = AmbientLightingByIBL(albedo, normalWorld, pixelToEye, ao,
+                                                  metallic, roughness);
+    //Diffuse + Specular
+    float3 directLighting = float3(0, 0, 0);
+
+    //---------우선 directionLighting만! 후에 Point도, Spot도 추가해보자!!-----------------
+    //[unroll], for문.. 어쩌고..
+    float lightVec = lights[0].position - input.posWorld;
+    float halfway = normalize(pixelToEye + lightVec);
+    
+    float NdotL = max(0.0, dot(normalWorld, lightVec));
+    float NdotH = max(0.0, dot(normalWorld, halfway));
+    float NdotV = max(0.0, dot(normalWorld, pixelToEye));
+    
+    float3 F0 = lerp(Fdielectric, albedo, metallic);
+    float3 F = PBRSchlickFresnel(F0, max(0.0, dot(halfway, pixelToEye)));
+    float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metallic);
+    
+    //Diffuse BRDF를 구한다.
+    float3 diffuseBRDF = kd * albedo;
+    
+    float D = NdfGGX(NdotH, roughness);
+    float3 G = SchlickGGX(NdotL, NdotV, roughness);
+    
+    //Cook_Torrence Specular BRDF를 구한다.
+    float3 specularBRDF = (F * D * G) / max(1e-5, 4.0 * NdotL * NdotV);
+    float3 radiance = lights[0].strength * saturate((lights[0].fallOffEnd - length(lightVec))
+                    / (lights[0].fallOffEnd - lights[0].fallOffStart));
+    
+    directLighting += (diffuseBRDF + specularBRDF) * radiance * NdotL;
+    //------------------여기까지 for문 끝-------------------------------------------
+    
+    float4 finalColor = ((ambientLighting + directLighting), 1.0f);
+    finalColor = clamp(finalColor, 0.0, 1000.f);
+    return finalColor;
+}
+    

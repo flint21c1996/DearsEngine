@@ -17,6 +17,14 @@ struct MaterialProperties
 	float dummy3; //16바이트
 };
 
+struct PBRMaterial
+{
+	Vector3 albedo = Vector3(1.0f);
+	float roughness = 0.0f;
+	float metallic = 0.0f;
+	Vector3 dummy;
+};
+
 ///9.9.2024 DJ 01:17
 ///diffuse와 specular을 vector3로 하는 이유는 RGB값에 따라 각 성분을 따로 다루기 위함이다.
 

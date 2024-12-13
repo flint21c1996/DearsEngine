@@ -20,6 +20,8 @@ struct ModelBuffer // 1개의 모델에 대해 여러 개의 객체를 가질 경우를 대비해 만드
 	ComPtr<ID3D11Buffer> m_pPSConstantBuffer;				// 픽셸 컨스턴트 버퍼
 	ComPtr<ID3D11Buffer> m_BoneConstantBuffer;				// 본 컨스턴트 버퍼	   
 	ComPtr<ID3D11Buffer> m_TargetBoneConstantBuffer;		// 타겟 본 컨스턴트 버퍼	   
+	
+	ComPtr<ID3D11Buffer> m_PSPBRConstantBuffer;				//PBR Pixel Shader 컨스턴트버퍼    
 
 	ComPtr<ID3D11Buffer> m_InstanceConstantBuffer;			//인스턴싱을 할때 필요한 인스턴스 컨스턴트 버퍼	   
 	unsigned int mNumInstances = 0;								//인스턴스 개수
@@ -30,7 +32,14 @@ struct ModelBuffer // 1개의 모델에 대해 여러 개의 객체를 가질 경우를 대비해 만드
 	ComPtr<ID3D11Buffer> m_pVSWaterConstantBuffer;			//물 컨스턴트 버퍼 -> 후에 물 쉐이딩으로 발전시킨다.
 
 	ComPtr<ID3D11ShaderResourceView> m_diffusetexture;		// 텍스처와 쉐이더 리소스 뷰 구조체
-	ComPtr<ID3D11ShaderResourceView> m_normaltexture;
+
+	ComPtr<ID3D11ShaderResourceView> brdfTex;
+	ComPtr<ID3D11ShaderResourceView> albedoTex;
+	ComPtr<ID3D11ShaderResourceView> normalTex;
+	ComPtr<ID3D11ShaderResourceView> aoTex;
+	ComPtr<ID3D11ShaderResourceView> metallicTex;
+	ComPtr<ID3D11ShaderResourceView> roughnessTex;
+
 	ComPtr<ID3D11ShaderResourceView> m_cubeMapDiffuseResourceView;
 	ComPtr<ID3D11ShaderResourceView> m_cubeMapSpecularResourceView;
 	
@@ -57,7 +66,7 @@ struct ModelBuffer // 1개의 모델에 대해 여러 개의 객체를 가질 경우를 대비해 만드
 		m_pPSConstantBuffer = _modelBuffer.m_pPSConstantBuffer;
 		m_BoneConstantBuffer = _modelBuffer.m_BoneConstantBuffer;
 		m_diffusetexture = _modelBuffer.m_diffusetexture;
-		m_normaltexture = _modelBuffer.m_normaltexture;
+		normalTex = _modelBuffer.normalTex;
 		offset = _modelBuffer.offset;
 	}
 };

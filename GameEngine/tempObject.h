@@ -48,9 +48,12 @@ public:
 
 	VSEdgeConstantBufferData mVSEdgeConstantBufferData;
 	PSEdgeConstantBufferData mPSEdgeConstantBufferData;
+
+	PBRPixelShaderConstantData mPSPBRConstantBufferData;
 	
 	//물쉐이딩에 필요한 정보 UV좌표계를 윔직이게 하기위한.
 	VSWaterConstantBufferData mVSWaterConstantBufferData;
+	
 
 	bool mIs_VSconstant;
 	bool mIs_VSBoneConstant;
@@ -64,6 +67,7 @@ public:
 	bool mIs_PSEdgeConstant;
 
 	bool mIs_VSWaterConstant = false;
+	bool mIs_PSPBRConstant = false;
 
 
 	int mTargetBoneIndex;			//장비의 경우 타겟본의 인덱스를 알고 있어야한다. -> 똑같은 계산을 두번 안해도 된다.
@@ -99,7 +103,11 @@ public:
 		mpModelBuffer->m_pPSConstantBuffer = mpGraphicsEngine->CreateConstantBuffer(mPSConstantBuffer);  mIs_PSconstant = true;
 	};
 
-	
+	void CreatePSPBRConstantBuffer()
+	{
+		mpModelBuffer->m_pPSConstantBuffer = mpGraphicsEngine->CreateConstantBuffer(mPSPBRConstantBufferData);  mIs_PSPBRConstant = true;
+	};
+
 	//난 이녀석을 업데이트 시킬 생각은 일단 지금없다. 
 	void CreateVSInstanceConstantBuffer()
 	{
@@ -137,8 +145,10 @@ public:
 	//void SetModelBuffer(std::string _VIBname, std::string _dTname, std::string _MIname = std::string(), std::string _Aname = std::string());
 	void SetVIBuffer(std::string _bufferName);
 	void SetDiffuseTexture(std::string _TextureName);
-	void SetNormalMapTexture(std::string _TextureName);
 	void SetCubeMapTexture(std::string _DiffuseTextureName = "", std::string _SpecularTextureName = "");
+
+	void SetPBRTextures(std::string albedoTex, std::string normalTex, std::string aoTex, std::string metallicTex, std::string roughnessTex);
+
 
 	void SetAnimation(std::string _AnimationName);
 	void SetNextAnimation(std::string _NextAnimationname);

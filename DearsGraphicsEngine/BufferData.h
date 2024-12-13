@@ -42,11 +42,24 @@ struct VSEdgeConstantBufferData
 
 struct PSConstantBufferData
 {
-	float maxLights = MAX_LIGHTS;			//12, LightÀÇ ÃÑ °³¼ö
-	Vector3 dummy;					//4
+	float maxLights = MAX_LIGHTS;			//LightÀÇ ÃÑ °³¼ö
+	Vector3 dummy;							//4
 	MaterialProperties material;
 };
+struct PBRPixelShaderConstantData
+{
+	float maxLights = MAX_LIGHTS;			//LightÀÇ ÃÑ °³¼ö
+	int useAlbedoMap = 0;
+	int useNormalMap = 0;
+	int useAOMap = 0; // Ambient Occlusion		//16
 
+	int useMetallicMap = 0;
+	int useRoughnessMap = 0;
+	int dummy1;
+	int dummy2;								//32
+
+	PBRMaterial material;
+};
 struct PsShadowConstantBufferData
 {
 	Vector3 lightDirection;

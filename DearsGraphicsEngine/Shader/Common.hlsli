@@ -67,6 +67,7 @@ struct VertexShaderInput
     float3 pos : POSITION; //모델 좌표계의 위치, position
     float3 normal : NORMAL; //모델 좌표계의 normal
     float2 texcoord : TEXCOORD;
+    float3 tangentModel : TANGENT;
 };
 
 //애니메이션이 있는 모델
@@ -75,6 +76,7 @@ struct AniVertexShaderInput
     float3 pos : POSITION; //모델 좌표계의 위치, position
     float3 normal : NORMAL; //모델 좌표계의 normal
     float2 texcoord : TEXCOORD;
+    float3 tangentModel : TANGENT;
     uint4 boneIndices1 : BONEINDICES; //본 인덱스
     uint4 boneIndices2 : BONEINDICES; //본 인덱스
     float4 boneWeights1 : BONEWEIGHTS; //본 가중치
@@ -88,6 +90,15 @@ struct PixelShaderInput
     float3 normal : NORMAL;
     float2 texcoord : TEXCOORD0; //셰이딩
     float3 ndcPos : TEXCOORD1; // 
+};
+
+struct PBRPixelShaderInput
+{
+    float4 pos : SV_POSITION; // 스크린 위치
+    float3 posWorld : POSITION; // World 위치 (조명 계산에 사용)
+    float3 normal : NORMAL;
+    float2 texcoord : TEXCOORD0; //셰이딩
+    float3 tangentWorld : TANGENT0;
 };
 
 
@@ -104,6 +115,13 @@ struct Material
     float dummy3; //16바이트
 };
 
+struct PBRMaterial
+{
+    float3 albedo; // baseColor
+    float roughness;
+    float metallic;
+    float3 dummy;
+};
 
 // 시맨틱의 역할
 // 시맨틱은 데이터의 종류를 나타낸다. 
