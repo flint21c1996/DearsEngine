@@ -631,7 +631,7 @@ void GameEngine::Render()
 
 	///여기 후처리 필터를 적용할수 있다. DearsGame엔진에서 이러한 부분이 힘들다면.. EndRender안에 넣는 꼼수도 가능하지 않을까?
 
-	//.
+	
 
  	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, Matrix::CreateTranslation({ 0,0,-35 }));
  	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, Matrix::CreateTranslation({ 0,0,0 }));
