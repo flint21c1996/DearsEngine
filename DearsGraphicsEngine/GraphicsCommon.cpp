@@ -564,9 +564,9 @@ namespace Dears {
 		postEffectPSO.m_pPixelShader = postProcessingPS;
 
 		PBRPSO = BasicGeometryPSO;
-		postEffectPSO.m_pVertexShader = PBRVS;
-		postEffectPSO.m_pInputLayout = PBRIL;
-		postEffectPSO.m_pPixelShader = PBRPS;
+		PBRPSO.m_pVertexShader = PBRVS;
+		PBRPSO.m_pInputLayout = PBRIL;
+		PBRPSO.m_pPixelShader = PBRPS;
 	}
 
 }

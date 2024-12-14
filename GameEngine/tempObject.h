@@ -105,7 +105,7 @@ public:
 
 	void CreatePSPBRConstantBuffer()
 	{
-		mpModelBuffer->m_pPSConstantBuffer = mpGraphicsEngine->CreateConstantBuffer(mPSPBRConstantBufferData);  mIs_PSPBRConstant = true;
+		mpModelBuffer->m_PSPBRConstantBuffer = mpGraphicsEngine->CreateConstantBuffer(mPSPBRConstantBufferData);  mIs_PSPBRConstant = true;
 	};
 
 	//난 이녀석을 업데이트 시킬 생각은 일단 지금없다. 
@@ -147,7 +147,13 @@ public:
 	void SetDiffuseTexture(std::string _TextureName);
 	void SetCubeMapTexture(std::string _DiffuseTextureName = "", std::string _SpecularTextureName = "");
 
-	void SetPBRTextures(std::string albedoTex, std::string normalTex, std::string aoTex, std::string metallicTex, std::string roughnessTex);
+	void SetPBRTextures(
+		std::string albedoTex = "",
+		std::string normalTex = "",
+		std::string aoTex = "",
+		std::string metallicTex = "",
+		std::string roughnessTex = ""
+	);
 
 
 	void SetAnimation(std::string _AnimationName);

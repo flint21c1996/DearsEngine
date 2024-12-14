@@ -353,7 +353,7 @@ void DearsGraphicsEngine::UpdateVSWaterConstantBuffer(ModelBuffer* _pModelBuffer
 
 void DearsGraphicsEngine::UpdatePSPBRConstantBuffer(ModelBuffer* _pModelBuffer, PBRPixelShaderConstantData& _PBRConstantData)
 {
-//	RendererHelper::UpdateBuffer(m_pDeviceContext, _PBRConstantData, _pModelBuffer->m_PSPBRConstantBuffer);
+	RendererHelper::UpdateBuffer(m_pDeviceContext, _PBRConstantData, _pModelBuffer->m_PSPBRConstantBuffer);
 
 }
 

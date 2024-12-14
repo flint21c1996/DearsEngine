@@ -6,7 +6,7 @@ Texture2D aoTex : register(t3);
 Texture2D metallicTex : register(t4);
 Texture2D roughnessTex : register(t5);
 
-cbuffer PixelConstantBuffer : register(b1)
+cbuffer PixelConstantBuffer : register(b2)
 {
     float maxLights;
     int useAlbedoMap;
@@ -28,6 +28,7 @@ cbuffer PixelConstantBuffer : register(b1)
 float3 PBRSchlickFresnel(float3 F0, float NdotH)
 {
     float f = 1.0f - NdotH;
+    //return F0 + (1.0 - F0) * pow(2.0, (-5.55473 * NdotH - 6.98316) * NdotH);
     return F0 + (1.0f - F0) * pow(f, 5.0);
 }
 
@@ -47,6 +48,8 @@ float GetNormal(PBRPixelShaderInput input)
         float3 B = cross(N, T);     //바이 탄젠트
         
         float3x3 TBN = float3x3(T, B, N);
+        //TBN = normalize(TBN);
+        
         normalWorld = normalize(mul(normal, TBN));
     }
     return normalWorld;
@@ -60,23 +63,25 @@ float3 DiffuseIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
     float3 F = PBRSchlickFresnel(F0, max(0.0, dot(normalWorld, pixelToEye)));
     float3 kd = lerp(1.0 - F, 0.0, metallic);
     
-    // 앞에서 사용했던 방법과 동일
-    // float3 irradiance = ... TODO
+    float3 irradiance = g_diffuseCube.Sample(linearClampSampler, normalWorld).rgb;
     
-    return kd * albedo;
+    return kd * albedo * irradiance;
 }
 
 float3 SpecularIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
                    float metallic, float roughness)
 {
-    // TODO: 슬라이드 Environment BRDF
-    // float2 specularBRDF = brdfTex.Sample(clampSampler, float2(... , ...)).rg;
+    //float2 specularBRDF = g_specularCube.Sample(linearWrapSampler,
+    //                            float2(dot(normalWorld, pixelToEye), 1.f - roughness)).rg;
     
-    // 앞에서 사용했던 방법과 동일
-    // float3 specularIrradiance = specularIBLTex.SampleLevel(linearSampler, TODO, roughness * 10.0f).rgb;
+    //밉맵 -> 거칠기가 거칠수록 low밉맵을 쓴다
+    float3 specularIrradiance = g_specularCube.SampleLevel(linearWrapSampler,
+                                reflect(-pixelToEye, normalWorld), roughness * 1.0f/*밉맵의 개수*/).rgb;
+    
     float3 F0 = lerp(Fdielectric, albedo, metallic);
 
-    return float3(1, 1, 1);
+    //return (F0 * specularBRDF.x + specularBRDF.y)*specularIrradiance;
+    return F0 *specularIrradiance;
 
 }
 
@@ -88,17 +93,28 @@ float3 AmbientLightingByIBL(float3 albedo, float3 normalW, float3 pixelToEye, fl
     
     return (diffuseIBL + specularIBL) * ao;
 }
-
+#define PI 3.141592
 float NdfGGX(float NdotH, float roughness)
 {
-    // TODO: 방정식 (3)
-    return 1.0;
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float b = (NdotH * NdotH) * (a2 - 1.f) + 1.f;
+    
+    return a2 / (PI * b * b);
+
 }
 
-// TODO: 방정식 (4)
-float SchlickGGX(float NdotI, float NdotO, float roughness)
+float SchlickGsub(float NdotV, float k)
 {
-    return 1.0;
+    return NdotV / (NdotV * (1.f - k) + k);
+}
+
+float SchlickGGX(float NdotL, float NdotV, float roughness)
+{
+    float a = roughness + 1.f;
+    float K_direct = (a * a) / 8.0f;       ///K_IBL의 경우 (roughness^2)/2이다
+    return SchlickGsub(NdotL, K_direct) * SchlickGsub(NdotV, K_direct);
+
 }
 
 float4 main(PBRPixelShaderInput input) : SV_TARGET0

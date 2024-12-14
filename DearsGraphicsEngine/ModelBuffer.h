@@ -33,7 +33,6 @@ struct ModelBuffer // 1개의 모델에 대해 여러 개의 객체를 가질 경우를 대비해 만드
 
 	ComPtr<ID3D11ShaderResourceView> m_diffusetexture;		// 텍스처와 쉐이더 리소스 뷰 구조체
 
-	ComPtr<ID3D11ShaderResourceView> brdfTex;
 	ComPtr<ID3D11ShaderResourceView> albedoTex;
 	ComPtr<ID3D11ShaderResourceView> normalTex;
 	ComPtr<ID3D11ShaderResourceView> aoTex;

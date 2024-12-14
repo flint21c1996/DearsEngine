@@ -82,6 +82,13 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "Hair-Orange.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "Weapon-Black.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "coco.jpg");
+
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "albedo.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "ao.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "metallic.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "normal.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "roughness.png");
+	
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "saintpeters.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_diffuseIBL.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_specularIBL.dds");
@@ -177,6 +184,14 @@ void GameEngine::Initialize()
 	tempObject4->CreateVSConstantBuffer();
 	tempObject4->CreateVSTargetBoneConstantBuffer();
 	tempObject4->CreatePSConstantBuffer();
+	tempObject4->CreatePSPBRConstantBuffer();
+	tempObject4->SetPBRTextures(
+		"albedo.png",
+		"normal.png",
+		"ao.png",
+		"metallic.png",
+		"roughness.png"
+	);
 
 	tempObject4->SetVIBuffer("MySphere");
 	tempObject4->SetModelInfo("Hat 04.FBX");
@@ -185,7 +200,7 @@ void GameEngine::Initialize()
 	tempObject4->GetObjectTargetBoneMatrix(tempObject1->mpVSBoneConstantBufferData);
 	tempObject4->SetObjectRot(Matrix::CreateRotationX(1.570));
 	//tempObject4->SetObjectPos(m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigHead", 0.1f));
-	tempObject4->SetObjectScl(Matrix::CreateScale(1));
+	tempObject4->SetObjectScl(Matrix::CreateScale(15));
 	tempObject4->SetObjectPos(Matrix::CreateTranslation({ 0,30, 0 }));
 
 	//tempObject4->SetObjectPos(Matrix::CreateTranslation({ 10,0,0 }));
@@ -578,7 +593,7 @@ void GameEngine::Render()
  	m_pDearsGraphicsEngine->Rend_Model(tempObject2->GetModelBuffer());
 
 	m_pDearsGraphicsEngine->Rend_BillBoard(tempObject3->GetModelBuffer());		//애니메이션 모델을 랜더한다.
-	m_pDearsGraphicsEngine->Rend_Model(tempObject4->GetModelBuffer());
+	m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
 
 
  	//m_pDearsGraphicsEngine->Rend_Model(tempObject5->GetModelBuffer());

@@ -98,6 +98,12 @@ void tempObject::Update()
 		mpGraphicsEngine->UpdateVSWaterConstantBuffer(mpModelBuffer, mVSWaterConstantBufferData);
 
 	}
+	if (mIs_PSPBRConstant)
+	{
+		mpGraphicsEngine->UpdatePSPBRConstantBuffer(mpModelBuffer, mPSPBRConstantBufferData);
+
+	}
+
 }
 
 
@@ -147,7 +153,51 @@ void tempObject::SetCubeMapTexture(std::string _DiffuseTextureName, std::string 
 
 void tempObject::SetPBRTextures(std::string albedoTex, std::string normalTex, std::string aoTex, std::string metallicTex, std::string roughnessTex)
 {
-
+	if (albedoTex != "")
+	{
+		mpModelBuffer->albedoTex = mpGraphicsEngine->Get_Textures(albedoTex);
+		mPSPBRConstantBufferData.useAlbedoMap = 1;
+	}
+	else
+	{
+		mPSPBRConstantBufferData.useAlbedoMap = 0;
+	}
+	if (normalTex != "")
+	{
+		mpModelBuffer->normalTex = mpGraphicsEngine->Get_Textures(normalTex);
+		mPSPBRConstantBufferData.useNormalMap = 1;
+	}
+	else
+	{
+		mPSPBRConstantBufferData.useNormalMap = 0;
+	}
+	if (aoTex != "")
+	{
+		mpModelBuffer->aoTex = mpGraphicsEngine->Get_Textures(aoTex);
+		mPSPBRConstantBufferData.useAOMap = 1;
+	}
+	else
+	{
+		mPSPBRConstantBufferData.useAOMap = 0;
+	}
+	if (metallicTex != "")
+	{
+		mpModelBuffer->metallicTex = mpGraphicsEngine->Get_Textures(metallicTex);
+		mPSPBRConstantBufferData.useMetallicMap = 1;
+	}
+	else
+	{
+		mPSPBRConstantBufferData.useMetallicMap = 0;
+	}
+	if (roughnessTex != "")
+	{
+		mpModelBuffer->roughnessTex = mpGraphicsEngine->Get_Textures(roughnessTex);
+		mPSPBRConstantBufferData.useRoughnessMap = 1;
+	}
+	else
+	{
+		mPSPBRConstantBufferData.useRoughnessMap = 0;
+	}
 }
 
 void tempObject::SetAnimation(std::string _Aname)
