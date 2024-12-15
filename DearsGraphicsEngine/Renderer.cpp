@@ -123,20 +123,16 @@ void Renderer::Render(ModelBuffer* _modelbuffer)
 	m_pDeviceContext->PSSetConstantBuffers(0, 1, _modelbuffer->m_pPSConstantBuffer.GetAddressOf());
 	m_pDeviceContext->PSSetConstantBuffers(2, 1, _modelbuffer->m_PSPBRConstantBuffer.GetAddressOf());	//¿øÀÎÀÌ ¹»±î..?
 
-	ID3D11ShaderResourceView* pixelResources[1] = 
+	ID3D11ShaderResourceView* pixelResources[6] = 
 	{
 		_modelbuffer->m_diffusetexture.Get(),
-	};
-	m_pDeviceContext->PSSetShaderResources(0, 1, pixelResources);
-	ID3D11ShaderResourceView* pixelResources1[5] =
-	{
 		_modelbuffer->albedoTex.Get(),
 		_modelbuffer->normalTex.Get(),
 		_modelbuffer->aoTex.Get(),
 		_modelbuffer->metallicTex.Get(),
 		_modelbuffer->roughnessTex.Get(),
 	};
-	m_pDeviceContext->PSSetShaderResources(1, 5, pixelResources1);
+	m_pDeviceContext->PSSetShaderResources(0, 6, pixelResources);
 
 	m_pDeviceContext->DrawIndexed(_modelbuffer->mNumIndices, 0, 0);
 	

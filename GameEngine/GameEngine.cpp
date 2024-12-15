@@ -539,7 +539,7 @@ void GameEngine::Render()
 
 	ImGuiIO* io = &ImGui::GetIO(); // 창을 초기화하거나 설정하는데 사용
 	m_pDearsGraphicsEngine->UIStartFontID("NotoSansKR-Regular(48).ttf");	//쓰려는 폰트 적용
-	ImGui::SetWindowFontScale(2.f);  // 폰트 크기를 1.5배로 키움
+	ImGui::SetWindowFontScale(0.5f);  // 폰트 크기를 1.5배로 키움
 	m_pDearsGraphicsEngine->UIDrawText(Vector2(150, 600), u8"1~4 장비\nQWER 애니메이션 보간", Vector4(1.0f));
 	
 	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 100), u8"FPS : %.1f", Vector4(1.0f), m_pTimeManager->FPS());
@@ -593,6 +593,7 @@ void GameEngine::Render()
  	m_pDearsGraphicsEngine->Rend_Model(tempObject2->GetModelBuffer());
 
 	m_pDearsGraphicsEngine->Rend_BillBoard(tempObject3->GetModelBuffer());		//애니메이션 모델을 랜더한다.
+
 	m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
 
 

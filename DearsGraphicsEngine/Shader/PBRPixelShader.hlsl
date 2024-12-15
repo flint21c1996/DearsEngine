@@ -6,7 +6,7 @@ Texture2D aoTex : register(t3);
 Texture2D metallicTex : register(t4);
 Texture2D roughnessTex : register(t5);
 
-cbuffer PixelConstantBuffer : register(b2)
+cbuffer PBRPixelConstantBuffer : register(b2)
 {
     float maxLights;
     int useAlbedoMap;
@@ -119,10 +119,10 @@ float SchlickGGX(float NdotL, float NdotV, float roughness)
 
 float4 main(PBRPixelShaderInput input) : SV_TARGET0
 {
-    float pixelToEye = normalize(eyeWorld - input.posWorld);
+    float3 pixelToEye = normalize(eyeWorld - input.posWorld);
     float3 normalWorld = GetNormal(input);
     
-    float albedo = useAlbedoMap ? albedoTex.Sample(linearWrapSampler, input.texcoord).rgb 
+    float3 albedo = useAlbedoMap ? albedoTex.Sample(linearWrapSampler, input.texcoord).rgb 
                                  : material.albedo;
     float ao = useAOMap ? aoTex.SampleLevel(linearWrapSampler, input.texcoord, 0.0).r : 1.0;
     float metallic = useMetallicMap ? metallicTex.Sample(linearWrapSampler, input.texcoord).r 
@@ -138,8 +138,8 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
 
     //---------우선 directionLighting만! 후에 Point도, Spot도 추가해보자!!-----------------
     //[unroll], for문.. 어쩌고..
-    float lightVec = lights[0].position - input.posWorld;
-    float halfway = normalize(pixelToEye + lightVec);
+    float3 lightVec = lights[0].position - input.posWorld;
+    float3 halfway = normalize(pixelToEye + lightVec);
     
     float NdotL = max(0.0, dot(normalWorld, lightVec));
     float NdotH = max(0.0, dot(normalWorld, halfway));
@@ -165,6 +165,8 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
     
     float4 finalColor = ((ambientLighting + directLighting), 1.0f);
     finalColor = clamp(finalColor, 0.0, 1000.f);
+    finalColor = (albedo, 1.0f);
+    
     return finalColor;
 }
     
