@@ -37,9 +37,6 @@ float3 GetNormal(PBRPixelShaderInput input)
 {
     float3 normalWorld = input.normal;
     float3 tangent = input.tangentWorld;
-    //normalWorld = (0,1,0);
-    tangent = input.tangentWorld;
-    
     if (useNormalMap)    //노말맵을 쓸것인가?
     {
         float3 normal = normalTex.Sample(linearWrapSampler, input.texcoord, 0.0).rgb; //mipmap - 0.0 (기본 Mip사용)
