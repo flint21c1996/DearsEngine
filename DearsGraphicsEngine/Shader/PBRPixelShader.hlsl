@@ -33,10 +33,12 @@ float3 PBRSchlickFresnel(float3 F0, float NdotH)
 }
 
 //노말맵에서 노말값을 가져온다.
-float GetNormal(PBRPixelShaderInput input)
+float3 GetNormal(PBRPixelShaderInput input)
 {
     float3 normalWorld = input.normal;
     float3 tangent = input.tangentWorld;
+    //normalWorld = (0,1,0);
+    tangent = input.tangentWorld;
     
     if (useNormalMap)    //노말맵을 쓸것인가?
     {
@@ -90,8 +92,8 @@ float3 SpecularIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
 float3 AmbientLightingByIBL(float3 albedo, float3 normalW, float3 pixelToEye, float ao,
                             float metallic, float roughness)
 {
-    float3 diffuseIBL = DiffuseIBL(albedo, normalW, -pixelToEye, metallic);
-    float3 specularIBL = SpecularIBL(albedo, normalW, -pixelToEye, metallic, roughness);
+    float3 diffuseIBL = DiffuseIBL(albedo, normalW, pixelToEye, metallic);
+    float3 specularIBL = SpecularIBL(albedo, normalW, pixelToEye, metallic, roughness);
     
     return (diffuseIBL + specularIBL) * ao;
 }

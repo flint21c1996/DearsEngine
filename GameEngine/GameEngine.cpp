@@ -522,7 +522,12 @@ void GameEngine::Render()
 	{
 		tempCamera->SetOrthgraphic(0.1f);
 	}
-
+	static float a1 = 0.0f;
+	if (m_pInputManager->GetKeyState(KEY::U) == KEY_STATE::HOLD)
+	{
+		a1 += 0.01f;
+		tempObject4->SetObjectRot(Matrix::CreateRotationY(a1));
+	}
 
 	m_pDearsGraphicsEngine->BeginRender();
 
