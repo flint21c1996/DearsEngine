@@ -22,7 +22,8 @@ PBRPixelShaderInput main(VertexShaderInput input)
     output.normal = normalize(output.normal);
     
     //output.normal = normalize(mul((float3x3) invWorld, input.normal));
-    output.texcoord = input.texcoord;
+    output.texcoord.x = 2*input.texcoord.x -1;
+    output.texcoord.y = input.texcoord.y;
     
     return output;
 }

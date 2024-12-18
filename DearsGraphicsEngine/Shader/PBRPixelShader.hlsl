@@ -62,8 +62,8 @@ float3 DiffuseIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
 {
     float3 F0 = lerp(Fdielectric, albedo, metallic);
     float3 F = PBRSchlickFresnel(F0, max(0.0, dot(normalWorld, pixelToEye)));
-    float3 kd = lerp(1.0 - F, 0.0, metallic);
-    
+   // float3 kd = lerp(1.0 - F, 0.0, metallic);
+     float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metallic);
     float3 irradiance = g_diffuseCube.Sample(linearClampSampler, normalWorld).rgb;
     
     return kd * albedo * irradiance;
@@ -161,13 +161,13 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
     float3 radiance = lights[0].strength * saturate((lights[0].fallOffEnd - length(lightVec))
                     / (lights[0].fallOffEnd - lights[0].fallOffStart));
     
-    directLighting += (diffuseBRDF + specularBRDF) *10* NdotL ;
+    directLighting += (diffuseBRDF + specularBRDF) *1* NdotL ;
     //------------------여기까지 for문 끝-------------------------------------------
     
     float4 finalColor = float4((ambientLighting + directLighting), 1.0f);
     finalColor = clamp(finalColor, 0.0, 1000.f);
    
-    return float4(finalColor);
+    return float4(roughness,roughness,roughness,1);
     //return float4(directLighting,1.0f);
 }
     
