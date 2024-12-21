@@ -62,8 +62,8 @@ float3 DiffuseIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
 {
     float3 F0 = lerp(Fdielectric, albedo, metallic);
     float3 F = PBRSchlickFresnel(F0, max(0.0, dot(normalWorld, pixelToEye)));
-   // float3 kd = lerp(1.0 - F, 0.0, metallic);
-     float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metallic);
+    //float3 kd = lerp(1.0 - F, 0.0, metallic);
+    float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metallic);
     float3 irradiance = g_diffuseCube.Sample(linearClampSampler, normalWorld).rgb;
     
     return kd * albedo * irradiance;
@@ -150,8 +150,10 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
     float3 F = PBRSchlickFresnel(F0, max(0.0, dot(halfway, pixelToEye)));
     float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metallic);
     
-    //Diffuse BRDF를 구한다.
-    float3 diffuseBRDF = kd * albedo / PI;
+    //Diffuse BRDF를 구한다. Pi를 생략해도 별 문제가 되지 않는다. ->조명 단위와 BRDF 구현의 목적에 따라 π를 생략할 수도 있다
+    //https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
+    float3 diffuseBRDF = kd * albedo / PI;      
+
     
     float D = NdfGGX(NdotH, roughness);
     float3 G = SchlickGGX(NdotL, NdotV, roughness);
@@ -167,7 +169,7 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
     float4 finalColor = float4((ambientLighting + directLighting), 1.0f);
     finalColor = clamp(finalColor, 0.0, 1000.f);
    
-    return float4(roughness,roughness,roughness,1);
+    return float4(finalColor);
     //return float4(directLighting,1.0f);
 }
     

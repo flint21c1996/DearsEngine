@@ -238,6 +238,7 @@ void Renderer::UpdateCommonConstantBuffer(CommonConstantBufferData& _CommonBuffe
 	m_pDeviceContext->VSSetConstantBuffers(1, 1, mpCommonConstantBuffer.GetAddressOf());
 	m_pDeviceContext->PSSetConstantBuffers(1, 1, mpCommonConstantBuffer.GetAddressOf());
 }
+int a = D3D11_FILTER_MIN_LINEAR_MAG_MIP_POINT;
 
 void Renderer::RenderDepthMap(ModelBuffer* _modelbuffer)
 {
