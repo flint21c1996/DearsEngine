@@ -32,6 +32,7 @@ public:
 	void AddAnimation(std::string _basePath, std::string _fileName);
 	void Add3DTexture(std::string _basePath, std::string _fileName);
 	void Add2DTexture(std::string _basePath, std::string _fileName);
+	void Add2DMipMapTexture(std::string _basePath, std::string _fileName);
 	void AddDDSTexture(std::string _basePath, std::string _fileName);
 	void Add_Font(std::string fontName, ImFont* _font);
 

@@ -85,7 +85,7 @@ public:
 	//2D텍스쳐를 추가
 	void Add2DTexture(std::string _basePath, std::string _fileName);
 	void AddDDSTexture(std::string _basePath, std::string _fileName);
-
+	void Add2DMipMapTexture(std::string _basePath, std::string _fileName);
 	//버텍스 버퍼를 가지고 온다.
 	ComPtr<ID3D11Buffer> Get_VertexBuffer(std::string _modelName);
 	//인덱스버퍼를 가지고 온다.

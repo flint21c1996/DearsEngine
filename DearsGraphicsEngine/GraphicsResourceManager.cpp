@@ -195,6 +195,13 @@ void GraphicsResourceManager::Add2DTexture(std::string _basePath, std::string _f
 	mpGraphicsResourceContainer->Add_Textures(_fileName, texture);
 }
 
+void GraphicsResourceManager::Add2DMipMapTexture(std::string _basePath, std::string _fileName)
+{
+	auto texture = RendererHelper::Create2DMipMapTexture(mpDevice, mpDeviceContext, _basePath + _fileName);
+	mpGraphicsResourceContainer->Add_Textures(_fileName, texture);
+
+}
+
 void GraphicsResourceManager::AddDDSTexture(std::string _basePath, std::string _fileName)
 {
 	auto texture = RendererHelper::CreateDDSTexture(mpDevice, _basePath + _fileName);

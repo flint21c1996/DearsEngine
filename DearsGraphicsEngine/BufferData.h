@@ -43,7 +43,8 @@ struct VSEdgeConstantBufferData
 struct PSConstantBufferData
 {
 	float maxLights = MAX_LIGHTS;			//LightÀÇ ÃÑ °³¼ö
-	Vector3 dummy;							//4
+	float mipmapLevel = 0;					//mipmapÀÇ ÃÑ °³¼ö
+	Vector2 dummy;							//4
 	MaterialProperties material;
 };
 struct PBRPixelShaderConstantData

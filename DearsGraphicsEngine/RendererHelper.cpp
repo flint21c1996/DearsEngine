@@ -75,7 +75,7 @@ bool RendererHelper::CreateSwapChain(ComPtr<ID3D11Device>& _pDevice,
 	sd.BufferDesc.RefreshRate.Numerator = 0xffffffff;						//지금은 제한값을 풀어놨다. //이전 : 일단 60프레임으로 고정을 한다. 수직동기화를 사용했다고 가정하자. 이부분을 0으로 설정한다면 운영체제나 드라이버가 모니터의 기본화면 새로고침빈도를 기반으로 적절한 값을 설정한다.
 	sd.BufferDesc.RefreshRate.Denominator = 1;								//화면 고침 빈도의 분모를 설정하는 부분이다. numerator과 함께 사용되어 화면 새로고침 빈도를 나타낸다.
 	sd.BufferUsage = DXGI_USAGE_SHADER_INPUT |								//후처리 필터 적용을 위해
-						DXGI_USAGE_RENDER_TARGET_OUTPUT;					//BufferUsage = 어떤 용도로 사용할 것인가? /백 버퍼의 표면 사용량 및 엑세스 옵션을 설정하는 DXGI_USAGE 열거형 형식의 멤버, 여기서는 RT0렌더타겟이 그림을 그릴곳으로.
+		DXGI_USAGE_RENDER_TARGET_OUTPUT;					//BufferUsage = 어떤 용도로 사용할 것인가? /백 버퍼의 표면 사용량 및 엑세스 옵션을 설정하는 DXGI_USAGE 열거형 형식의 멤버, 여기서는 RT0렌더타겟이 그림을 그릴곳으로.
 	sd.OutputWindow = _hWnd;												//출력할 윈도우의 핸들
 	sd.Windowed = TRUE;														//전체화면을 사용할 것인가? /창모드
 	//sd.Windowed = FALSE;													//전체화면 모드
@@ -413,7 +413,7 @@ ComPtr<ID3D11ShaderResourceView> RendererHelper::CreateShaderResourceView(ComPtr
 	{
 		hr = _pDevice->CreateShaderResourceView(_structuredBuffer.Get(), nullptr, srv.GetAddressOf());
 	}
-	else 
+	else
 	{
 		hr = _pDevice->CreateShaderResourceView(_structuredBuffer.Get(), &srvDesc, srv.GetAddressOf());
 	}
@@ -426,6 +426,34 @@ ComPtr<ID3D11ShaderResourceView> RendererHelper::CreateShaderResourceView(ComPtr
 }
 
 
+
+void RendererHelper::ReadImage(const std::string _filename, std::vector<uint8_t>& _image, int& _width, int& _height)
+{
+	int channels;
+	unsigned char* img = stbi_load(_filename.c_str(), &_width, &_height, &channels, 0);	//채널-0(기본값).
+	_image.resize(_width * _height * 4); //픽셀하나당 32비트라고 가정한다.
+
+	if (channels == 3) {
+		for (size_t i = 0; i < _width * _height; i++) {
+			for (size_t c = 0; c < 3; c++) {
+				_image[4 * i + c] = img[i * channels + c];
+			}
+			_image[4 * i + 3] = 255;
+		}
+	}
+	else if (channels == 4) {
+		for (size_t i = 0; i < _width * _height; i++) {
+			for (size_t c = 0; c < 4; c++) {
+				_image[4 * i + c] = img[i * channels + c];
+			}
+		}
+	}
+	else {
+		std::cout << "Read 3 or 4 channels images only. " << channels
+			<< " channels" << std::endl;
+	}
+
+}
 
 ComPtr<ID3D11ShaderResourceView> RendererHelper::Create3DTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename)
 {
@@ -555,6 +583,84 @@ ComPtr<ID3D11ShaderResourceView> RendererHelper::CreateDDSTexture(ComPtr<ID3D11D
 		return nullptr;
 	}
 	return pTextureResourceView;
+}
+
+ComPtr<ID3D11Texture2D> RendererHelper::CreateStagingTexture(ComPtr<ID3D11Device>& _pDevice, ComPtr<ID3D11DeviceContext>& _pContext, const int _width, const int _height, const std::vector<uint8_t>& _image, const int _mipLevels /*= 1*/, const int _arraySize /*= 1*/)
+{
+	//스테이징 텍스처 만들기 
+	D3D11_TEXTURE2D_DESC txtDesc;
+	ZeroMemory(&txtDesc, sizeof(txtDesc));
+	txtDesc.Width = _width;
+	txtDesc.Height = _height;
+	txtDesc.MipLevels = _mipLevels;
+	txtDesc.ArraySize = _arraySize;
+	txtDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	txtDesc.SampleDesc.Count = 1;
+	txtDesc.Usage = D3D11_USAGE_STAGING;
+	txtDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE | D3D11_CPU_ACCESS_READ;	  //CPU에서 읽고 쓸수 있게
+	
+	ComPtr<ID3D11Texture2D> stagingTexture;
+	if (FAILED(_pDevice->CreateTexture2D(&txtDesc, nullptr, stagingTexture.GetAddressOf())))
+	{
+		std::cout << "CreateStagingTexture - Failed()" << std::endl;
+		return nullptr;
+	}
+
+	//CPU에서 이미지 데이터 복사
+	D3D11_MAPPED_SUBRESOURCE ms;
+	_pContext->Map(stagingTexture.Get(), NULL, D3D11_MAP_WRITE, NULL, &ms);
+	uint8_t* pData = (uint8_t*)ms.pData;
+	for (UINT h = 0; h < UINT(_height); h++) { // 가로줄 한 줄씩 복사
+		memcpy(&pData[h * ms.RowPitch], &_image[h * _width * 4],
+			_width * sizeof(uint8_t) * 4);
+	}
+	_pContext->Unmap(stagingTexture.Get(), NULL);
+
+	return stagingTexture;
+}
+
+ComPtr<ID3D11ShaderResourceView> RendererHelper::Create2DMipMapTexture(ComPtr< ID3D11Device>& _pDevice, ComPtr<ID3D11DeviceContext>& _pContext, std::string _filename)
+{
+	int width, height;
+
+	std::vector<uint8_t> image;										//변환된 이미지 데이터를 저장할 벡터를 정의
+	ReadImage(_filename, image, width, height);
+
+	//스테이징 텍스쳐를 만든다
+	ComPtr<ID3D11Texture2D> stagingTexture = CreateStagingTexture(_pDevice, _pContext, width, height, image);
+
+	// 실제로 사용할 텍스춰 설정
+	D3D11_TEXTURE2D_DESC txtDesc;
+	ZeroMemory(&txtDesc, sizeof(txtDesc));
+	txtDesc.Width = width;
+	txtDesc.Height = height;
+	txtDesc.MipLevels = 0; // 밉맵 레벨 최대
+	txtDesc.ArraySize = 1;
+	txtDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	txtDesc.SampleDesc.Count = 1;
+	txtDesc.Usage = D3D11_USAGE_DEFAULT; // 스테이징 텍스춰로부터 복사 가능
+	txtDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	txtDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS; // 밉맵 사용
+	txtDesc.CPUAccessFlags = 0;
+
+	ComPtr<ID3D11Texture2D> texture;
+	//초기 데이터 없이 생성
+	_pDevice->CreateTexture2D(&txtDesc, nullptr, texture.GetAddressOf());
+
+	// 스테이징 텍스춰로부터 가장 해상도가 높은 이미지 복사 (제일 큰 밉맵 부분)
+	_pContext->CopySubresourceRegion(texture.Get(), 0, 0, 0, 0,stagingTexture.Get(), 0, nullptr);
+	
+	ComPtr<ID3D11ShaderResourceView> textureResourceView;
+
+	// SRV 만들기
+	_pDevice->CreateShaderResourceView(texture.Get(), 0,
+		textureResourceView.GetAddressOf());
+
+	// 1/2씩 감소하며 밉맵이 생성된다.
+	_pContext->GenerateMips(textureResourceView.Get());
+	
+	return textureResourceView;
+
 }
 
 ///그림자용 shadowMap Texture와 SPV, DSV를 생성한다.

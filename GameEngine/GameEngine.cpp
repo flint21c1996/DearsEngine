@@ -94,7 +94,8 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_specularIBL.dds");
 
 	m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "startButton.png");
-	m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "pngegg.png");		//빌보드에 쓸 것은 2D Texture로 읽는다.
+	//m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "pngegg.png");		//빌보드에 쓸 것은 2D Texture로 읽는다.
+	m_pDearsGraphicsEngine->Add2DMipMapTexture("../TestAsset/Test/", "pngegg.png");		//빌보드에 쓸 것은 2D Texture로 읽는다.
 	//m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/", "Paladin_diffuse.png");
 
 	///폰트추가
@@ -476,6 +477,16 @@ void GameEngine::Update()
 
 	tempObject9->Update();
 
+	if (m_pInputManager->GetKeyState(KEY::I) == KEY_STATE::HOLD)
+	{
+		tempObject3->mPSConstantBuffer.mipmapLevel+=0.1f;
+	}
+	if (m_pInputManager->GetKeyState(KEY::O) == KEY_STATE::HOLD)
+	{
+		tempObject3->mPSConstantBuffer.mipmapLevel-=0.1f;
+	}
+
+
 	static float temptime = 0;
 	if (m_pInputManager->GetKeyState(KEY::_4) == KEY_STATE::HOLD)
 	{
@@ -597,7 +608,7 @@ void GameEngine::Render()
  	//m_pDearsGraphicsEngine->Rend_Model(tempObject1->GetModelBuffer());		//애니메이션 모델을 랜더한다.
  //	m_pDearsGraphicsEngine->Rend_Model(tempObject2->GetModelBuffer());
 
-//	m_pDearsGraphicsEngine->Rend_BillBoard(tempObject3->GetModelBuffer());		//애니메이션 모델을 랜더한다.
+	m_pDearsGraphicsEngine->Rend_BillBoard(tempObject3->GetModelBuffer());		//애니메이션 모델을 랜더한다.
 	m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
 	//m_pDearsGraphicsEngine->Rend_Model(tempObject4->GetModelBuffer());
 

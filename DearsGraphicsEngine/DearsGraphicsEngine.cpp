@@ -177,6 +177,11 @@ void DearsGraphicsEngine::AddDDSTexture(std::string _basePath, std::string _file
 
 }
 
+void DearsGraphicsEngine::Add2DMipMapTexture(std::string _basePath, std::string _fileName)
+{
+	m_pResourceManager->Add2DMipMapTexture(_basePath, _fileName);
+}
+
 ComPtr<ID3D11Buffer> DearsGraphicsEngine::Get_VertexBuffer(std::string _modelName)
 {
 	return m_pResourceManager->Get_VertexBuffer(_modelName);

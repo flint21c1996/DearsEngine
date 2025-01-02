@@ -29,8 +29,6 @@ namespace Dears
 }
 
 /// 렌더러의 세팅, 수정을 도와주는 클래스
-// 2024.5.20. Riun 수정사항 : 포인터를 매개변수로 그냥 가져와서, 원본이 아닌 복사본이 초기화되었다...
-// 매개변수를 참조로 가져오도록 바꾸었다.
 class RendererHelper
 {
 public:
@@ -120,10 +118,17 @@ public:
 	template<typename S_Struct>
 	static ComPtr<ID3D11Buffer>CreateStagingBuffer(ComPtr<ID3D11Device>& _pDevice, const unsigned int numElements, const unsigned int sizeElement, S_Struct* _stagingStruct);
 
-	//Texture를 만든다. 만들어서 그래픽스 컨테이너로 보내야한다. -> 이거 나중에 다른곳으로 빼는게 맞는거 같다.
+	//여기서만 쓰는 이미지를 읽는 함수
+	static void ReadImage(const std::string filename, std::vector<uint8_t>& _image, int& _width, int& _height);
+
+	//Texture를 만든다.
 	static ComPtr<ID3D11ShaderResourceView> Create3DTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename);
 	static ComPtr<ID3D11ShaderResourceView> Create2DTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename);
 	static ComPtr<ID3D11ShaderResourceView> CreateDDSTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename);
+	static ComPtr<ID3D11Texture2D> CreateStagingTexture(ComPtr<ID3D11Device>& _pDevice, ComPtr<ID3D11DeviceContext>& _pContext,
+														const int _width, const int _height, const std::vector<uint8_t>& _image,
+														const int _mipLevels = 1, const int _arraySize = 1);
+	static ComPtr<ID3D11ShaderResourceView> Create2DMipMapTexture(ComPtr<ID3D11Device>& _pDevice, ComPtr<ID3D11DeviceContext>&_pContext, std::string _filename);
 
 	//버퍼를 업데이트한다. 대부분 ConstantBuffer을 업데이트함.
 	template<typename T_Constant>
