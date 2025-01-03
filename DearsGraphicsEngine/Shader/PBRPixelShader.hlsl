@@ -77,7 +77,7 @@ float3 SpecularIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
     
     //밉맵 -> 거칠기가 거칠수록 low밉맵을 쓴다
     float3 specularIrradiance = g_specularCube.SampleLevel(linearWrapSampler,
-                                reflect(-pixelToEye, normalWorld), roughness * 1.0f/*밉맵의 개수*/).rgb;
+                                reflect(-pixelToEye, normalWorld), roughness * 11/*밉맵의 개수- 현재 큐브맵의 밉맵개수를 그냥 하드 코딩으로 박았다 후에는 contant값을 받아 사용하도 록한다.*/).rgb;
     
     float3 F0 = lerp(Fdielectric, albedo, metallic);
 

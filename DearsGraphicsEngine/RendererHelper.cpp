@@ -562,26 +562,77 @@ ComPtr<ID3D11ShaderResourceView> RendererHelper::Create2DTexture(ComPtr<ID3D11De
 
 	return pTextureResourceView;
 }
-
+#include <DirectXTex.h>
 ComPtr<ID3D11ShaderResourceView> RendererHelper::CreateDDSTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename)
 {
+	
 	// std::string을 std::wstring으로 변환
 	std::wstring wfilename = std::wstring(_filename.begin(), _filename.end());
+
+
+	DirectX::TexMetadata metadata;
 
 	ComPtr<ID3D11Texture2D> pTexture;
 	ComPtr<ID3D11ShaderResourceView> pTextureResourceView;
 
-	auto hr = DirectX::CreateDDSTextureFromFileEx(
-		_pDevice.Get(), wfilename.c_str(), 0, D3D11_USAGE_DEFAULT,
-		D3D11_BIND_SHADER_RESOURCE, 0,
-		D3D11_RESOURCE_MISC_TEXTURECUBE, // 큐브맵용 텍스춰
-		DirectX::DX11::DDS_LOADER_FLAGS(false), (ID3D11Resource**)pTexture.GetAddressOf(),
-		pTextureResourceView.GetAddressOf(), nullptr);
+	// DDS 파일 메타데이터 읽기
+	HRESULT hr = DirectX::GetMetadataFromDDSFile(wfilename.c_str(), DirectX::DDS_FLAGS_NONE, metadata);
+
+	if (FAILED(hr)) 
+	{
+		std::cout << "Failed to read DDS metadata: " << std::endl;
+	}
+
+	// 밉맵 레벨 확인
+	if (metadata.mipLevels > 1) {
+		std::cout << "DDS 파일에는 " << metadata.mipLevels << "개의 밉맵 레벨이 포함되어 있습니다." << std::endl;
+
+		hr = DirectX::CreateDDSTextureFromFileEx(
+			_pDevice.Get(),
+			wfilename.c_str(),
+			0,
+			D3D11_USAGE_DEFAULT,
+			D3D11_BIND_SHADER_RESOURCE,
+			0,
+			D3D11_RESOURCE_MISC_TEXTURECUBE, // 큐브맵용 텍스춰
+			DirectX::DX11::DDS_LOADER_FLAGS(false),
+			(ID3D11Resource**)pTexture.GetAddressOf(),
+			pTextureResourceView.GetAddressOf(),
+			nullptr
+		);
+	}
+	else {
+		std::cout << "DDS 파일에는 밉맵이 포함되어 있지 않습니다." << std::endl;
+
+		hr = DirectX::CreateDDSTextureFromFileEx(
+			_pDevice.Get(),
+			wfilename.c_str(),
+			0,
+			D3D11_USAGE_DEFAULT,
+			D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET,
+			0,
+			D3D11_RESOURCE_MISC_GENERATE_MIPS | D3D11_RESOURCE_MISC_TEXTURECUBE, // 큐브맵용 텍스춰
+			DirectX::DX11::DDS_LOADER_FLAGS(false),
+			(ID3D11Resource**)pTexture.GetAddressOf(),
+			pTextureResourceView.GetAddressOf(),
+			nullptr
+		);
+
+		// 밉맵 생성 (필요한 경우)
+		if (pTextureResourceView) {
+			ComPtr<ID3D11DeviceContext> pContext;
+			_pDevice->GetImmediateContext(&pContext);
+			pContext->GenerateMips(pTextureResourceView.Get());
+		}
+
+	}
 
 	if (FAILED(hr)) {
-		std::cout << "CreateDDSTextureFromFileEx() failed" << std::endl;
+		std::cout << "CreateDDSTextureFromFileEx() failed" << hr << std::endl;
 		return nullptr;
 	}
+
+
 	return pTextureResourceView;
 }
 
