@@ -43,8 +43,7 @@ float3 GetNormal(PBRPixelShaderInput input)
         normal = 2.0 * normal - 1.0; //[-1.0 ~ 1.0]À¸·Î ¹üÀ§¸¦ Á¶Àý
         
         float3 N = normalWorld;     //³ë¸»
-        float3 T = tangent;         //ÅºÁ¨Æ®
-        //float3 T = normalize(tangent - dot(tangent, N) * N);
+        float3 T = normalize(tangent - dot(tangent, N) * N); //ÅºÁ¨Æ®
 
         float3 B = cross(N, T);     //¹ÙÀÌ ÅºÁ¨Æ®
         
@@ -163,7 +162,7 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
     float3 radiance = lights[0].strength * saturate((lights[0].fallOffEnd - length(lightVec))
                     / (lights[0].fallOffEnd - lights[0].fallOffStart));
     
-    directLighting += (diffuseBRDF + specularBRDF) *1* NdotL ;
+    directLighting += (diffuseBRDF + specularBRDF) *3* NdotL ;
     //------------------¿©±â±îÁö for¹® ³¡-------------------------------------------
     
     float4 finalColor = float4((ambientLighting + directLighting), 1.0f);

@@ -234,7 +234,7 @@ MeshData GeometryGenerator::MakeBox(const float scale) {
 }
 
 MeshData GeometryGenerator::MakeSphere(const float radius, const int numSlices,
-	const int numStacks) {
+	const int numStacks, const Vector2 texScale) {
 
 	// 참고: OpenGL Sphere
 	// http://www.songho.ca/opengl/gl_sphere.html
@@ -264,7 +264,18 @@ MeshData GeometryGenerator::MakeSphere(const float radius, const int numSlices,
 			v.mNormal = v.mPosition; // 원점이 구의 중심
 			v.mNormal.Normalize();
 			v.mTexcoords[0] =
-				Vector2(float(i) / numSlices, 1.0f - float(j) / numStacks);
+				Vector2(float(i) / numSlices, 1.0f - float(j) / numStacks) * texScale;
+
+			// texcoord가 위로 갈수록 증가
+			Vector3 biTangent = Vector3(0.0f, 1.0f, 0.0f);
+
+			Vector3 normalOrth =
+				v.mNormal - biTangent.Dot(v.mNormal) * v.mNormal;
+			normalOrth.Normalize();
+
+			v.mTangentModel = biTangent.Cross(normalOrth);
+			v.mTangentModel.Normalize();
+
 
 			vertices.push_back(v);
 		}

@@ -36,11 +36,22 @@ void tempObject::Initialize()
 
 void tempObject::Update()
 {
-	mpVSConstantBufferData.world =
-		(
+	if (mIs_VSconstant)
+	{
+		mpVSConstantBufferData.world =
+			(
 			ObjectScl * ObjectRot * ObjectPos
 			).Transpose();
+	}
+	if (mIs_VSPBRConstant)
+	{
+		mVSPBRConstantBufferData.world =
+			(
+				ObjectScl * ObjectRot * ObjectPos
+				).Transpose();
+	}
 	mpVSConstantBufferData.invWorld = mpVSConstantBufferData.world.Transpose().Invert();
+	mVSPBRConstantBufferData.invWorld = mVSPBRConstantBufferData.world.Transpose().Invert();
 
 	if (mIs_VSconstant)
 	{
@@ -98,6 +109,11 @@ void tempObject::Update()
 		mpGraphicsEngine->UpdateVSWaterConstantBuffer(mpModelBuffer, mVSWaterConstantBufferData);
 
 	}
+	if (mIs_VSPBRConstant)
+	{
+		mpGraphicsEngine->UpdateVSPBRConstantBuffer(mpModelBuffer, mVSPBRConstantBufferData);
+
+	}
 	if (mIs_PSPBRConstant)
 	{
 		mpGraphicsEngine->UpdatePSPBRConstantBuffer(mpModelBuffer, mPSPBRConstantBufferData);
@@ -151,7 +167,8 @@ void tempObject::SetCubeMapTexture(std::string _DiffuseTextureName, std::string 
 	}
 }
 
-void tempObject::SetPBRTextures(std::string albedoTex, std::string normalTex, std::string aoTex, std::string metallicTex, std::string roughnessTex)
+void tempObject::SetPBRTextures(std::string albedoTex, std::string normalTex, std::string aoTex, 
+								std::string metallicTex, std::string roughnessTex, std::string heightTex)
 {
 	if (albedoTex != "")
 	{
@@ -198,6 +215,16 @@ void tempObject::SetPBRTextures(std::string albedoTex, std::string normalTex, st
 	{
 		mPSPBRConstantBufferData.useRoughnessMap = 0;
 	}
+	if (heightTex != "")
+	{
+		mpModelBuffer->heightTex = mpGraphicsEngine->Get_Textures(heightTex);
+		mVSPBRConstantBufferData.useHeightMap = 1;
+	}
+	else
+	{
+		mVSPBRConstantBufferData.useHeightMap = 0;
+	}
+
 }
 
 void tempObject::SetAnimation(std::string _Aname)

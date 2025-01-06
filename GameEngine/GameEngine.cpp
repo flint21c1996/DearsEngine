@@ -88,6 +88,7 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "metallic.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "normal.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "roughness.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "height.png");
 	
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "saintpeters.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_diffuseIBL.dds");
@@ -182,19 +183,18 @@ void GameEngine::Initialize()
 
 	tempObject4 = new tempObject(m_pDearsGraphicsEngine);
 	tempObject4->Initialize();
-	tempObject4->CreateVSConstantBuffer();
-	tempObject4->CreateVSTargetBoneConstantBuffer();
-	tempObject4->CreatePSConstantBuffer();
+	tempObject4->CreateVSPBRConstantBuffer();
 	tempObject4->CreatePSPBRConstantBuffer();
 	tempObject4->SetPBRTextures(
 		"albedo.png",
 		"normal.png",
 		"ao.png",
 		"metallic.png",
-		"roughness.png"
+		"roughness.png",
+		"height.png"
 	);
 
-	tempObject4->SetVIBuffer("Sphere");
+	tempObject4->SetVIBuffer("MySphere");
 	tempObject4->SetModelInfo("Hat 04.FBX");
 	tempObject4->SetDiffuseTexture("albedo.png");
 	tempObject4->SetTargetBoneIndex(m_pDearsGraphicsEngine->Get_TargetModelBoneIndex("Character 01", "RigHead"));
@@ -538,6 +538,18 @@ void GameEngine::Render()
 	{
 		a1 += 0.01f;
 		tempObject4->SetObjectRot(Matrix::CreateRotationY(a1));
+	}
+
+	static float a2 = 0.0f;
+	if (m_pInputManager->GetKeyState(KEY::K) == KEY_STATE::HOLD)
+	{
+		a2 += 0.01f;
+		tempObject4->mVSPBRConstantBufferData.heightScale = a2;
+	}
+	if (m_pInputManager->GetKeyState(KEY::L) == KEY_STATE::HOLD)
+	{
+		a2 -= 0.01f;
+		tempObject4->mVSPBRConstantBufferData.heightScale = a2;
 	}
 
 	m_pDearsGraphicsEngine->BeginRender();

@@ -66,7 +66,7 @@ void DearsGraphicsEngine::Initialize()
 	std::reverse(cubeMeshData.indices.begin(), cubeMeshData.indices.end());
 	m_pResourceManager->AddModel(cubeMeshData, "CubeMap");
 
-	MeshData SphereMeshData = GeometryGenerator::MakeSphere(1.f, 300, 300);
+	MeshData SphereMeshData = GeometryGenerator::MakeSphere(1.f, 300, 300 ,{ 2.0f, 2.0f });
 	m_pResourceManager->AddModel(SphereMeshData, "MySphere");
 
 	MeshData SquareMeshData = GeometryGenerator::MakeSquare(1);
@@ -353,6 +353,12 @@ void DearsGraphicsEngine::UpdatePSEdgeConstantBuffer(ModelBuffer* _pModelBuffer,
 void DearsGraphicsEngine::UpdateVSWaterConstantBuffer(ModelBuffer* _pModelBuffer, VSWaterConstantBufferData& _pVSWaterConstantBuffer)
 {
 	RendererHelper::UpdateBuffer(m_pDeviceContext, _pVSWaterConstantBuffer, _pModelBuffer->m_pVSWaterConstantBuffer);
+
+}
+
+void DearsGraphicsEngine::UpdateVSPBRConstantBuffer(ModelBuffer* _pModelBuffer, PBRVertexShaderConstantData& _PBRConstantData)
+{
+	RendererHelper::UpdateBuffer(m_pDeviceContext, _PBRConstantData, _pModelBuffer->m_VSPBRConstantBuffer);
 
 }
 

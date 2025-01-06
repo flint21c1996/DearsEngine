@@ -49,6 +49,7 @@ public:
 	VSEdgeConstantBufferData mVSEdgeConstantBufferData;
 	PSEdgeConstantBufferData mPSEdgeConstantBufferData;
 
+	PBRVertexShaderConstantData mVSPBRConstantBufferData;
 	PBRPixelShaderConstantData mPSPBRConstantBufferData;
 	
 	//물쉐이딩에 필요한 정보 UV좌표계를 윔직이게 하기위한.
@@ -67,6 +68,8 @@ public:
 	bool mIs_PSEdgeConstant;
 
 	bool mIs_VSWaterConstant = false;
+
+	bool mIs_VSPBRConstant = false;
 	bool mIs_PSPBRConstant = false;
 
 
@@ -86,6 +89,12 @@ public:
 	{
 		mpModelBuffer->m_pVSConstantBuffer = mpGraphicsEngine->CreateConstantBuffer(mpVSConstantBufferData);
 		mIs_VSconstant = true;
+	};
+
+	void CreateVSPBRConstantBuffer()
+	{
+		mpModelBuffer->m_VSPBRConstantBuffer = mpGraphicsEngine->CreateConstantBuffer<PBRVertexShaderConstantData>(mVSPBRConstantBufferData);
+		mIs_VSPBRConstant = true;
 	};
 
 	void CreateVSBoneConstantBuffer() 
@@ -152,7 +161,8 @@ public:
 		std::string normalTex = "",
 		std::string aoTex = "",
 		std::string metallicTex = "",
-		std::string roughnessTex = ""
+		std::string roughnessTex = "",
+		std::string heightTex = ""
 	);
 
 

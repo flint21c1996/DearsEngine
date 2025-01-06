@@ -21,6 +21,7 @@ struct ModelBuffer // 1개의 모델에 대해 여러 개의 객체를 가질 경우를 대비해 만드
 	ComPtr<ID3D11Buffer> m_BoneConstantBuffer;				// 본 컨스턴트 버퍼	   
 	ComPtr<ID3D11Buffer> m_TargetBoneConstantBuffer;		// 타겟 본 컨스턴트 버퍼	   
 	
+	ComPtr<ID3D11Buffer> m_VSPBRConstantBuffer;				//PBR Vertex Shader 컨스턴트버퍼    
 	ComPtr<ID3D11Buffer> m_PSPBRConstantBuffer;				//PBR Pixel Shader 컨스턴트버퍼    
 
 	ComPtr<ID3D11Buffer> m_InstanceConstantBuffer;			//인스턴싱을 할때 필요한 인스턴스 컨스턴트 버퍼	   
@@ -38,6 +39,7 @@ struct ModelBuffer // 1개의 모델에 대해 여러 개의 객체를 가질 경우를 대비해 만드
 	ComPtr<ID3D11ShaderResourceView> aoTex;
 	ComPtr<ID3D11ShaderResourceView> metallicTex;
 	ComPtr<ID3D11ShaderResourceView> roughnessTex;
+	ComPtr<ID3D11ShaderResourceView> heightTex;
 
 	ComPtr<ID3D11ShaderResourceView> m_cubeMapDiffuseResourceView;
 	ComPtr<ID3D11ShaderResourceView> m_cubeMapSpecularResourceView;
