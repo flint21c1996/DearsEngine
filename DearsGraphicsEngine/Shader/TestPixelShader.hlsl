@@ -5,13 +5,16 @@ Texture2D g_texture0 : register(t0);
 cbuffer PixelConstantBuffer : register(b0)
 {
     float maxLights;
-    float3 dummy;
+    float mipmapLevel;
+    float2 dummy;
     Material material;
 };
 
 float4 main(PixelShaderInput input) : SV_TARGET0
 {
-   float4 color =  g_texture0.Sample(linearWrapSampler, input.texcoord);
+   float4 color =  g_texture0.SampleLevel(linearWrapSampler, input.texcoord,mipmapLevel);
+   //아래껄 쓰면 어떤 밉맵이 적용되는지 시각적으로 확인하기 쉽다. 
+   //float4 color =  g_texture0.SampleLevel(shadowPointSampler, input.texcoord,mipmapLevel);
 
 /// 원래는 [255, 0, 255](핫핑크)색을 통해 해당되는 색을 지우려했으나 자꾸 외곽선쪽에서(누끼) 자꾸 핑크색이 발현되어 그냥 투명색으로함
 /// 알파 값을 설정할 기본 값 (1.0)
@@ -26,6 +29,6 @@ float4 main(PixelShaderInput input) : SV_TARGET0
 //    }
 
 //   return float4(color, alpha);
-color[3] *= 0.5f;
+//color[3] *= 0.5f;
    return color;
 }

@@ -43,9 +43,21 @@ struct VSEdgeConstantBufferData
 struct PSConstantBufferData
 {
 	float maxLights = MAX_LIGHTS;			//Light의 총 개수
-	Vector3 dummy;							//4
+	float mipmapLevel = 0;					//mipmap의 총 개수
+	Vector2 dummy;							//4
 	MaterialProperties material;
 };
+
+struct PBRVertexShaderConstantData
+{
+	Matrix world;		   //월드변환
+	Matrix invWorld;	   //의 역변환
+	int useHeightMap = 0;
+	float heightScale = 0.f;
+	float dummy1;
+	float dummy2;
+};
+
 struct PBRPixelShaderConstantData
 {
 	float maxLights = MAX_LIGHTS;			//Light의 총 개수

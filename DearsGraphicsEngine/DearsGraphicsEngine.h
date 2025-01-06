@@ -85,7 +85,7 @@ public:
 	//2D텍스쳐를 추가
 	void Add2DTexture(std::string _basePath, std::string _fileName);
 	void AddDDSTexture(std::string _basePath, std::string _fileName);
-
+	void Add2DMipMapTexture(std::string _basePath, std::string _fileName);
 	//버텍스 버퍼를 가지고 온다.
 	ComPtr<ID3D11Buffer> Get_VertexBuffer(std::string _modelName);
 	//인덱스버퍼를 가지고 온다.
@@ -173,6 +173,7 @@ public:
 
 	//물을 표현할때 필요한 VSWaterConstnatBuffer을 업데이트한다.
 	void UpdateVSWaterConstantBuffer(ModelBuffer* _pModelBuffer, VSWaterConstantBufferData& _pPSEdgeConstantBuffer);
+	void UpdateVSPBRConstantBuffer(ModelBuffer* _pModelBuffer, PBRVertexShaderConstantData& _PBRConstantData);
 	void UpdatePSPBRConstantBuffer(ModelBuffer* _pModelBuffer, PBRPixelShaderConstantData& _PBRConstantData);
 
 	void UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer, VSShadowConstantBufferData& _VsShadowConstantBufferData);

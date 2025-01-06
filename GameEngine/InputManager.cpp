@@ -42,9 +42,9 @@ void InputManager::Initialize()
 	m_key =
 	{
 		VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN,
-		'Q','W','E','R','T','Y','U','I',
-		'O','P','A','S','D','F','G','Z',
-		'X','C','V','B', 'N', 'M',
+		'Q','W','E','R','T','Y','U','I','O','P',
+		'A','S','D','F','G','H','J','K','L',
+		'Z','X','C','V','B', 'N', 'M',
 		'1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
 		VK_MENU, VK_CONTROL, VK_SPACE, VK_RETURN, VK_ESCAPE,
 		VK_LSHIFT, VK_RSHIFT, VK_LBUTTON, VK_RBUTTON, VK_TAB

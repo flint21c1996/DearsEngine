@@ -119,20 +119,33 @@ void Renderer::Render(ModelBuffer* _modelbuffer)
 	m_pDeviceContext->VSSetConstantBuffers(2, 1, _modelbuffer->m_BoneConstantBuffer.GetAddressOf());
 	m_pDeviceContext->VSSetConstantBuffers(3, 1, _modelbuffer->m_TargetBoneConstantBuffer.GetAddressOf());
 	m_pDeviceContext->VSSetConstantBuffers(5, 1, _modelbuffer->m_pVSWaterConstantBuffer.GetAddressOf());
+	m_pDeviceContext->VSSetConstantBuffers(6, 1, _modelbuffer->m_VSPBRConstantBuffer.GetAddressOf());
 
 	m_pDeviceContext->PSSetConstantBuffers(0, 1, _modelbuffer->m_pPSConstantBuffer.GetAddressOf());
 	m_pDeviceContext->PSSetConstantBuffers(2, 1, _modelbuffer->m_PSPBRConstantBuffer.GetAddressOf());	//¿øÀÎÀÌ ¹»±î..?
 
-	ID3D11ShaderResourceView* pixelResources[6] = 
+	ID3D11ShaderResourceView* vertexResources[1] =
+	{
+		_modelbuffer->heightTex.Get(),
+	};
+	m_pDeviceContext->VSSetShaderResources(0, 1, vertexResources);
+
+	ID3D11ShaderResourceView* pixelResources[1] = 
 	{
 		_modelbuffer->m_diffusetexture.Get(),
+	};
+	m_pDeviceContext->PSSetShaderResources(0, 1, pixelResources);
+	ID3D11ShaderResourceView* pixelResources1[5] =
+	{
 		_modelbuffer->albedoTex.Get(),
 		_modelbuffer->normalTex.Get(),
 		_modelbuffer->aoTex.Get(),
 		_modelbuffer->metallicTex.Get(),
 		_modelbuffer->roughnessTex.Get(),
 	};
-	m_pDeviceContext->PSSetShaderResources(0, 6, pixelResources);
+	m_pDeviceContext->PSSetShaderResources(1, 5, pixelResources1);
+
+
 
 	m_pDeviceContext->DrawIndexed(_modelbuffer->mNumIndices, 0, 0);
 	
@@ -234,6 +247,7 @@ void Renderer::UpdateCommonConstantBuffer(CommonConstantBufferData& _CommonBuffe
 	m_pDeviceContext->VSSetConstantBuffers(1, 1, mpCommonConstantBuffer.GetAddressOf());
 	m_pDeviceContext->PSSetConstantBuffers(1, 1, mpCommonConstantBuffer.GetAddressOf());
 }
+int a = D3D11_FILTER_MIN_LINEAR_MAG_MIP_POINT;
 
 void Renderer::RenderDepthMap(ModelBuffer* _modelbuffer)
 {

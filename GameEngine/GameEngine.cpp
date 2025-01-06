@@ -88,13 +88,15 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "metallic.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "normal.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "roughness.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "height.png");
 	
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "saintpeters.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_diffuseIBL.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_specularIBL.dds");
 
 	m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "startButton.png");
-	m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "pngegg.png");		//빌보드에 쓸 것은 2D Texture로 읽는다.
+	//m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "pngegg.png");		//빌보드에 쓸 것은 2D Texture로 읽는다.
+	m_pDearsGraphicsEngine->Add2DMipMapTexture("../TestAsset/Test/", "pngegg.png");		//빌보드에 쓸 것은 2D Texture로 읽는다.
 	//m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/", "Paladin_diffuse.png");
 
 	///폰트추가
@@ -181,27 +183,26 @@ void GameEngine::Initialize()
 
 	tempObject4 = new tempObject(m_pDearsGraphicsEngine);
 	tempObject4->Initialize();
-	tempObject4->CreateVSConstantBuffer();
-	tempObject4->CreateVSTargetBoneConstantBuffer();
-	tempObject4->CreatePSConstantBuffer();
+	tempObject4->CreateVSPBRConstantBuffer();
 	tempObject4->CreatePSPBRConstantBuffer();
 	tempObject4->SetPBRTextures(
 		"albedo.png",
 		"normal.png",
 		"ao.png",
 		"metallic.png",
-		"roughness.png"
+		"roughness.png",
+		"height.png"
 	);
 
 	tempObject4->SetVIBuffer("MySphere");
 	tempObject4->SetModelInfo("Hat 04.FBX");
-	tempObject4->SetDiffuseTexture("ss.png");
+	tempObject4->SetDiffuseTexture("albedo.png");
 	tempObject4->SetTargetBoneIndex(m_pDearsGraphicsEngine->Get_TargetModelBoneIndex("Character 01", "RigHead"));
 	tempObject4->GetObjectTargetBoneMatrix(tempObject1->mpVSBoneConstantBufferData);
 	tempObject4->SetObjectRot(Matrix::CreateRotationX(1.570));
 	//tempObject4->SetObjectPos(m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigHead", 0.1f));
-	tempObject4->SetObjectScl(Matrix::CreateScale(15));
-	tempObject4->SetObjectPos(Matrix::CreateTranslation({ 0,30, 0 }));
+	tempObject4->SetObjectScl(Matrix::CreateScale(5));
+	tempObject4->SetObjectPos(Matrix::CreateTranslation({ 0,10, 0 }));
 
 	//tempObject4->SetObjectPos(Matrix::CreateTranslation({ 10,0,0 }));
 
@@ -476,6 +477,16 @@ void GameEngine::Update()
 
 	tempObject9->Update();
 
+	if (m_pInputManager->GetKeyState(KEY::I) == KEY_STATE::HOLD)
+	{
+		tempObject3->mPSConstantBuffer.mipmapLevel+=0.1f;
+	}
+	if (m_pInputManager->GetKeyState(KEY::O) == KEY_STATE::HOLD)
+	{
+		tempObject3->mPSConstantBuffer.mipmapLevel-=0.1f;
+	}
+
+
 	static float temptime = 0;
 	if (m_pInputManager->GetKeyState(KEY::_4) == KEY_STATE::HOLD)
 	{
@@ -522,7 +533,24 @@ void GameEngine::Render()
 	{
 		tempCamera->SetOrthgraphic(0.1f);
 	}
+	static float a1 = 0.0f;
+	if (m_pInputManager->GetKeyState(KEY::U) == KEY_STATE::HOLD)
+	{
+		a1 += 0.01f;
+		tempObject4->SetObjectRot(Matrix::CreateRotationY(a1));
+	}
 
+	static float a2 = 0.0f;
+	if (m_pInputManager->GetKeyState(KEY::K) == KEY_STATE::HOLD)
+	{
+		a2 += 0.01f;
+		tempObject4->mVSPBRConstantBufferData.heightScale = a2;
+	}
+	if (m_pInputManager->GetKeyState(KEY::L) == KEY_STATE::HOLD)
+	{
+		a2 -= 0.01f;
+		tempObject4->mVSPBRConstantBufferData.heightScale = a2;
+	}
 
 	m_pDearsGraphicsEngine->BeginRender();
 
@@ -588,18 +616,19 @@ void GameEngine::Render()
 
 	//m_pDearsGraphicsEngine->Rend_InstancedModels(tempObject6->GetModelBuffer());
  	m_pDearsGraphicsEngine->Rend_CubeMap(tempObject9->GetModelBuffer());
- 	m_pDearsGraphicsEngine->Rend_AnimateModel(tempObject1->GetModelBuffer());		//애니메이션 모델을 랜더한다.
+ //	m_pDearsGraphicsEngine->Rend_AnimateModel(tempObject1->GetModelBuffer());		//애니메이션 모델을 랜더한다.
  	//m_pDearsGraphicsEngine->Rend_Model(tempObject1->GetModelBuffer());		//애니메이션 모델을 랜더한다.
- 	m_pDearsGraphicsEngine->Rend_Model(tempObject2->GetModelBuffer());
+ //	m_pDearsGraphicsEngine->Rend_Model(tempObject2->GetModelBuffer());
 
 	m_pDearsGraphicsEngine->Rend_BillBoard(tempObject3->GetModelBuffer());		//애니메이션 모델을 랜더한다.
 
 	m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
+	//m_pDearsGraphicsEngine->Rend_Model(tempObject4->GetModelBuffer());
 
 
  	//m_pDearsGraphicsEngine->Rend_Model(tempObject5->GetModelBuffer());
- 	m_pDearsGraphicsEngine->Rend_Water(tempObject6->GetModelBuffer());
- 	m_pDearsGraphicsEngine->Rend_Model(tempObject7->GetModelBuffer());
+ //	m_pDearsGraphicsEngine->Rend_Water(tempObject6->GetModelBuffer());
+ //	m_pDearsGraphicsEngine->Rend_Model(tempObject7->GetModelBuffer());
 
 
 // 	m_pDearsGraphicsEngine->SetPipelineState(Dears::Graphics::PunchingPSO);
@@ -611,7 +640,7 @@ void GameEngine::Render()
 // 	tempObject5->SetObjectScl(Matrix::CreateScale(5.5, 15.5, 5.5));
 // 	tempObject5->Update();
 //	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
-	m_pDearsGraphicsEngine->Rend_EdgeModel(tempObject5->GetModelBuffer());
+//	m_pDearsGraphicsEngine->Rend_EdgeModel(tempObject5->GetModelBuffer());
 
 	//m_pDearsGraphicsEngine->Rend_Shadow(tempObject5->GetModelBuffer());
 	// 	m_pDearsGraphicsEngine->Rend_DebugBox(tempObject2->mpModelBuffer->mpTargetModel->mMeshData->mAABB,
