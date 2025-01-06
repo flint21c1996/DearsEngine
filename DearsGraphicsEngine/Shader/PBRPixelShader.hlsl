@@ -43,6 +43,7 @@ float3 GetNormal(PBRPixelShaderInput input)
         normal = 2.0 * normal - 1.0; //[-1.0 ~ 1.0]À¸·Î ¹üÀ§¸¦ Á¶Àý
         
         float3 N = normalWorld;     //³ë¸»
+        //float3 T = tangent;         
         float3 T = normalize(tangent - dot(tangent, N) * N); //ÅºÁ¨Æ®
 
         float3 B = cross(N, T);     //¹ÙÀÌ ÅºÁ¨Æ®
