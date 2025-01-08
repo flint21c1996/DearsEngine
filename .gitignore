@@ -361,3 +361,18 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/TestAsset/MyCube1
+/TestAsset/MyCube1/MyCube1Brdf.dds
+/TestAsset/MyCube1/MyCube1DiffuseHDR.dds
+/TestAsset/MyCube1/MyCube1EnvHDR.dds
+/TestAsset/MyCube1/MyCube1SpecularHDR.dds
+/TestAsset/MyCube2
+/TestAsset/MyCube2/MyCube2Brdf.dds
+/TestAsset/MyCube2/MyCube2DiffuseHDR.dds
+/TestAsset/MyCube2/MyCube2EnvHDR.dds
+/TestAsset/MyCube2/MyCube2SpecularHDR.dds
+/TestAsset/MyCube3
+/TestAsset/MyCube3/MyCube3Brdf.dds
+/TestAsset/MyCube3/MyCube3DiffuseHDR.dds
+/TestAsset/MyCube3/MyCube3EnvHDR.dds
+/TestAsset/MyCube3/MyCube3SpecularHDR.dds
