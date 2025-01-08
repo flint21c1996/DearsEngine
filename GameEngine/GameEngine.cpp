@@ -94,6 +94,11 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_diffuseIBL.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_specularIBL.dds");
 
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube1/", "MyCube1EnvHDR.dds");
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube1/", "MyCube1DiffuseHDR.dds");
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube1/", "MyCube1SpecularHDR.dds");
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube1/", "MyCube1Brdf.dds", false);
+
 	m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "startButton.png");
 	//m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "pngegg.png");		//빌보드에 쓸 것은 2D Texture로 읽는다.
 	m_pDearsGraphicsEngine->Add2DMipMapTexture("../TestAsset/Test/", "pngegg.png");		//빌보드에 쓸 것은 2D Texture로 읽는다.
@@ -280,7 +285,7 @@ void GameEngine::Initialize()
 	uiPoint = { 1720, 400 };
 	uiPoint = { 1720, 700 };
 
-	m_pDearsGraphicsEngine->Set_CubeMap("Atrium_diffuseIBL.dds", "Atrium_specularIBL.dds");
+	m_pDearsGraphicsEngine->Set_CubeMap("MyCube1EnvHDR.dds", "MyCube1DiffuseHDR.dds", "MyCube1SpecularHDR.dds");
 
 
 }

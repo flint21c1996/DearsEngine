@@ -202,9 +202,9 @@ void GraphicsResourceManager::Add2DMipMapTexture(std::string _basePath, std::str
 
 }
 
-void GraphicsResourceManager::AddDDSTexture(std::string _basePath, std::string _fileName)
+void GraphicsResourceManager::AddDDSTexture(std::string _basePath, std::string _fileName, bool isCubeMap)
 {
-	auto texture = RendererHelper::CreateDDSTexture(mpDevice, _basePath + _fileName);
+	auto texture = RendererHelper::CreateDDSTexture(mpDevice, _basePath + _fileName, isCubeMap);
 	mpGraphicsResourceContainer->Add_Textures(_fileName, texture);
 }
 

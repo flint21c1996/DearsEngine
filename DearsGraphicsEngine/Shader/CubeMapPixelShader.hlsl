@@ -8,7 +8,7 @@ float4 main(PixelShaderInput input) : SV_TARGET0
 {
     // 주의: 텍스춰 좌표가 float3 입니다.
    // return g_diffuseCube.Sample(g_sampler, input.posWorld.xyz);
-    float4 color = g_specularCube.Sample(linearWrapSampler, input.posWorld.xyz);
+    float4 color = g_environmentCube.Sample(linearWrapSampler, input.posWorld.xyz);
     return color;
 }
 

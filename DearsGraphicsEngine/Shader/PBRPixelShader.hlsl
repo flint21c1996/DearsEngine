@@ -62,8 +62,8 @@ float3 DiffuseIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
 {
     float3 F0 = lerp(Fdielectric, albedo, metallic);
     float3 F = PBRSchlickFresnel(F0, max(0.0, dot(normalWorld, pixelToEye)));
-    //float3 kd = lerp(1.0 - F, 0.0, metallic);
-    float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metallic);
+    float3 kd = lerp(1.0 - F, 0.0, metallic);
+    //float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metallic);
     float3 irradiance = g_diffuseCube.Sample(linearClampSampler, normalWorld).rgb;
     
     return kd * albedo * irradiance;
@@ -72,8 +72,7 @@ float3 DiffuseIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
 float3 SpecularIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
                    float metallic, float roughness)
 {
-    //float2 specularBRDF = g_specularCube.Sample(linearWrapSampler,
-    //                            float2(dot(normalWorld, pixelToEye), 1.f - roughness)).rg;
+    //float2 specularBRDF = g_specularCube.Sample(linearWrapSampler,float2(dot(normalWorld, pixelToEye), 1.f - roughness)).rg;
     
     //¹Ó¸Ê -> °ÅÄ¥±â°¡ °ÅÄ¥¼ö·Ï low¹Ó¸ÊÀ» ¾´´Ù
     float3 specularIrradiance = g_specularCube.SampleLevel(linearWrapSampler,
@@ -81,7 +80,7 @@ float3 SpecularIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
     
     float3 F0 = lerp(Fdielectric, albedo, metallic);
 
-    //return (F0 * specularBRDF.x + specularBRDF.y)*specularIrradiance;
+   // return (F0 * specularBRDF.x + specularBRDF.y)*specularIrradiance;
     return F0 *specularIrradiance;
 
 }

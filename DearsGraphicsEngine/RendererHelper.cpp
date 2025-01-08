@@ -58,7 +58,7 @@ bool RendererHelper::CreateSwapChain(ComPtr<ID3D11Device>& _pDevice,
 	HWND _hWnd, UINT& _numQualityLevels, int _screenWidth, int _screenHeight, ComPtr<IDXGISwapChain>& _pSwapChain)
 {
 	// 4X MSAA 지원하는지 확인, 멀티샘플링이 몇단계까지 되는가?
-	HRESULT hr = _pDevice->CheckMultisampleQualityLevels(DXGI_FORMAT_R8G8B8A8_UNORM, 4, &_numQualityLevels);
+	HRESULT hr = _pDevice->CheckMultisampleQualityLevels(DXGI_FORMAT_R16G16B16A16_FLOAT, 4, &_numQualityLevels);
 	if (FAILED(hr) || _numQualityLevels <= 0)
 	{
 		std::cout << "MSAA not supported." << std::endl;
@@ -70,7 +70,7 @@ bool RendererHelper::CreateSwapChain(ComPtr<ID3D11Device>& _pDevice,
 	ZeroMemory(&sd, sizeof(sd));
 	sd.BufferDesc.Width = _screenWidth;										//해상도 설정 - 백버퍼의 크기, DXGI_MODE_DESC의 정보를 채우는 것이다.
 	sd.BufferDesc.Height = _screenHeight;
-	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;						//백버퍼의 색상규격
+	sd.BufferDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;					//백버퍼의 색상규격 , HDRI를 쓰기 위해 늘려주었다
 	sd.BufferCount = 1;														//백버퍼의 갯수
 	sd.BufferDesc.RefreshRate.Numerator = 0xffffffff;						//지금은 제한값을 풀어놨다. //이전 : 일단 60프레임으로 고정을 한다. 수직동기화를 사용했다고 가정하자. 이부분을 0으로 설정한다면 운영체제나 드라이버가 모니터의 기본화면 새로고침빈도를 기반으로 적절한 값을 설정한다.
 	sd.BufferDesc.RefreshRate.Denominator = 1;								//화면 고침 빈도의 분모를 설정하는 부분이다. numerator과 함께 사용되어 화면 새로고침 빈도를 나타낸다.
@@ -176,7 +176,7 @@ bool RendererHelper::CreateRenderTargetView(ComPtr<ID3D11Device>& _pDevice,
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 		desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE; //렌더타겟에 bind(바인드, 결합)되게 하겠다. 즉, GPU가 그림을 그리는 대상으로 사용하겠다는 뜻
-		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;  //32비트를 쓸껀데 R8비트, G8비트, B8비트, A8비트로 나누어진(4개의 패널) unsigned normailize(0~1사이로 정규화된)값으로 쓰겠다.
+		desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;  //32비트를 쓸껀데 R8비트, G8비트, B8비트, A8비트로 나누어진(4개의 패널) unsigned normailize(0~1사이로 정규화된)값으로 쓰겠다.
 
 		HRESULT hr = _pDevice->CreateTexture2D(&desc, nullptr, &_pBuffer);
 		if (FAILED(hr))
@@ -563,7 +563,7 @@ ComPtr<ID3D11ShaderResourceView> RendererHelper::Create2DTexture(ComPtr<ID3D11De
 	return pTextureResourceView;
 }
 #include <DirectXTex.h>
-ComPtr<ID3D11ShaderResourceView> RendererHelper::CreateDDSTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename)
+ComPtr<ID3D11ShaderResourceView> RendererHelper::CreateDDSTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename, bool isCubeMap)
 {
 	
 	// std::string을 std::wstring으로 변환
@@ -582,10 +582,14 @@ ComPtr<ID3D11ShaderResourceView> RendererHelper::CreateDDSTexture(ComPtr<ID3D11D
 	{
 		std::cout << "Failed to read DDS metadata: " << std::endl;
 	}
-
+	UINT miscFlag = 0;
+	if (isCubeMap)
+	{
+		miscFlag |= D3D11_RESOURCE_MISC_TEXTURECUBE; // 큐브맵용 텍스춰
+	}
 	// 밉맵 레벨 확인
 	if (metadata.mipLevels > 1) {
-		std::cout << "DDS 파일에는 " << metadata.mipLevels << "개의 밉맵 레벨이 포함되어 있습니다." << std::endl;
+		std::cout << _filename.c_str()<< "DDS 파일에는 " << metadata.mipLevels << "개의 밉맵 레벨이 포함되어 있습니다." << std::endl;
 
 		hr = DirectX::CreateDDSTextureFromFileEx(
 			_pDevice.Get(),
@@ -594,7 +598,7 @@ ComPtr<ID3D11ShaderResourceView> RendererHelper::CreateDDSTexture(ComPtr<ID3D11D
 			D3D11_USAGE_DEFAULT,
 			D3D11_BIND_SHADER_RESOURCE,
 			0,
-			D3D11_RESOURCE_MISC_TEXTURECUBE, // 큐브맵용 텍스춰
+			miscFlag, 
 			DirectX::DX11::DDS_LOADER_FLAGS(false),
 			(ID3D11Resource**)pTexture.GetAddressOf(),
 			pTextureResourceView.GetAddressOf(),
@@ -602,7 +606,7 @@ ComPtr<ID3D11ShaderResourceView> RendererHelper::CreateDDSTexture(ComPtr<ID3D11D
 		);
 	}
 	else {
-		std::cout << "DDS 파일에는 밉맵이 포함되어 있지 않습니다." << std::endl;
+		std::cout << _filename.c_str() << "DDS 파일에는 밉맵이 포함되어 있지 않습니다." << std::endl;
 
 		hr = DirectX::CreateDDSTextureFromFileEx(
 			_pDevice.Get(),

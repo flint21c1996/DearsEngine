@@ -57,6 +57,7 @@ public:
 	
 	UINT m_numQualityLevels;
 
+	ComPtr<ID3D11ShaderResourceView> mpCubeMapEnvironmentResourceView;
 	ComPtr<ID3D11ShaderResourceView> mpCubeMapDiffuseResourceView;
 	ComPtr<ID3D11ShaderResourceView> mpCubeMapSpecularResourceView;
 
@@ -82,7 +83,8 @@ public:
 	bool Initialize(GraphicsResourceManager* _pResourceManager);
 	void BeginRender();
 
-	void SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _diffuseTexture,
+	void SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _environmentTexture,
+									ComPtr<ID3D11ShaderResourceView> _diffuseTexture,
 									ComPtr<ID3D11ShaderResourceView> _specularTexture);
 
 	//공통 셰이더 리소스를 GPU에 Set해준다

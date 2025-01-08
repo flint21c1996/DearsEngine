@@ -20,8 +20,9 @@ SamplerState shadowPointSampler : register(s2);
 SamplerComparisonState shadowCompareSampler : register(s3);
 
 //공통텍스쳐
-TextureCube g_diffuseCube : register(t10);
-TextureCube g_specularCube : register(t11);
+TextureCube g_environmentCube : register(t10);
+TextureCube g_diffuseCube : register(t11);
+TextureCube g_specularCube : register(t12);
 Texture2D shadowMaps[1] : register(t15);
 
 //조명 https://www.notion.so/Phong-vs-Blinn-Phong-dcf2952858e0449f834fbe3981a729d5
