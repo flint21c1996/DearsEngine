@@ -33,7 +33,7 @@ public:
 	void Add3DTexture(std::string _basePath, std::string _fileName);
 	void Add2DTexture(std::string _basePath, std::string _fileName);
 	void Add2DMipMapTexture(std::string _basePath, std::string _fileName);
-	void AddDDSTexture(std::string _basePath, std::string _fileName);
+	void AddDDSTexture(std::string _basePath, std::string _fileName, bool isCubeMap = true);
 	void Add_Font(std::string fontName, ImFont* _font);
 
 	//컨테이너에서 필요한 리소스를 가지고 온다.

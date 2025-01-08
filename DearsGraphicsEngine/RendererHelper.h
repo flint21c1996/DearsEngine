@@ -124,7 +124,7 @@ public:
 	//Texture를 만든다.
 	static ComPtr<ID3D11ShaderResourceView> Create3DTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename);
 	static ComPtr<ID3D11ShaderResourceView> Create2DTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename);
-	static ComPtr<ID3D11ShaderResourceView> CreateDDSTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename);
+	static ComPtr<ID3D11ShaderResourceView> CreateDDSTexture(ComPtr<ID3D11Device>& _pDevice, std::string _filename, bool isCubeMap = true);
 	static ComPtr<ID3D11Texture2D> CreateStagingTexture(ComPtr<ID3D11Device>& _pDevice, ComPtr<ID3D11DeviceContext>& _pContext,
 														const int _width, const int _height, const std::vector<uint8_t>& _image,
 														const int _mipLevels = 1, const int _arraySize = 1);

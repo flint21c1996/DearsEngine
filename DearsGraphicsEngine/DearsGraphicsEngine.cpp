@@ -171,9 +171,9 @@ void DearsGraphicsEngine::Add2DTexture(std::string _basePath, std::string _fileN
 	m_pResourceManager->Add2DTexture(_basePath, _fileName);
 
 }
-void DearsGraphicsEngine::AddDDSTexture(std::string _basePath, std::string _fileName)
+void DearsGraphicsEngine::AddDDSTexture(std::string _basePath, std::string _fileName, bool isCubeMap)
 {
-	m_pResourceManager->AddDDSTexture(_basePath, _fileName);
+	m_pResourceManager->AddDDSTexture(_basePath, _fileName, isCubeMap);
 
 }
 
@@ -396,10 +396,11 @@ void DearsGraphicsEngine::UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer,
 //	m_pResourceManager->UpdateBuffer(_PsShadowConstantBufferData, _pModelBuffer->m_pShadowPSConstantBuffer);
 }
 
-void DearsGraphicsEngine::Set_CubeMap(std::string diffuseTextureName, std::string specularTextureName)
+void DearsGraphicsEngine::Set_CubeMap(std::string environmentTexture, std::string diffuseTextureName, std::string specularTextureName)
 {
 	mpRenderer->SetCommonShaderResource
 	(
+		m_pResourceManager->Get_Textures(environmentTexture),
 		m_pResourceManager->Get_Textures(diffuseTextureName),
 		m_pResourceManager->Get_Textures(specularTextureName)
 	);

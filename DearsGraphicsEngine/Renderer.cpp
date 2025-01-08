@@ -77,8 +77,9 @@ void Renderer::BeginRender()
 	SetCommonShaderResourceToGPU();
 }
 
-void Renderer::SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _diffuseTexture, ComPtr<ID3D11ShaderResourceView> _specularTexture)
+void Renderer::SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _environmentTexture, ComPtr<ID3D11ShaderResourceView> _diffuseTexture, ComPtr<ID3D11ShaderResourceView> _specularTexture)
 {
+	mpCubeMapEnvironmentResourceView = _environmentTexture;
 	mpCubeMapDiffuseResourceView = _diffuseTexture;
 	mpCubeMapSpecularResourceView = _specularTexture;
 }
@@ -97,12 +98,13 @@ bool Renderer::SetCommonShaderResourceToGPU()
 		DEBUG_LOG("ERROR - SetCommonShaderResource()");
 		return false;
 	}
-	ID3D11ShaderResourceView* pixelResources[2] =
+	ID3D11ShaderResourceView* pixelResources[3] =
 	{
+		mpCubeMapEnvironmentResourceView.Get(),
 		mpCubeMapDiffuseResourceView.Get(),
 		mpCubeMapSpecularResourceView.Get(),
 	};
-	m_pDeviceContext->PSSetShaderResources(10, 2, pixelResources);
+	m_pDeviceContext->PSSetShaderResources(10, 3, pixelResources);
 	return true;
 }
 

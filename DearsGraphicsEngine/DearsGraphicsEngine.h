@@ -84,7 +84,7 @@ public:
 	void Add3DTexture(std::string _basePath, std::string _fileName);
 	//2D텍스쳐를 추가
 	void Add2DTexture(std::string _basePath, std::string _fileName);
-	void AddDDSTexture(std::string _basePath, std::string _fileName);
+	void AddDDSTexture(std::string _basePath, std::string _fileName, bool isCubeMap = true);
 	void Add2DMipMapTexture(std::string _basePath, std::string _fileName);
 	//버텍스 버퍼를 가지고 온다.
 	ComPtr<ID3D11Buffer> Get_VertexBuffer(std::string _modelName);
@@ -180,7 +180,7 @@ public:
 	void UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer, PsShadowConstantBufferData& _VsShadowConstantBufferData);
 
 	//큐브맵을 세팅한다.
-	void Set_CubeMap(std::string diffuseTextureName, std::string specularTextureName);
+	void Set_CubeMap(std::string environmentTexture, std::string diffuseTextureName, std::string specularTextureName);
 	
 	//PipelineState를 세팅한다.
 	void SetPipelineState(PipelineStateObject& _pso);
