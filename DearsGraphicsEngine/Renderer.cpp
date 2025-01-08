@@ -284,7 +284,7 @@ void Renderer::RenderDepthMap(ModelBuffer* _modelbuffer)
 
 
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
-	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
+
 	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 
 	m_pDeviceContext->PSSetShaderResources(15, 1, m_depthOnlySRV.GetAddressOf());	  //(텍스쳐의 번호(인덱스), SRV의 개수, 포인터(주소값))

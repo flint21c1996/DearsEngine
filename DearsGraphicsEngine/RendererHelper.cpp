@@ -70,7 +70,7 @@ bool RendererHelper::CreateSwapChain(ComPtr<ID3D11Device>& _pDevice,
 	ZeroMemory(&sd, sizeof(sd));
 	sd.BufferDesc.Width = _screenWidth;										//해상도 설정 - 백버퍼의 크기, DXGI_MODE_DESC의 정보를 채우는 것이다.
 	sd.BufferDesc.Height = _screenHeight;
-	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;						//백버퍼의 색상규격
+	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;					//백버퍼의 색상규격 , HDRI를 쓰기 위해 늘려주었다
 	sd.BufferCount = 1;														//백버퍼의 갯수
 	sd.BufferDesc.RefreshRate.Numerator = 0xffffffff;						//지금은 제한값을 풀어놨다. //이전 : 일단 60프레임으로 고정을 한다. 수직동기화를 사용했다고 가정하자. 이부분을 0으로 설정한다면 운영체제나 드라이버가 모니터의 기본화면 새로고침빈도를 기반으로 적절한 값을 설정한다.
 	sd.BufferDesc.RefreshRate.Denominator = 1;								//화면 고침 빈도의 분모를 설정하는 부분이다. numerator과 함께 사용되어 화면 새로고침 빈도를 나타낸다.
