@@ -98,6 +98,14 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube1/", "MyCube1DiffuseHDR.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube1/", "MyCube1SpecularHDR.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube1/", "MyCube1Brdf.dds", false);
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube2/", "MyCube2EnvHDR.dds");
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube2/", "MyCube2DiffuseHDR.dds");
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube2/", "MyCube2SpecularHDR.dds");
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube2/", "MyCube2Brdf.dds", false);
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube3/", "MyCube3EnvHDR.dds");
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube3/", "MyCube3DiffuseHDR.dds");
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube3/", "MyCube3SpecularHDR.dds");
+	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube3/", "MyCube3Brdf.dds", false);
 
 	m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "startButton.png");
 	//m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "pngegg.png");		//빌보드에 쓸 것은 2D Texture로 읽는다.
@@ -285,7 +293,7 @@ void GameEngine::Initialize()
 	uiPoint = { 1720, 400 };
 	uiPoint = { 1720, 700 };
 
-	m_pDearsGraphicsEngine->Set_CubeMap("MyCube1EnvHDR.dds", "MyCube1DiffuseHDR.dds", "MyCube1SpecularHDR.dds");
+	m_pDearsGraphicsEngine->Set_CubeMap("MyCube1EnvHDR.dds", "MyCube1DiffuseHDR.dds", "MyCube1SpecularHDR.dds", "MyCube1Brdf.dds");
 
 
 }
@@ -407,7 +415,20 @@ void GameEngine::Update()
 
 			//
 		}
+		if (m_pInputManager->GetKeyState(KEY::_1) == KEY_STATE::HOLD)
+		{
+			m_pDearsGraphicsEngine->Set_CubeMap("MyCube1EnvHDR.dds", "MyCube1DiffuseHDR.dds", "MyCube1SpecularHDR.dds", "MyCube1Brdf.dds");
+		}
+		if (m_pInputManager->GetKeyState(KEY::_2) == KEY_STATE::HOLD)
+		{
+			m_pDearsGraphicsEngine->Set_CubeMap("MyCube2EnvHDR.dds", "MyCube2DiffuseHDR.dds", "MyCube2SpecularHDR.dds", "MyCube2Brdf.dds");
 
+		}
+		if (m_pInputManager->GetKeyState(KEY::_3) == KEY_STATE::HOLD)
+		{
+			m_pDearsGraphicsEngine->Set_CubeMap("MyCube3EnvHDR.dds", "MyCube3DiffuseHDR.dds", "MyCube3SpecularHDR.dds", "MyCube3Brdf.dds");
+
+		}
 ///빛의 이동
 // 	if (m_pInputManager->GetKeyState(KEY::A) == KEY_STATE::HOLD)
 // 	{

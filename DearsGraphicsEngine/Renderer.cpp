@@ -77,11 +77,13 @@ void Renderer::BeginRender()
 	SetCommonShaderResourceToGPU();
 }
 
-void Renderer::SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _environmentTexture, ComPtr<ID3D11ShaderResourceView> _diffuseTexture, ComPtr<ID3D11ShaderResourceView> _specularTexture)
+void Renderer::SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _environmentTexture, ComPtr<ID3D11ShaderResourceView> _diffuseTexture,
+								ComPtr<ID3D11ShaderResourceView> _specularTexture, ComPtr<ID3D11ShaderResourceView> _BRDFTexture)
 {
 	mpCubeMapEnvironmentResourceView = _environmentTexture;
 	mpCubeMapDiffuseResourceView = _diffuseTexture;
 	mpCubeMapSpecularResourceView = _specularTexture;
+	mpCubeMapBRDFResourceView = _BRDFTexture;
 }
 
 void Renderer::SetCommonConstant(ComPtr<ID3D11Buffer>& commonConstsBuffer)
@@ -98,13 +100,14 @@ bool Renderer::SetCommonShaderResourceToGPU()
 		DEBUG_LOG("ERROR - SetCommonShaderResource()");
 		return false;
 	}
-	ID3D11ShaderResourceView* pixelResources[3] =
+	ID3D11ShaderResourceView* pixelResources[4] =
 	{
 		mpCubeMapEnvironmentResourceView.Get(),
 		mpCubeMapDiffuseResourceView.Get(),
 		mpCubeMapSpecularResourceView.Get(),
+		mpCubeMapBRDFResourceView.Get(),
 	};
-	m_pDeviceContext->PSSetShaderResources(10, 3, pixelResources);
+	m_pDeviceContext->PSSetShaderResources(10, 4, pixelResources);
 	return true;
 }
 

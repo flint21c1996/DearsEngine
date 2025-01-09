@@ -180,7 +180,7 @@ public:
 	void UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer, PsShadowConstantBufferData& _VsShadowConstantBufferData);
 
 	//큐브맵을 세팅한다.
-	void Set_CubeMap(std::string environmentTexture, std::string diffuseTextureName, std::string specularTextureName);
+	void Set_CubeMap(std::string environmentTexture, std::string diffuseTextureName, std::string specularTextureName, std::string BRDFTextureName);
 	
 	//PipelineState를 세팅한다.
 	void SetPipelineState(PipelineStateObject& _pso);

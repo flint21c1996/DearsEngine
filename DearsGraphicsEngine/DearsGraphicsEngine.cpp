@@ -396,13 +396,14 @@ void DearsGraphicsEngine::UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer,
 //	m_pResourceManager->UpdateBuffer(_PsShadowConstantBufferData, _pModelBuffer->m_pShadowPSConstantBuffer);
 }
 
-void DearsGraphicsEngine::Set_CubeMap(std::string environmentTexture, std::string diffuseTextureName, std::string specularTextureName)
+void DearsGraphicsEngine::Set_CubeMap(std::string environmentTexture, std::string diffuseTextureName, std::string specularTextureName, std::string BRDFTextureName)
 {
 	mpRenderer->SetCommonShaderResource
 	(
 		m_pResourceManager->Get_Textures(environmentTexture),
 		m_pResourceManager->Get_Textures(diffuseTextureName),
-		m_pResourceManager->Get_Textures(specularTextureName)
+		m_pResourceManager->Get_Textures(specularTextureName),
+		m_pResourceManager->Get_Textures(BRDFTextureName)
 	);
 }
 

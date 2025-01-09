@@ -23,6 +23,8 @@ SamplerComparisonState shadowCompareSampler : register(s3);
 TextureCube g_environmentCube : register(t10);
 TextureCube g_diffuseCube : register(t11);
 TextureCube g_specularCube : register(t12);
+Texture2D g_BRDFTex : register(t13);
+
 Texture2D shadowMaps[1] : register(t15);
 
 //Α¶Έν https://www.notion.so/Phong-vs-Blinn-Phong-dcf2952858e0449f834fbe3981a729d5

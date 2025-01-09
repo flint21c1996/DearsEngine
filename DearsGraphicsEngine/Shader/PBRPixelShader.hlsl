@@ -49,7 +49,6 @@ float3 GetNormal(PBRPixelShaderInput input)
         float3 B = cross(N, T);     //바이 탄젠트
         
         float3x3 TBN = float3x3(T, B, N);
-        //TBN = normalize(TBN);
         
         normalWorld = normalize(mul(normal, TBN));
     }
@@ -72,7 +71,7 @@ float3 DiffuseIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
 float3 SpecularIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
                    float metallic, float roughness)
 {
-    //float2 specularBRDF = g_specularCube.Sample(linearWrapSampler,float2(dot(normalWorld, pixelToEye), 1.f - roughness)).rg;
+    float2 specularBRDF = g_BRDFTex.Sample(linearClampSampler, float2(dot(normalWorld, pixelToEye), 1.f - roughness)).rg;
     
     //밉맵 -> 거칠기가 거칠수록 low밉맵을 쓴다
     float3 specularIrradiance = g_specularCube.SampleLevel(linearWrapSampler,
@@ -80,8 +79,8 @@ float3 SpecularIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
     
     float3 F0 = lerp(Fdielectric, albedo, metallic);
 
-   // return (F0 * specularBRDF.x + specularBRDF.y)*specularIrradiance;
-    return F0 *specularIrradiance;
+    return (F0 * specularBRDF.x + specularBRDF.y)*specularIrradiance;
+   // return F0 *specularIrradiance;
 
 }
 
@@ -151,7 +150,7 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
     
     //Diffuse BRDF를 구한다. Pi를 생략해도 별 문제가 되지 않는다. ->조명 단위와 BRDF 구현의 목적에 따라 π를 생략할 수도 있다
     //https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
-    float3 diffuseBRDF = kd * albedo / PI;      
+    float3 diffuseBRDF = kd * albedo;      
 
     
     float D = NdfGGX(NdotH, roughness);
@@ -162,7 +161,7 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
     float3 radiance = lights[0].strength * saturate((lights[0].fallOffEnd - length(lightVec))
                     / (lights[0].fallOffEnd - lights[0].fallOffStart));
     
-    directLighting += (diffuseBRDF + specularBRDF) *3* NdotL ;
+    directLighting += (diffuseBRDF + specularBRDF) *1* NdotL ;
     //------------------여기까지 for문 끝-------------------------------------------
     
     float4 finalColor = float4((ambientLighting + directLighting), 1.0f);
