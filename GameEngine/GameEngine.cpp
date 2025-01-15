@@ -388,30 +388,30 @@ void GameEngine::Update()
 			temp.color = { 1,1,1 };
 			temp.lifeTime = 2;
 
-			temp.direction = { 0,0,0 };
+			temp.direction = { 1,0.1,0 };
 			temp.velocity = 20.0f;
 
 			temp.Rotation = { 0, 0, 0 };
-			temp.opacity = 0.5;
+			temp.opacity = 1;
 
-			temp.Scale = { 1,1,1 };
-			temp.deltaOpacity = -0.2f;
+			temp.Scale = { 0.3,0.3,0.3 };
+			temp.deltaOpacity = 0.f;
 
-			temp.deltaRotation = { 0 ,0, 0 };
+			temp.deltaRotation = { 0 ,0, 1 };
 			temp.SclRandomFactor = 0;
 
 			temp.deltaScale = { 0.f, 0.f, 0.f };
 
-			temp.PosRandomFactor = { 0, 1, 0 };
+			temp.PosRandomFactor = { 1, 1, 0 };
 			temp.RotRandomFactor = { 0, 0, 0 };
 			temp.dirRandomFactor = { 0, 0, 0 };
 
 			temp.deltaColor = { 0, 0, 0 };
 
-			temp.gravity = 0;
-			temp.colorRandomFactor = { 0, 0, 0 };
+			temp.gravity = 1;
+			temp.colorRandomFactor = { 1, 1, 1 };
 
-			m_pDearsGraphicsEngine->m_pParticleManager->AddParticle(1, temp);
+			m_pDearsGraphicsEngine->m_pParticleManager->AddParticle(5, temp);
 
 			//
 		}

@@ -23,12 +23,14 @@ cbuffer PixelConstantBuffer : register(b2)
 
 #define LIGHT_DIRECTIONAL 1
 #define LIGHT_SPOT 2
-#define Fdielectric  0.04  // 비금속(Dielectric) 재질의 F0
+static const float3 Fdielectric = 0.04; // 비금속(Dielectric) 재질의 F0
 //사실 common.hlsli에 있는 함수랑 똑같은 함수다..
-float3 PBRSchlickFresnel(float3 F0, float NdotH)
+float3 PBRSchlickFresnel(float3 F0, float NdotV)
 {
-    float f = 1.0f - NdotH;
-    //return F0 + (1.0 - F0) * pow(2.0, (-5.55473 * NdotH - 6.98316) * NdotH);
+    float f = 1.0f - NdotV; 
+    // 90도일 경우 1
+    // 0도일 경우 0
+    //즉, normal과 view벡터가 90에 가깝다 -> 가장자리다. 
     return F0 + (1.0f - F0) * pow(f, 5.0);
 }
 
@@ -76,11 +78,10 @@ float3 SpecularIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
     //밉맵 -> 거칠기가 거칠수록 low밉맵을 쓴다
     float3 specularIrradiance = g_specularCube.SampleLevel(linearWrapSampler,
                                 reflect(-pixelToEye, normalWorld), roughness * 11/*밉맵의 개수- 현재 큐브맵의 밉맵개수를 그냥 하드 코딩으로 박았다 후에는 contant값을 받아 사용하도 록한다.*/).rgb;
-    
+
     float3 F0 = lerp(Fdielectric, albedo, metallic);
 
-    return (F0 * specularBRDF.x + specularBRDF.y)*specularIrradiance;
-   // return F0 *specularIrradiance;
+    return (F0 * specularBRDF.x + specularBRDF.y) * specularIrradiance;
 
 }
 
@@ -139,35 +140,40 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
     //[unroll], for문.. 어쩌고..
     float3 lightVec = normalize(lights[0].position - input.posWorld);
     float3 halfway = normalize(pixelToEye + lightVec);
+    float3 reflectVec = reflect(-lightVec, normalWorld);
     
     float NdotL = max(0.0, dot(normalWorld, lightVec));
     float NdotH = max(0.0, dot(normalWorld, halfway));
     float NdotV = max(0.0, dot(normalWorld, pixelToEye));
     
     float3 F0 = lerp(Fdielectric, albedo, metallic);
-    float3 F = PBRSchlickFresnel(F0, max(0.0, dot(halfway, pixelToEye)));
-    float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metallic);
+    //float3 F0 = lerp(Fdielectric, (0,0,0), metallic); //프레넬을 확인할때 요긴하다.
+    float3 F = PBRSchlickFresnel(F0, max(0.0, dot(normalWorld, pixelToEye)));
     
+    float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metallic);
+    float3 ks = 1 - kd;
+    //float3 kd = 1 - ks;
     //Diffuse BRDF를 구한다. Pi를 생략해도 별 문제가 되지 않는다. ->조명 단위와 BRDF 구현의 목적에 따라 π를 생략할 수도 있다
     //https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
-    float3 diffuseBRDF = kd * albedo;      
-
+    float3 diffuseBRDF = kd * albedo / PI;      
+    
     
     float D = NdfGGX(NdotH, roughness);
-    float3 G = SchlickGGX(NdotL, NdotV, roughness);
+    float G = SchlickGGX(NdotL, NdotV, roughness);
     
     //Cook_Torrence Specular BRDF를 구한다.
-    float3 specularBRDF = (F * D * G) / max(1e-5, 4.0 * NdotL * NdotV);
+    float3 specularBRDF = ((F * D * G) / max(1e-5, 4.0 * NdotL * NdotV)) * ks;
     float3 radiance = lights[0].strength * saturate((lights[0].fallOffEnd - length(lightVec))
                     / (lights[0].fallOffEnd - lights[0].fallOffStart));
     
-    directLighting += (diffuseBRDF + specularBRDF) *1* NdotL ;
+    directLighting += (diffuseBRDF + specularBRDF) * 1 * NdotL;
     //------------------여기까지 for문 끝-------------------------------------------
     
-    float4 finalColor = float4((ambientLighting + directLighting), 1.0f);
+    float4 finalColor = float4((ambientLighting), 1.0f);
     finalColor = clamp(finalColor, 0.0, 1000.f);
    
     return float4(finalColor);
+    return float4(F, 1.0);
     //return float4(directLighting,1.0f);
 }
     
