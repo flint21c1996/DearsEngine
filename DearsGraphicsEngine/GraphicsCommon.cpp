@@ -106,6 +106,12 @@ namespace Dears {
 		// Blend States
 		ComPtr<ID3D11BlendState> OpacityBS;
 
+		//default
+		ComPtr<ID3D11BlendState> DefaultBS;
+
+		//Billboard
+		ComPtr<ID3D11BlendState> BillboardBS;
+
 
 
 	} // namespace Graphics
@@ -177,15 +183,15 @@ namespace Dears {
 		///블렌딩 상태를 정의하는 구조체, 이 구조체를 사용하여 블렌딩 방식을 설정하고 이를 GPU에 적용한다.
 		D3D11_BLEND_DESC BlendDesc;
 		ZeroMemory(&BlendDesc, sizeof(BlendDesc));	//구조테를 0으로 초기화한다.
-		BlendDesc.AlphaToCoverageEnable = true; // MSAA(Multi-Sample Anti Aliasing)을 사용할때 알파블렌딩을 사용할 것인가?
+		BlendDesc.AlphaToCoverageEnable = false; // MSAA(Multi-Sample Anti Aliasing)을 사용할때 알파블렌딩을 사용할 것인가?
 		BlendDesc.IndependentBlendEnable = false; //여러개의 렌더 타겟(최대 8개)에 대해 독립적인 블렌딩 설정을 사용할 것인가? false일 경우 첫번째 렌더타겟의 블렌딩 설정이 모든 렌더타겟에 적용된다.
 
 		//렌더 타겟 설정
 		BlendDesc.RenderTarget[0].BlendEnable = true;								//블렌딩을 활성화 하는 설정, true로 설정하면 GPU가 색상을 혼합하여 출력
 
 		///FinalRGB = (SrcRGB * SrcBlend) [op] (DstRGB * DestBlend)						//Scr = Source(소스 - 현재 렌더링하려는 픽셀의 색상), Dst = Destination(대상 - 이미 렌더 타겟에 존재하는 픽셀의 색상), [op] - RenderTarget.BlendOp
-		BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_BLEND_FACTOR;			//블렌딩 시에 사용됭 소스 색상의 혼합방식을 설정, D3D11_BLEND_BLEND_FACTOR는 GPU의 블렌딩 펙터를 소스 색상의 곱셈인자로 사용한다. 블렌딩 팩터는 이후에 "OMSetBlendState"를 호출할 때 지정할 수 있다.
-		BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_BLEND_FACTOR;		//블렌딩 시에 사용될 대상 색상(랜더타겟에 이미 존재하는 색상)의 혼합방식을 설정, D3D11_BLEND_INV_BLEND_FACTOR는 블렌딩 펙터의 "보수값(1 - 블렌딩 팩터)을 곱하는 방식으로 블렌딩한다.
+		BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;			//블렌딩 시에 사용됭 소스 색상의 혼합방식을 설정, D3D11_BLEND_BLEND_FACTOR는 GPU의 블렌딩 펙터를 소스 색상의 곱셈인자로 사용한다. 블렌딩 팩터는 이후에 "OMSetBlendState"를 호출할 때 지정할 수 있다.
+		BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;		//블렌딩 시에 사용될 대상 색상(랜더타겟에 이미 존재하는 색상)의 혼합방식을 설정, D3D11_BLEND_INV_BLEND_FACTOR는 블렌딩 펙터의 "보수값(1 - 블렌딩 팩터)을 곱하는 방식으로 블렌딩한다.
 		BlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;					//소스 색상과 대상 색상 간의 블렌딩 연산을 설정한다.D3D11_BLEND_OP_ADD는 두 색상을 더하는 연산을 수행한다. 최종 색상 = (소스 색상 * SrcBlend) + (대상 색상 * DestBlend)
 
 		///FinalAlpha = (SrcAlpha * SrcBlendAlpha) [op] (DstAlpha* DestBlendAlpha)		//Scr = Source(소스 - 현재 렌더링하려는 픽셀의 알파값), Dst = Destination(대상 - 이미 렌더 타겟에 존재하는 픽셀의 알파값), [op] - RenderTarget.BlendOpAlpha
@@ -199,6 +205,18 @@ namespace Dears {
 
 		ThrowIfFailed(
 			device->CreateBlendState(&BlendDesc, OpacityBS.GetAddressOf()));
+
+		BlendDesc.AlphaToCoverageEnable = true;
+		///FinalRGB = (SrcRGB * SrcBlend) [op] (DstRGB * DestBlend)			
+		BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_BLEND_FACTOR;
+		BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_BLEND_FACTOR;
+		BlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+		ThrowIfFailed(
+			device->CreateBlendState(&BlendDesc, BillboardBS.GetAddressOf()));
+
+		BlendDesc.RenderTarget[0].BlendEnable = false;
+		ThrowIfFailed(
+			device->CreateBlendState(&BlendDesc, DefaultBS.GetAddressOf()));
 	}
 
 	/// <summary>
@@ -468,12 +486,13 @@ namespace Dears {
 		BasicGeometryPSO.m_pRasterizerState = solidRS;
 		BasicGeometryPSO.m_pDepthStencilState = drawDSS;
 		BasicGeometryPSO.m_primitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		BasicGeometryPSO.m_pBlendState = OpacityBS;
+		BasicGeometryPSO.m_pBlendState = BillboardBS;
 
 
 		// DebugGeometryPSO
 		DebugGeometryPSO = BasicGeometryPSO;
 		DebugGeometryPSO.m_pRasterizerState = wireRS;
+		DebugGeometryPSO.m_pBlendState = DefaultBS;
 
 		// AnimeGeometryPSO
 		AnimeGeometryPSO.m_pVertexShader = animeVS;
@@ -515,7 +534,7 @@ namespace Dears {
 
 		//OpacityPso
 		OpacityPSO = BasicGeometryPSO;
-		OpacityPSO.m_pBlendState = OpacityBS;
+		OpacityPSO.m_pBlendState = BillboardBS;
 
 		//InstancingPSO
 		BasicInstancingPSO = BasicGeometryPSO;
@@ -544,7 +563,9 @@ namespace Dears {
 		//TestPSO
 		TestPSO = BasicGeometryPSO;
 		TestPSO.m_pVertexShader = testVS;
-		TestPSO.m_pPixelShader = testPS;
+		TestPSO.m_pPixelShader = testPS;		
+		TestPSO.m_pBlendState = BillboardBS;
+
 
 		ParticlePSO = BasicInstancingPSO;
 		ParticlePSO.m_pVertexShader = particleVS;
@@ -567,6 +588,7 @@ namespace Dears {
 		PBRPSO.m_pVertexShader = PBRVS;
 		PBRPSO.m_pInputLayout = PBRIL;
 		PBRPSO.m_pPixelShader = PBRPS;
+		PBRPSO.m_pBlendState = OpacityBS;
 	}
 
 }

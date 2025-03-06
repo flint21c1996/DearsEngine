@@ -377,7 +377,7 @@ void GameEngine::Update()
 			tempVec.x += 0.1f;
 
 		}
-		if (m_pInputManager->GetKeyState(KEY::F) == KEY_STATE::HOLD)
+		if (m_pInputManager->GetKeyState(KEY::F) == KEY_STATE::TAP)
 		{
 			//tempObject1->SetNextAnimation("Character@Cast Spell 02.FBX");
 			CSParticleData temp;
@@ -386,32 +386,32 @@ void GameEngine::Update()
 			temp.playTime = 0;
 
 			temp.color = { 1,1,1 };
-			temp.lifeTime = 2;
+			temp.lifeTime = 10;
 
-			temp.direction = { 1,0.1,0 };
+			temp.direction = { 0,0,0 };
 			temp.velocity = 20.0f;
 
 			temp.Rotation = { 0, 0, 0 };
 			temp.opacity = 1;
 
-			temp.Scale = { 0.3,0.3,0.3 };
-			temp.deltaOpacity = 0.f;
+			temp.Scale = { 1,1,1 };
+			temp.deltaOpacity = -0.1f;
 
 			temp.deltaRotation = { 0 ,0, 1 };
 			temp.SclRandomFactor = 0;
 
 			temp.deltaScale = { 0.f, 0.f, 0.f };
 
-			temp.PosRandomFactor = { 1, 1, 0 };
+			temp.PosRandomFactor = { 0, 0, 0 };
 			temp.RotRandomFactor = { 0, 0, 0 };
 			temp.dirRandomFactor = { 0, 0, 0 };
 
 			temp.deltaColor = { 0, 0, 0 };
 
-			temp.gravity = 1;
-			temp.colorRandomFactor = { 1, 1, 1 };
+			temp.gravity = 0;
+			temp.colorRandomFactor = { 0, 0, 0 };
 
-			m_pDearsGraphicsEngine->m_pParticleManager->AddParticle(5, temp);
+			m_pDearsGraphicsEngine->m_pParticleManager->AddParticle(1, temp);
 
 			//
 		}
@@ -658,15 +658,15 @@ void GameEngine::Render()
 
 
 // 	m_pDearsGraphicsEngine->SetPipelineState(Dears::Graphics::PunchingPSO);
-// 	tempObject5->SetObjectScl(Matrix::CreateScale(5, 15, 5));
-// 	tempObject5->Update();
-// 	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
+ 	tempObject5->SetObjectScl(Matrix::CreateScale(5, 15, 5));
+ 	tempObject5->Update();
+ 	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
 // 
 // 	m_pDearsGraphicsEngine->SetPipelineState(Dears::Graphics::EdgePSO);
-// 	tempObject5->SetObjectScl(Matrix::CreateScale(5.5, 15.5, 5.5));
-// 	tempObject5->Update();
-//	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
-//	m_pDearsGraphicsEngine->Rend_EdgeModel(tempObject5->GetModelBuffer());
+ 	tempObject5->SetObjectScl(Matrix::CreateScale(5.5, 15.5, 5.5));
+ 	tempObject5->Update();
+	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
+	m_pDearsGraphicsEngine->Rend_EdgeModel(tempObject5->GetModelBuffer());
 
 	//m_pDearsGraphicsEngine->Rend_Shadow(tempObject5->GetModelBuffer());
 	// 	m_pDearsGraphicsEngine->Rend_DebugBox(tempObject2->mpModelBuffer->mpTargetModel->mMeshData->mAABB,
@@ -682,7 +682,7 @@ void GameEngine::Render()
  	Matrix tempScl = Matrix::CreateScale({ 3,1,5 });
  	Matrix tempRot = Matrix::CreateRotationX(0) * Matrix::CreateRotationX(0) * Matrix::CreateRotationX(0);
  	Matrix tempPos = Matrix::CreateTranslation({ 0,0,0 });
-	//m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, tempPos);
+	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, tempPos);
 	m_pDearsGraphicsEngine->Rend_OpacitiyModel(tempObject5->GetModelBuffer());
 	m_pDearsGraphicsEngine->RendParticle();
 	static bool a = true;
