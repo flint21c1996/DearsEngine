@@ -175,6 +175,7 @@ public:
 	void UpdateVSWaterConstantBuffer(ModelBuffer* _pModelBuffer, VSWaterConstantBufferData& _pPSEdgeConstantBuffer);
 	void UpdateVSPBRConstantBuffer(ModelBuffer* _pModelBuffer, PBRVertexShaderConstantData& _PBRConstantData);
 	void UpdatePSPBRConstantBuffer(ModelBuffer* _pModelBuffer, PBRPixelShaderConstantData& _PBRConstantData);
+	void UpdatePSThinFilmonstantBuffer(ModelBuffer* _pModelBuffer, ThinFilmPixelShaderConstantData& _ThinFilmConstantData);
 
 	void UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer, VSShadowConstantBufferData& _VsShadowConstantBufferData);
 	void UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer, PsShadowConstantBufferData& _VsShadowConstantBufferData);
@@ -188,6 +189,7 @@ public:
 	void Rend_Model(ModelBuffer* _modelBuffer);
 
 	void Rend_PBR(ModelBuffer* _modelBuffer);
+	void Rend_ThinFilm(ModelBuffer* _modelBuffer);
 
 	void Rend_EquipmentModel(ModelBuffer* _modelBuffer);
 	void SetOpacityFactor(float blendFactor[4]);							//투명도를 설정한다.

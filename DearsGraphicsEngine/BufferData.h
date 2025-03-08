@@ -72,6 +72,27 @@ struct PBRPixelShaderConstantData
 
 	PBRMaterial material;
 };
+
+struct ThinFilmPixelShaderConstantData
+{
+	float n1 = 1.0f;
+	float n2 = 1.33f;
+	float time = 0.5f;
+	int dummy0;
+
+	float maxLights = MAX_LIGHTS;			//LightÀÇ ÃÑ °³¼ö
+	int useAlbedoMap = 0;
+	int useNormalMap = 0;
+	int useAOMap = 0; // Ambient Occlusion		//16
+
+	int useMetallicMap = 0;
+	int useRoughnessMap = 0;
+	int dummy1;
+	int dummy2;								//32
+
+	PBRMaterial material;
+};
+
 struct PsShadowConstantBufferData
 {
 	Vector3 lightDirection;

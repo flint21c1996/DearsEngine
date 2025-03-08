@@ -147,7 +147,7 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
     float NdotL = max(0.0, dot(normalWorld, lightVec));
     float NdotH = max(0.0, dot(normalWorld, halfway));
     float NdotV = max(0.0, dot(normalWorld, pixelToEye));
-    metallic = 1;
+    
     float3 F0 = lerp(Fdielectric, albedo, metallic);
     //float3 F0 = lerp(Fdielectric, (0.05,0.05,0.05), metallic); //프레넬을 확인할때 요긴하다.
     //float3 F = PBRSchlickFresnel(F0, max(0.0, dot(normalWorld, pixelToEye)));
@@ -178,10 +178,8 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
    // return float4(finalColor);
    
     //Fresnel이 보고싶을때
-    
-    
     float3 temp = F / (4 * (NdotV) + 0.00001);
-    return float4(temp, pow(1 - (NdotV), 5));
+    return float4(temp, pow(1 - (NdotV), 2));
     
     
     //return float4(directLighting,1.0f);

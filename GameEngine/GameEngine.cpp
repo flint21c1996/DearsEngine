@@ -198,6 +198,8 @@ void GameEngine::Initialize()
 	tempObject4->Initialize();
 	tempObject4->CreateVSPBRConstantBuffer();
 	tempObject4->CreatePSPBRConstantBuffer();
+	tempObject4->CreatePSThinFilmConstantBuffer();
+
 	tempObject4->SetPBRTextures(
 		"albedo.png",
 		"normal.png",
@@ -536,6 +538,9 @@ void GameEngine::Update()
 			opacityValue[i] -= 0.01f;
 		}
 		m_pDearsGraphicsEngine->SetOpacityFactor(opacityValue);	//투명도를 몇으로 할것인지..
+		tempObject4->mPSThinFilmConstantBufferData.time += 0.05;
+
+
 	}
 
 	if (m_pInputManager->GetKeyState(KEY::_0) == KEY_STATE::HOLD)
@@ -545,6 +550,8 @@ void GameEngine::Update()
 			opacityValue[i] += 0.01f;
 		}
 		m_pDearsGraphicsEngine->SetOpacityFactor(opacityValue);
+		tempObject4->mPSThinFilmConstantBufferData.time -= 0.05;
+
 	}
 	m_pDearsGraphicsEngine->Update();
 }
@@ -648,7 +655,8 @@ void GameEngine::Render()
 
 	m_pDearsGraphicsEngine->Rend_BillBoard(tempObject3->GetModelBuffer());		//애니메이션 모델을 랜더한다.
 
-	m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
+//	m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
+	m_pDearsGraphicsEngine->Rend_ThinFilm(tempObject4->GetModelBuffer());
 	//m_pDearsGraphicsEngine->Rend_Model(tempObject4->GetModelBuffer());
 
 

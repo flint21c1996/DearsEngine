@@ -6,12 +6,16 @@ Texture2D aoTex : register(t3);
 Texture2D metallicTex : register(t4);
 Texture2D roughnessTex : register(t5);
 
-cbuffer ThinFilmConstantBuffer : register(b2)
+cbuffer ThinFilmConstantBuffer : register(b3)
 {
 	//n1 - 매질1의 굴절율 
     float n1;
-	//d - 박막의 두께
-    float d; 
+    
+    //n2 - 매질2의 굴절율
+    float n2;
+    
+    //시간
+    float time;
     
     float maxLights;
     int useAlbedoMap;
@@ -97,6 +101,57 @@ float3 AmbientLightingByIBL(float3 albedo, float3 normalW, float3 pixelToEye, fl
     return (diffuseIBL + specularIBL) * ao;
 }
 
+float3 GetThinFilmVector(float n1, float n2, float3 viewDir, float3 normalWorld, float time)
+{
+    //입사각 계산 //refract함수 내부에서 이런식으로 작동한다.
+    //float costheta1 = NdotV;
+    //float sintheta1 = sqrt(1 - pow(costheta1, 2));
+    //float sintheta2 = (n1 / n2) * sintheta1;
+    //float costheta2 = sqrt(1 - pow(sintheta2, 2));
+    //float3 finalvec = (n1 / n2 * costheta1 + (n1 / n2 * costheta1 - costheta2)) * normalWorld * d;
+    
+    //임의로 정한 시간상수
+    float t = time;
+    
+    // 두께변수
+    float d = saturate(lerp(0.1, 1, t));
+    
+    // 반사 및 굴절 벡터 계산
+    float3 reflectVec = reflect(-viewDir, normalWorld);
+    float3 refractVec = refract(-viewDir, normalWorld, n1 / n2);
+    
+    //기본 반사율 공식
+    float R0 = pow((n1 - n2) / (n1 + n2), 2.0);
+    
+    //프레넬 공식
+    float fresnelFactor = R0 + (1.0 - R0) * pow(1.0 - abs(dot(normalWorld, viewDir)), 5.0);
+    
+    // 반사와 굴절을 조합하여 최종 벡터 결정
+    float3 finalVec = normalize(lerp(refractVec, reflectVec, fresnelFactor));
+    
+    // 환경 맵에서 빛 샘플링
+    float3 color = g_diffuseCube.SampleLevel(linearWrapSampler, finalVec, 11).rgb;
+   
+    //-----------------------------------
+    // 빛이 법선과 이루는 각도 계산
+    float cosTheta = abs(dot(refractVec, normalWorld));
+
+    // OPD(광학 경로 차이) 계산
+    float OPD = 2.0 * n2 * d * cosTheta *1000;
+
+    // OPD를 특정한 파장과 비교하여 RGB 값 생성
+    float R = sin(2.0 * 3.1415 * OPD / 650.0); // 빨강 (λ = 650nm)
+    float G = sin(2.0 * 3.1415 * OPD / 510.0); // 초록 (λ = 510nm)
+    float B = sin(2.0 * 3.1415 * OPD / 475.0); // 파랑 (λ = 475nm)
+
+    // 절대값 적용하여 음수 값 방지
+    float3 interferenceColor = abs(float3(R, G, B));
+
+    return interferenceColor;
+    return (interferenceColor * color) * fresnelFactor;
+    
+}
+
 float4 main(PBRPixelShaderInput input) : SV_TARGET
 {
     float3 pixelToEye = normalize(eyeWorld - input.posWorld);
@@ -111,13 +166,17 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET
     //GI
     float3 ambientLighting = AmbientLightingByIBL(albedo, normalWorld, pixelToEye, ao,
                                                   metallic, roughness);
+    float3 lightVec = normalize(lights[0].position - input.posWorld);
     
+    float3 halfway = normalize(pixelToEye + lightVec);
     
+    float3 reflectVec = reflect(-lightVec, normalWorld);
     
+    float NdotL = max(0.0, dot(normalWorld, lightVec));
+    float NdotH = max(0.0, dot(normalWorld, halfway));
+    float NdotV = max(0.0, dot(normalWorld, pixelToEye));
     
-    
-    
-    
-    
-	return float4(1.0f, 1.0f, 1.0f, 1.0f);
+    float3 Finalvec = GetThinFilmVector(n1, n2, pixelToEye, normalWorld, time);
+
+    return float4(Finalvec, 1.0f);
 }

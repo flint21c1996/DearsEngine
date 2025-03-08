@@ -51,6 +51,7 @@ namespace Dears {
 		ComPtr<ID3D11PixelShader> samplerPS;
 		ComPtr<ID3D11PixelShader> postProcessingPS;
 		ComPtr<ID3D11PixelShader> PBRPS;
+		ComPtr<ID3D11PixelShader> ThinFilmPS;
 
 		//ComputeShader
 		ComPtr<ID3D11ComputeShader> particleComputeShader;
@@ -102,6 +103,7 @@ namespace Dears {
 		PipelineStateObject postEffectPSO;
 		
 		PipelineStateObject PBRPSO;
+		PipelineStateObject ThinFilmPSO;
 
 		// Blend States
 		ComPtr<ID3D11BlendState> OpacityBS;
@@ -191,7 +193,7 @@ namespace Dears {
 
 		///FinalRGB = (SrcRGB * SrcBlend) [op] (DstRGB * DestBlend)						//Scr = Source(소스 - 현재 렌더링하려는 픽셀의 색상), Dst = Destination(대상 - 이미 렌더 타겟에 존재하는 픽셀의 색상), [op] - RenderTarget.BlendOp
 		BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;			//블렌딩 시에 사용됭 소스 색상의 혼합방식을 설정, D3D11_BLEND_BLEND_FACTOR는 GPU의 블렌딩 펙터를 소스 색상의 곱셈인자로 사용한다. 블렌딩 팩터는 이후에 "OMSetBlendState"를 호출할 때 지정할 수 있다.
-		BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;		//블렌딩 시에 사용될 대상 색상(랜더타겟에 이미 존재하는 색상)의 혼합방식을 설정, D3D11_BLEND_INV_BLEND_FACTOR는 블렌딩 펙터의 "보수값(1 - 블렌딩 팩터)을 곱하는 방식으로 블렌딩한다.
+		BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;		//블렌딩 시에 사용될 대상 색상(랜더타겟에 이미 존재하는 색상)의 혼합방식을 설정, D3D11_BLEND_INV_BLEND_FACTOR는 블렌딩 펙터의 "보수값(1 - 블렌딩 팩터)을 곱하는 방식으로 블렌딩한다.
 		BlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;					//소스 색상과 대상 색상 간의 블렌딩 연산을 설정한다.D3D11_BLEND_OP_ADD는 두 색상을 더하는 연산을 수행한다. 최종 색상 = (소스 색상 * SrcBlend) + (대상 색상 * DestBlend)
 
 		///FinalAlpha = (SrcAlpha * SrcBlendAlpha) [op] (DstAlpha* DestBlendAlpha)		//Scr = Source(소스 - 현재 렌더링하려는 픽셀의 알파값), Dst = Destination(대상 - 이미 렌더 타겟에 존재하는 픽셀의 알파값), [op] - RenderTarget.BlendOpAlpha
@@ -467,6 +469,10 @@ namespace Dears {
 		PSfilename = "../DearsGraphicsEngine/Shader/PBRPixelShader.hlsl";
 		RendererHelper::CreatePixelShader(device, PSfilename, PBRPS);
 
+		PSfilename = "../DearsGraphicsEngine/Shader/ThinFilmPixelShader.hlsl";
+		RendererHelper::CreatePixelShader(device, PSfilename, ThinFilmPS);
+
+
 		//Create ComputeShader
 		std::string CSfilename = "../DearsGraphicsEngine/Shader/TestComputeShader.hlsl";
 		RendererHelper::CreateComputeShader(device, CSfilename, particleComputeShader);
@@ -573,7 +579,8 @@ namespace Dears {
 		ParticlePSO.m_pPixelShader = particlePS;
 		//ParticlePSO.m_pRasterizerState = wireRS;
 		ParticlePSO.m_pDepthStencilState = particleDSS;
-		
+		ParticlePSO.m_pBlendState = OpacityBS;
+
 		samplerPSO = BasicGeometryPSO;
 		samplerPSO.m_pVertexShader = samplerVS;
 		samplerPSO.m_pInputLayout = samplerIL;
@@ -589,6 +596,10 @@ namespace Dears {
 		PBRPSO.m_pInputLayout = PBRIL;
 		PBRPSO.m_pPixelShader = PBRPS;
 		PBRPSO.m_pBlendState = OpacityBS;
+
+		ThinFilmPSO = PBRPSO;
+		ThinFilmPSO.m_pPixelShader = ThinFilmPS;
+
 	}
 
 }

@@ -51,6 +51,8 @@ public:
 
 	PBRVertexShaderConstantData mVSPBRConstantBufferData;
 	PBRPixelShaderConstantData mPSPBRConstantBufferData;
+
+	ThinFilmPixelShaderConstantData mPSThinFilmConstantBufferData;
 	
 	//물쉐이딩에 필요한 정보 UV좌표계를 윔직이게 하기위한.
 	VSWaterConstantBufferData mVSWaterConstantBufferData;
@@ -71,6 +73,7 @@ public:
 
 	bool mIs_VSPBRConstant = false;
 	bool mIs_PSPBRConstant = false;
+	bool mIs_PSThinFilmConstant = false;
 
 
 	int mTargetBoneIndex;			//장비의 경우 타겟본의 인덱스를 알고 있어야한다. -> 똑같은 계산을 두번 안해도 된다.
@@ -115,6 +118,11 @@ public:
 	void CreatePSPBRConstantBuffer()
 	{
 		mpModelBuffer->m_PSPBRConstantBuffer = mpGraphicsEngine->CreateConstantBuffer(mPSPBRConstantBufferData);  mIs_PSPBRConstant = true;
+	};
+
+	void CreatePSThinFilmConstantBuffer()
+	{
+		mpModelBuffer->m_PSThinFilmConstantBuffer = mpGraphicsEngine->CreateConstantBuffer(mPSThinFilmConstantBufferData);  mIs_PSThinFilmConstant= true;
 	};
 
 	//난 이녀석을 업데이트 시킬 생각은 일단 지금없다. 

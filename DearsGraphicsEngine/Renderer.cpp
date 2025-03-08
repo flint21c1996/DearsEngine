@@ -128,6 +128,7 @@ void Renderer::Render(ModelBuffer* _modelbuffer)
 
 	m_pDeviceContext->PSSetConstantBuffers(0, 1, _modelbuffer->m_pPSConstantBuffer.GetAddressOf());
 	m_pDeviceContext->PSSetConstantBuffers(2, 1, _modelbuffer->m_PSPBRConstantBuffer.GetAddressOf());	//원인이 뭘까..?
+	m_pDeviceContext->PSSetConstantBuffers(3, 1, _modelbuffer->m_PSThinFilmConstantBuffer.GetAddressOf());	//원인이 뭘까..?
 
 	ID3D11ShaderResourceView* vertexResources[1] =
 	{

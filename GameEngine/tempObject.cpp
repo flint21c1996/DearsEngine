@@ -120,6 +120,12 @@ void tempObject::Update()
 
 	}
 
+	if (mIs_PSThinFilmConstant)
+	{
+		mpGraphicsEngine->UpdatePSThinFilmonstantBuffer(mpModelBuffer, mPSThinFilmConstantBufferData);
+
+	}
+
 }
 
 

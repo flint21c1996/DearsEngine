@@ -368,6 +368,11 @@ void DearsGraphicsEngine::UpdatePSPBRConstantBuffer(ModelBuffer* _pModelBuffer, 
 
 }
 
+void DearsGraphicsEngine::UpdatePSThinFilmonstantBuffer(ModelBuffer* _pModelBuffer, ThinFilmPixelShaderConstantData& _ThinFilmConstantData)
+{
+	RendererHelper::UpdateBuffer(m_pDeviceContext, _ThinFilmConstantData, _pModelBuffer->m_PSThinFilmConstantBuffer);
+}
+
 void DearsGraphicsEngine::UpdateCommonConstantBuffer(CommonConstantBufferData& _CommonBufferData)
 {
  	_CommonBufferData.view = m_pTargetCamera->GetViewRow().Transpose();		// 시점 변환
@@ -468,6 +473,12 @@ void DearsGraphicsEngine::Rend_PBR(ModelBuffer* _modelBuffer)
 	mpRenderer->Render(_modelBuffer);
 }
 
+
+void DearsGraphicsEngine::Rend_ThinFilm(ModelBuffer* _modelBuffer)
+{
+	SetPipelineState(Dears::Graphics::ThinFilmPSO);
+	mpRenderer->Render(_modelBuffer);
+}
 
 void DearsGraphicsEngine::Rend_EquipmentModel(ModelBuffer* _modelBuffer)
 {
