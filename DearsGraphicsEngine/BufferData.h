@@ -77,8 +77,8 @@ struct ThinFilmPixelShaderConstantData
 {
 	float n1 = 1.0f;
 	float n2 = 1.33f;
-	float time = 0.5f;
-	int dummy0;
+	float time = 0.0f;
+	int d = 1.0f;
 
 	float maxLights = MAX_LIGHTS;			//LightÀÇ ÃÑ °³¼ö
 	int useAlbedoMap = 0;

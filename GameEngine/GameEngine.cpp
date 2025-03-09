@@ -538,7 +538,7 @@ void GameEngine::Update()
 			opacityValue[i] -= 0.01f;
 		}
 		m_pDearsGraphicsEngine->SetOpacityFactor(opacityValue);	//투명도를 몇으로 할것인지..
-		tempObject4->mPSThinFilmConstantBufferData.time += 0.05;
+		tempObject4->mPSThinFilmConstantBufferData.time += 0.001;
 
 
 	}
@@ -550,7 +550,7 @@ void GameEngine::Update()
 			opacityValue[i] += 0.01f;
 		}
 		m_pDearsGraphicsEngine->SetOpacityFactor(opacityValue);
-		tempObject4->mPSThinFilmConstantBufferData.time -= 0.05;
+		tempObject4->mPSThinFilmConstantBufferData.time -= 0.001;
 
 	}
 	m_pDearsGraphicsEngine->Update();
