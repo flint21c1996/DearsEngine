@@ -666,14 +666,14 @@ void GameEngine::Render()
 
 
 // 	m_pDearsGraphicsEngine->SetPipelineState(Dears::Graphics::PunchingPSO);
- 	tempObject5->SetObjectScl(Matrix::CreateScale(5, 15, 5));
- 	tempObject5->Update();
- 	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
+ //	tempObject5->SetObjectScl(Matrix::CreateScale(5, 15, 5));
+ //	tempObject5->Update();
+ //	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
 // 
 // 	m_pDearsGraphicsEngine->SetPipelineState(Dears::Graphics::EdgePSO);
- 	tempObject5->SetObjectScl(Matrix::CreateScale(5.5, 15.5, 5.5));
+// 	tempObject5->SetObjectScl(Matrix::CreateScale(5.5, 15.5, 5.5));
  	tempObject5->Update();
-	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
+//	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
 	m_pDearsGraphicsEngine->Rend_EdgeModel(tempObject5->GetModelBuffer());
 
 	//m_pDearsGraphicsEngine->Rend_Shadow(tempObject5->GetModelBuffer());

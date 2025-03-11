@@ -553,6 +553,8 @@ namespace Dears {
 		PunchingPSO.m_pPixelShader = depthOnlyPS;
 		PunchingPSO.m_pDepthStencilState = punchDSS;
 		PunchingPSO.m_stencilRef = 1;
+		PunchingPSO.m_pBlendState = OpacityBS;
+
 
 		//EdgePSO
 		EdgePSO = BasicGeometryPSO;

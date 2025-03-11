@@ -150,10 +150,9 @@ float3 GetThinFilmVector(float n1, float n2, float3 viewDir, float3 normalWorld,
 
     // 절대값 적용하여 음수 값 방지
     float3 interferenceColor = abs(float3(R, G, B));
+    return (color * fresnelFactor + interferenceColor * (color * (1 - fresnelFactor) * (fresnelFactor) 
+                                                      + (color1 * (1 - fresnelFactor) * (1-fresnelFactor))));
 
-    //return color1;
-    return (interferenceColor * (color * (fresnelFactor) + color1 * (1 - fresnelFactor)));
-    
 }
 
 float4 main(PBRPixelShaderInput input) : SV_TARGET
@@ -181,36 +180,7 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET
     float NdotH = max(0.0, dot(normalWorld, halfway));
     float NdotV = max(0.0, dot(normalWorld, pixelToEye));
     
-    float distance = d * lerp(0.1, 1, time);
-    
-    // 반사 및 굴절 벡터 계산
-    float3 reflectVec = normalize(reflect(halfway, normalWorld));
-    float3 refractVec = normalize(refract(halfway, normalWorld, n1 / n2));
-    float3 reflectVec1 = normalize(reflect(refractVec, normalWorld));
-    float3 refractVec1 = normalize(refract(reflectVec1, normalWorld, n2 / n1));
-    
-    // 빛이 법선과 이루는 각도 계산
-    float cosTheta = abs(dot(refractVec, normalWorld));
-    // OPD(광학 경로 차이) 계산
-    float OPD = 2.0 * n2 * distance * cosTheta * 1000;
-    // OPD를 특정한 파장과 비교하여 RGB 값 생성
-    float R = sin(2.0 * 3.1415 * OPD / 650.0); // 빨강 (λ = 650nm)
-    float G = sin(2.0 * 3.1415 * OPD / 510.0); // 초록 (λ = 510nm)
-    float B = sin(2.0 * 3.1415 * OPD / 475.0); // 파랑 (λ = 475nm)
-    
-    // 절대값 적용하여 음수 값 방지
-    float3 interferenceColor = abs(float3(R, G, B));
-    
-    
-    float3 F0 = (0.04, 0.04, 0.04);
-    float3 F = PBRSchlickFresnel(F0, dot(halfway, pixelToEye));
-    
-    float3 color = (interferenceColor * (1 - F) + lights[0].lightColor * F);
-    
     float3 GIFinalcolor = GetThinFilmVector(n1, n2, pixelToEye, normalWorld, d, time);
     
-    
-
-   // return float4(color,1);
-    return float4(color * GIFinalcolor, 1 - NdotV);
+    return float4(GIFinalcolor, 0.5);
 }

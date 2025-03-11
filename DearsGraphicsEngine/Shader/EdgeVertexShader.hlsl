@@ -22,6 +22,8 @@ PixelShaderInput main(VertexShaderInput input)
 //  pos = pos + float4(averageNormal * 3.f, 0.0f);
     
     pos = mul(pos, edgeScaleMatrix);
+    //pos += float4(input.normal, 0);
+    
     pos = mul(pos, world);
     output.posWorld = pos;
     pos = mul(pos, view);
