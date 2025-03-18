@@ -25,7 +25,7 @@ cbuffer ThinFilmConstantBuffer : register(b3)
     int useMetallicMap;
     int useRoughnessMap;
     int dummy1;
-    int dummy2; 
+    int dummy2;              //16
     
     PBRMaterial material;
 }
@@ -103,7 +103,7 @@ float3 AmbientLightingByIBL(float3 albedo, float3 normalW, float3 pixelToEye, fl
     return (diffuseIBL + specularIBL) * ao;
 }
 
-float3 GetThinFilmVector(float n1, float n2, float3 viewDir, float3 normalWorld, float distance, float time)
+float3 GetThinFilmVector(float n1, float n2, float3 viewDir, float3 normalWorld, float distance, float time, float3 albedo, float NdotV)
 {
     //입사각 계산 //refract함수 내부에서 이런식으로 작동한다.
     //float costheta1 = NdotV;
@@ -116,9 +116,10 @@ float3 GetThinFilmVector(float n1, float n2, float3 viewDir, float3 normalWorld,
     float t = time;
     
     float d = distance;
-    
+  
     // 두께변수
     d *=lerp(0.1, 1, t);
+    d += (albedo * pow(1 - NdotV, 5));
     
     // 반사 및 굴절 벡터 계산
     float3 reflectVec = normalize(reflect(-viewDir, normalWorld));
@@ -135,6 +136,7 @@ float3 GetThinFilmVector(float n1, float n2, float3 viewDir, float3 normalWorld,
     // 환경 맵에서 빛 샘플링
     float3 color = g_specularCube.SampleLevel(linearWrapSampler, reflectVec, 0).rgb;
     float3 color1 = g_specularCube.SampleLevel(linearWrapSampler, refractVec1, 0).rgb;
+    float3 color2 = g_specularCube.SampleLevel(linearWrapSampler, reflectVec1, 0).rgb;
    
     //-----------------------------------
     // 빛이 법선과 이루는 각도 계산
@@ -150,9 +152,11 @@ float3 GetThinFilmVector(float n1, float n2, float3 viewDir, float3 normalWorld,
 
     // 절대값 적용하여 음수 값 방지
     float3 interferenceColor = abs(float3(R, G, B));
-    return (color * fresnelFactor + interferenceColor * (color * (1 - fresnelFactor) * (fresnelFactor) 
-                                                      + (color1 * (1 - fresnelFactor) * (1-fresnelFactor))));
-
+    
+   return (color * fresnelFactor + interferenceColor * (color * (1 - fresnelFactor) * (fresnelFactor) 
+                                                     + (color1 * (1 - fresnelFactor) * (1-fresnelFactor))));
+    
+    
 }
 
 float4 main(PBRPixelShaderInput input) : SV_TARGET
@@ -180,7 +184,7 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET
     float NdotH = max(0.0, dot(normalWorld, halfway));
     float NdotV = max(0.0, dot(normalWorld, pixelToEye));
     
-    float3 GIFinalcolor = GetThinFilmVector(n1, n2, pixelToEye, normalWorld, d, time);
+    float3 GIFinalcolor = GetThinFilmVector(n1, n2, pixelToEye, normalWorld, d, time, albedo, NdotV);
     
     return float4(GIFinalcolor, 0.5);
 }

@@ -173,8 +173,8 @@ float3 ComputePointLight(Light L, Material mat, float3 pos, float3 normal, float
 
     float attenuation = CalcAttenuation(d, L.fallOffStart, L.fallOffEnd);
     float d2 = d * d;
-    float attEquation = (1 - d2) * (1 - d2) / (1 + attenuation * d); // 감쇄 방정식을 계산한다.
-    LightStrength *= attenuation; // 빛에 감쇄율을 곱해준다.
+    float attEquation = (1 - d2) * (1 - d2) / (1 + attenuation * d); // 감쇠 방정식을 계산한다.
+    LightStrength *= attenuation; // 빛에 감쇠율을 곱해준다.
         
     return L.lightColor * BlinnPhong(LightStrength, lightVec, normal, toEye, mat);
 }

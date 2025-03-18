@@ -89,6 +89,8 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "normal.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "roughness.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "height.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/", "ThinPattern.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/", "ThinPattern2.png");
 	
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "saintpeters.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_diffuseIBL.dds");
@@ -201,14 +203,14 @@ void GameEngine::Initialize()
 	tempObject4->CreatePSThinFilmConstantBuffer();
 
 	tempObject4->SetPBRTextures(
-		"albedo.png",
+		"ThinPattern.png",
 		"normal.png",
 		"ao.png",
 		"metallic.png",
 		"roughness.png",
 		"height.png"
 	);
-
+	tempObject4->mPSThinFilmConstantBufferData.useAlbedoMap = 1;
 	tempObject4->SetVIBuffer("MySphere");
 	tempObject4->SetModelInfo("Hat 04.FBX");
 	tempObject4->SetDiffuseTexture("albedo.png");
@@ -487,7 +489,7 @@ void GameEngine::Update()
 	tempObject3->Update();
 
 
-	tempObject4->GetObjectTargetBoneMatrix(tempObject1->mpVSBoneConstantBufferData);
+	//tempObject4->GetObjectTargetBoneMatrix(tempObject1->mpVSBoneConstantBufferData);
 	//tempObject4->SetObjectPos(m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigHead", 0.1f));
 	tempObject4->Update();
 
@@ -655,7 +657,7 @@ void GameEngine::Render()
 
 	m_pDearsGraphicsEngine->Rend_BillBoard(tempObject3->GetModelBuffer());		//애니메이션 모델을 랜더한다.
 
-//	m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
+	//m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
 	m_pDearsGraphicsEngine->Rend_ThinFilm(tempObject4->GetModelBuffer());
 	//m_pDearsGraphicsEngine->Rend_Model(tempObject4->GetModelBuffer());
 
@@ -664,20 +666,14 @@ void GameEngine::Render()
  //	m_pDearsGraphicsEngine->Rend_Water(tempObject6->GetModelBuffer());
  //	m_pDearsGraphicsEngine->Rend_Model(tempObject7->GetModelBuffer());
 
+///edge
+// 	tempObject5->Update();
+//	m_pDearsGraphicsEngine->Rend_EdgeModel(tempObject5->GetModelBuffer());
+///Opacity
+//m_pDearsGraphicsEngine->Rend_OpacitiyModel(tempObject5->GetModelBuffer());
 
-// 	m_pDearsGraphicsEngine->SetPipelineState(Dears::Graphics::PunchingPSO);
- //	tempObject5->SetObjectScl(Matrix::CreateScale(5, 15, 5));
- //	tempObject5->Update();
- //	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
-// 
-// 	m_pDearsGraphicsEngine->SetPipelineState(Dears::Graphics::EdgePSO);
-// 	tempObject5->SetObjectScl(Matrix::CreateScale(5.5, 15.5, 5.5));
- 	tempObject5->Update();
-//	m_pDearsGraphicsEngine->mpRenderer->Render(tempObject5->GetModelBuffer());
-	m_pDearsGraphicsEngine->Rend_EdgeModel(tempObject5->GetModelBuffer());
-
-	//m_pDearsGraphicsEngine->Rend_Shadow(tempObject5->GetModelBuffer());
-	// 	m_pDearsGraphicsEngine->Rend_DebugBox(tempObject2->mpModelBuffer->mpTargetModel->mMeshData->mAABB,
+//m_pDearsGraphicsEngine->Rend_Shadow(tempObject5->GetModelBuffer());
+// 	m_pDearsGraphicsEngine->Rend_DebugBox(tempObject2->mpModelBuffer->mpTargetModel->mMeshData->mAABB,
 // 		Matrix::CreateScale({ 1,1,1 }),
 // 		Matrix::CreateRotationX(0) * Matrix::CreateRotationX(0) * Matrix::CreateRotationX(0),
 // 		m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigRPalm", 0.1f));
@@ -690,8 +686,7 @@ void GameEngine::Render()
  	Matrix tempScl = Matrix::CreateScale({ 3,1,5 });
  	Matrix tempRot = Matrix::CreateRotationX(0) * Matrix::CreateRotationX(0) * Matrix::CreateRotationX(0);
  	Matrix tempPos = Matrix::CreateTranslation({ 0,0,0 });
-	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, tempPos);
-	m_pDearsGraphicsEngine->Rend_OpacitiyModel(tempObject5->GetModelBuffer());
+	//m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, tempPos);
 	m_pDearsGraphicsEngine->RendParticle();
 	static bool a = true;
 	if (m_pInputManager->GetKeyState(KEY::_7) == KEY_STATE::HOLD)
@@ -712,8 +707,8 @@ void GameEngine::Render()
 
 	
 
- 	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, Matrix::CreateTranslation({ 0,0,-35 }));
- 	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, Matrix::CreateTranslation({ 0,0,0 }));
+ //	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, Matrix::CreateTranslation({ 0,0,-35 }));
+// 	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, Matrix::CreateTranslation({ 0,0,0 }));
 // 	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, tempPos, m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigRThigh", 0.1f));
 // 	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, tempPos, m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigPelvis", 0.1f));
 // 	m_pDearsGraphicsEngine->Rend_DebugBox(tempScl, tempRot, tempPos, m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigLThigh", 0.1f));

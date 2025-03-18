@@ -322,6 +322,9 @@
     <FxCompile Include="Shader\ThinFilmPixelShader.hlsl">
       <Filter>shader\ThinFilmShader</Filter>
     </FxCompile>
+    <FxCompile Include="Shader\ThinFilmVertexShader.hlsl">
+      <Filter>shader\ThinFilmShader</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Common.hlsli">

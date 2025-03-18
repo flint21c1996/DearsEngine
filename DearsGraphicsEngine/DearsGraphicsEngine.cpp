@@ -66,7 +66,7 @@ void DearsGraphicsEngine::Initialize()
 	std::reverse(cubeMeshData.indices.begin(), cubeMeshData.indices.end());
 	m_pResourceManager->AddModel(cubeMeshData, "CubeMap");
 
-	MeshData SphereMeshData = GeometryGenerator::MakeSphere(1.f, 300, 300 ,{ 2.0f, 2.0f });
+	MeshData SphereMeshData = GeometryGenerator::MakeSphere(1.f, 300, 300 ,{ 1.0f, 1.0f });
 	m_pResourceManager->AddModel(SphereMeshData, "MySphere");
 
 	MeshData SquareMeshData = GeometryGenerator::MakeSquare(1);
