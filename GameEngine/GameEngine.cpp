@@ -83,12 +83,12 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "Weapon-Black.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "coco.jpg");
 
-	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "albedo.png");
-	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "ao.png");
-	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "metallic.png");
-	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "normal.png");
-	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "roughness.png");
-	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball/", "height.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball2/", "albedo.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball2/", "ao.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball2/", "metallic.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball2/", "normal.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball2/", "roughness.png");
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball2/", "height.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/", "ThinPattern.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/", "ThinPattern2.png");
 	
@@ -203,7 +203,8 @@ void GameEngine::Initialize()
 	tempObject4->CreatePSThinFilmConstantBuffer();
 
 	tempObject4->SetPBRTextures(
-		"ThinPattern.png",
+		//"ThinPattern.png",
+		"albedo.png",
 		"normal.png",
 		"ao.png",
 		"metallic.png",
@@ -623,6 +624,10 @@ void GameEngine::Render()
 	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 290), u8"light viewProj: %.2f, %.2f, %.2f, %.2f", Vector4(1.0f), e._41, e._42, e._43, e._44);
 	Vector3 e1 = tempCamera->mViewDir;
 	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 310), u8"mViewDir: %.2f, %.2f, %.2f", Vector4(1.0f),e1.x, e1.y, e1.z);
+	e1 = tempCamera->mRightDir;
+	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 330), u8"mRightVec: %.2f, %.2f, %.2f", Vector4(1.0f),e1.x, e1.y, e1.z);
+	e1 = tempCamera->mViewUp;
+	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 350), u8"mUpVec: %.2f, %.2f, %.2f", Vector4(1.0f),e1.x, e1.y, e1.z);
 	m_pDearsGraphicsEngine->UIFinFontID();
 
 
@@ -657,8 +662,8 @@ void GameEngine::Render()
 
 	m_pDearsGraphicsEngine->Rend_BillBoard(tempObject3->GetModelBuffer());		//애니메이션 모델을 랜더한다.
 
-	//m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
-	m_pDearsGraphicsEngine->Rend_ThinFilm(tempObject4->GetModelBuffer());
+	m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
+	///m_pDearsGraphicsEngine->Rend_ThinFilm(tempObject4->GetModelBuffer());
 	//m_pDearsGraphicsEngine->Rend_Model(tempObject4->GetModelBuffer());
 
 

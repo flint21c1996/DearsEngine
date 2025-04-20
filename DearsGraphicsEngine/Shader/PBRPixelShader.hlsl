@@ -72,7 +72,7 @@ float3 DiffuseIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
 float3 SpecularIBL(float3 albedo, float3 normalWorld, float3 pixelToEye,
                    float metallic, float roughness)
 {
-    float2 specularBRDF = g_BRDFTex.Sample(linearClampSampler, float2(dot(normalWorld, pixelToEye), 1.f - roughness)).rg;
+    float2 specularBRDF = g_BRDFTex.Sample(linearClampSampler, float2(dot(normalWorld, pixelToEye), roughness)).rg;
     
     //¹Ó¸Ê -> °ÅÄ¥±â°¡ °ÅÄ¥¼ö·Ï low¹Ó¸ÊÀ» ¾´´Ù
     float3 specularIrradiance = g_specularCube.SampleLevel(linearWrapSampler,
@@ -95,7 +95,7 @@ float3 AmbientLightingByIBL(float3 albedo, float3 normalW, float3 pixelToEye, fl
     float3 diffuseIBL = DiffuseIBL(albedo, normalW, pixelToEye, metallic);
     float3 specularIBL = SpecularIBL(albedo, normalW, pixelToEye, metallic, roughness);
     
-    return (diffuseIBL + specularIBL) * ao;
+    return (diffuseIBL + specularIBL)*0.5f * ao;
 }
 #define PI 3.141592
 float NdfGGX(float NdotH, float roughness)
@@ -175,7 +175,7 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
     float4 finalColor = float4((ambientLighting + directLighting), 1);
     finalColor = clamp(finalColor, 0.0, 1000.f);
    
-   // return float4(finalColor);
+    return float4(finalColor);
    
     //FresnelÀÌ º¸°í½ÍÀ»¶§
     float3 temp = F / (4 * (NdotV) + 0.00001);

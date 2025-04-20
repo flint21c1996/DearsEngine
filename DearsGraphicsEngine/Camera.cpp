@@ -154,15 +154,15 @@ void Camera::UpdateFrameMouse(float deltaX, float deltaY)
 	mYaw += deltaX * DirectX::XM_2PI;     // 좌우 360도
 	mPitch += deltaY * DirectX::XM_PIDIV2; // 위 아래 90도
 
-	// 피치 각도를 제한하여 카메라가 수직으로 회전하지 않도록 함
-	if (mPitch > DirectX::XM_PIDIV2)
-	{
-		mPitch = DirectX::XM_PIDIV2;
-	}
-	if (mPitch < -DirectX::XM_PIDIV2)
-	{
-		mPitch = -DirectX::XM_PIDIV2;
-	}
+	//// 피치 각도를 제한하여 카메라가 수직으로 회전하지 않도록 함
+	//if (mPitch > DirectX::XMConvertToRadians(89.0f))
+	//{
+	//	mPitch = DirectX::XMConvertToRadians(89.0f);
+	//}
+	//if (mPitch < -DirectX::XMConvertToRadians(89.0f))
+	//{
+	//	mPitch = -DirectX::XMConvertToRadians(89.0f);
+	//}
 
 	// 이동할 때 기준은 정면/ 오른쪽 방향 기준으로 계산
 	UpdateViewDir();
@@ -170,15 +170,30 @@ void Camera::UpdateFrameMouse(float deltaX, float deltaY)
 
 void Camera::UpdateViewDir()
 {
-	// X축 (Pitch) 회전 행렬 생성
-	Matrix rotationX = Matrix::CreateRotationX(mPitch);
+	//// X축 (Pitch) 회전 행렬 생성
+	//Matrix rotationX = Matrix::CreateRotationX(mPitch);
 
-	// Y축 (Yaw) 회전 행렬 생성
-	Matrix rotationY = Matrix::CreateRotationY(mYaw);
+	//// Y축 (Yaw) 회전 행렬 생성
+	//Matrix rotationY = Matrix::CreateRotationY(mYaw);
 
-	// 이동할 때 기준이 되는 정면/오른쪽 방향 계산
-	mViewDir = Vector3::Transform(Vector3(0.0f, 0.0f, 1.0f), rotationX * rotationY);
-	mRightDir = mViewUp.Cross(mViewDir);
+	//// 이동할 때 기준이 되는 정면/오른쪽 방향 계산
+	//mViewDir = Vector3::Transform(Vector3(0.0f, 0.0f, 1.0f), rotationX * rotationY);
+	//mRightDir = mViewUp.Cross(mViewDir);
+
+	///쿼터니언 계산일때.
+	Quaternion rotX = Quaternion::CreateFromAxisAngle(Vector3::Right, mPitch);
+	Quaternion rotY = Quaternion::CreateFromAxisAngle(Vector3::Up, mYaw);
+	Quaternion rotation = rotX * rotY;
+
+	Matrix rotationMatrix = Matrix::CreateFromQuaternion(rotation);
+	mViewDir = Vector3::Transform(Vector3(0.0f, 0.0f, 1.0f), rotationMatrix);
+	mViewDir.Normalize();
+
+	Vector3 temp = { 0,1,0 };
+	mRightDir = temp.Cross(mViewDir);
+	mRightDir.Normalize();
+	mViewUp = mViewDir.Cross(mRightDir);
+	mViewUp.Normalize();
 
 }
 

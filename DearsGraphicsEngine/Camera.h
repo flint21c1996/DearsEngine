@@ -3,6 +3,7 @@
 
 using DirectX::SimpleMath::Matrix;
 using DirectX::SimpleMath::Vector3;
+using DirectX::SimpleMath::Quaternion;
 
 class Camera
 {
