@@ -75,7 +75,7 @@ bool RendererHelper::CreateSwapChain(ComPtr<ID3D11Device>& _pDevice,
 	sd.BufferDesc.RefreshRate.Numerator = 0xffffffff;						//지금은 제한값을 풀어놨다. //이전 : 일단 60프레임으로 고정을 한다. 수직동기화를 사용했다고 가정하자. 이부분을 0으로 설정한다면 운영체제나 드라이버가 모니터의 기본화면 새로고침빈도를 기반으로 적절한 값을 설정한다.
 	sd.BufferDesc.RefreshRate.Denominator = 1;								//화면 고침 빈도의 분모를 설정하는 부분이다. numerator과 함께 사용되어 화면 새로고침 빈도를 나타낸다.
 	sd.BufferUsage = DXGI_USAGE_SHADER_INPUT |								//후처리 필터 적용을 위해
-		DXGI_USAGE_RENDER_TARGET_OUTPUT;					//BufferUsage = 어떤 용도로 사용할 것인가? /백 버퍼의 표면 사용량 및 엑세스 옵션을 설정하는 DXGI_USAGE 열거형 형식의 멤버, 여기서는 RT0렌더타겟이 그림을 그릴곳으로.
+		DXGI_USAGE_RENDER_TARGET_OUTPUT;									//BufferUsage = 어떤 용도로 사용할 것인가? /백 버퍼의 표면 사용량 및 엑세스 옵션을 설정하는 DXGI_USAGE 열거형 형식의 멤버, 여기서는 RT0렌더타겟이 그림을 그릴곳으로.
 	sd.OutputWindow = _hWnd;												//출력할 윈도우의 핸들
 	sd.Windowed = TRUE;														//전체화면을 사용할 것인가? /창모드
 	//sd.Windowed = FALSE;													//전체화면 모드

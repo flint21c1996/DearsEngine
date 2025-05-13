@@ -31,6 +31,7 @@ float3 PBRSchlickFresnel(float3 F0, float NdotV)
     // 90도일 경우 1
     // 0도일 경우 0
     //즉, normal과 view벡터가 90에 가깝다 -> 가장자리다. 
+
     return F0 + (1.0f - F0) * pow(f, 5.0);
 }
 
@@ -95,7 +96,7 @@ float3 AmbientLightingByIBL(float3 albedo, float3 normalW, float3 pixelToEye, fl
     float3 diffuseIBL = DiffuseIBL(albedo, normalW, pixelToEye, metallic);
     float3 specularIBL = SpecularIBL(albedo, normalW, pixelToEye, metallic, roughness);
     
-    return (diffuseIBL + specularIBL)*0.5f * ao;
+    return (diffuseIBL + specularIBL)* ao;
 }
 #define PI 3.141592
 float NdfGGX(float NdotH, float roughness)
