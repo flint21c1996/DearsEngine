@@ -101,7 +101,7 @@ float3 AmbientLightingByIBL(float3 albedo, float3 normalW, float3 pixelToEye, fl
 #define PI 3.141592
 float NdfGGX(float NdotH, float roughness)
 {
-    float a = roughness * roughness;
+    float a = roughness * roughness; 
     float a2 = a * a;
     float b = (NdotH * NdotH) * (a2 - 1.f) + 1.f;
     
