@@ -1,4 +1,4 @@
-#if DEBUG
+ï»¿#if DEBUG
 #incldue<iostream>
 #endif
 #include "DearsGraphicsEngine.h"
@@ -6,53 +6,40 @@
 
 
 DearsGraphicsEngine::DearsGraphicsEngine(HWND _hWnd, int screenWidth, int screenHeight)
+    : m_hWnd(_hWnd)
+    , m_screenWidth(screenWidth)
+    , m_screenHeight(screenHeight)
+    , m_pTargetCamera(nullptr)
 {
-	m_hWnd = _hWnd;
-	m_screenHeight = screenHeight;
-	m_screenWidth = screenWidth;
-	m_pResourceManager = nullptr;
-	mpRenderer = nullptr;
-	m_pDearsImGui = nullptr;
-	m_pTargetCamera = nullptr;
-	mpAnimationHelper = nullptr;
-	mpLightHelper = nullptr;
 }
 
 DearsGraphicsEngine::~DearsGraphicsEngine()
 {
 
-	delete m_pDearsImGui;
-	delete mpRenderer;
-	delete m_pResourceManager;
-	delete m_pTargetCamera;
-	delete mpAnimationHelper;
+	// unique_ptr???ë¨®ë£?ì‡°ì¤ˆ ?ëŒì £
+	// m_pTargetCamera???ëš¯ì‘€?ì„? ?ë”†ì‘èª˜Â€æ¿¡?delete?ì„? ?ë”†ì“¬
 
 }
-//¸í½ÃÀûÀ¸·Î ÃÊ±âÈ­¸¦ ½ÃÅ²´Ù.
+
 void DearsGraphicsEngine::Initialize()
 {
-	//¿ì¼± µğ¹ÙÀÌ½º »ı¼ºÀ» ¸ÕÀúÇÑ´Ù. 	//  ½º¿Ò Ã¼ÀÎ, ºä Æ÷Æ®, ±íÀÌ ½ºÅÙ½Ç , ·»´õ Å¸°Ù ºä »ı¼ºµîÀº Renderer¾ÈÀÇ InitalizeD3DÇÔ¼ö ¾È¿¡¼­ÇÑ´Ù.
-
+	
 	RendererHelper::CreateDevice(m_pDevice, m_pDeviceContext);
 	
-	//·»´õ·¯ »ı¼º
-	mpRenderer = new Renderer(m_hWnd, 0, 0, m_screenWidth, m_screenHeight, m_pDevice, m_pDeviceContext);
-	mpRenderer->Initialize(m_pResourceManager);
+	// ç”±ÑŠëƒ¼??ï§ã…»ë•²?Â€ç‘œ?ç™’ì‡±? ?ì•¹ê½¦ (Renderer ç¥ë‡ë¦°?ë¶¿ë¿‰ ?ê¾©ìŠ‚)
+	m_pResourceManager = std::make_unique<GraphicsResourceManager>(m_pDevice, m_pDeviceContext);
 
-	//¸®¼Ò½º ¸Å´ÏÀú »ı¼º
-	m_pResourceManager = new GraphicsResourceManager(m_pDevice, m_pDeviceContext);
+	// ?ëš®ëœ‘???ì•¹ê½¦
+	mpRenderer = std::make_unique<Renderer>(m_hWnd, 0, 0, m_screenWidth, m_screenHeight, m_pDevice, m_pDeviceContext);
+	mpRenderer->Initialize(m_pResourceManager.get());
 
-	//¾Ö´Ï¸ŞÀÌ¼Ç ÇïÆÛÅ¬·¡½º »ı¼º
-	mpAnimationHelper = new AnimationHelper();
+	mpAnimationHelper = std::make_unique<AnimationHelper>();
 
-	//ImGUI »ı¼º
-	m_pDearsImGui = new DearsImGui(m_hWnd, m_pDevice, m_pDeviceContext, m_screenWidth, m_screenHeight, m_pResourceManager);
-	
+	m_pDearsImGui = std::make_unique<DearsImGui>(m_hWnd, m_pDevice, m_pDeviceContext, m_screenWidth, m_screenHeight, m_pResourceManager.get());
 
-	//¶óÀÌÆ® ÇïÆÛ»ı¼º
-	mpLightHelper = new LightHelper;
+	mpLightHelper = std::make_unique<LightHelper>();
 
- 	Debug_ModelBuffer = new ModelBuffer;
+	Debug_ModelBuffer = std::make_unique<ModelBuffer>();
 	AddModel("../TestAsset/", "Debug_Box.fbx");
 	AddModel("../TestAsset/", "Debug_Capsule.fbx");
 	AddModel("../TestAsset/", "Debug_Sphere.fbx");
@@ -78,12 +65,12 @@ void DearsGraphicsEngine::Initialize()
 	MeshData boxMeshData = GeometryGenerator::MakeBox(1);
 	m_pResourceManager->AddModel(boxMeshData, "MyBox");
 
-	m_pParticleManager = new ParticleManager(m_pDevice, m_pDeviceContext, MAX_PARTICLE);
+	m_pParticleManager = std::make_unique<ParticleManager>(m_pDevice, m_pDeviceContext, MAX_PARTICLE);
 	m_pParticleManager->Initialize();
 	m_pParticleManager->SetVertexBufferAndIndexBuffer(m_pResourceManager->Get_VertexBuffer("BillBoardSquare"), 
 														m_pResourceManager->Get_IndexBuffer("BillBoardSquare"),
 														m_pResourceManager->Get_NumIndex("BillBoardSquare"));
-	PostProcessingBuffer = new ModelBuffer;
+	PostProcessingBuffer = std::make_unique<ModelBuffer>();
 	PostProcessingBuffer->m_pVertexBuffer = Get_VertexBuffer("BillBoardSquare");
 	PostProcessingBuffer->m_pIndexBuffer = Get_IndexBuffer("BillBoardSquare");
 	PostProcessingBuffer->mNumIndices = Get_NumIndex("BillBoardSquare");
@@ -98,8 +85,9 @@ void DearsGraphicsEngine::BeginRender()
 {
 	mpRenderer->BeginRender();
 	UIBegineRender();
+	m_pDearsImGui->UISetting();
 	UICanvasSet(Vector2(0, 0), Vector2(static_cast<float>(m_screenWidth), static_cast<float>(m_screenHeight)));
- 	SetUICurrentWindow();
+	SetUICurrentWindow();
 }
 
 
@@ -126,10 +114,10 @@ void DearsGraphicsEngine::RendPostProcessing()
 	mpRenderer->SetPipelineState(Dears::Graphics::samplerPSO);
 	for (int i = 0; i < 10; i++)
 	{
-	mpRenderer->RenderSampler(PostProcessingBuffer);
+	mpRenderer->RenderSampler(PostProcessingBuffer.get());
 
 	mpRenderer->SetPipelineState(Dears::Graphics::postEffectPSO);
-	mpRenderer->RenderPostProcessing(PostProcessingBuffer);
+	mpRenderer->RenderPostProcessing(PostProcessingBuffer.get());
 	}
 }
 
@@ -375,15 +363,14 @@ void DearsGraphicsEngine::UpdatePSThinFilmonstantBuffer(ModelBuffer* _pModelBuff
 
 void DearsGraphicsEngine::UpdateCommonConstantBuffer(CommonConstantBufferData& _CommonBufferData)
 {
- 	_CommonBufferData.view = m_pTargetCamera->GetViewRow().Transpose();		// ½ÃÁ¡ º¯È¯
+ 	_CommonBufferData.view = m_pTargetCamera->GetViewRow().Transpose();		// å ì™ì˜™å ì™ì˜™ å ì™ì˜™í™˜
  	_CommonBufferData.proj = m_pTargetCamera->GetProjRow().Transpose();
  	_CommonBufferData.viewProj = (m_pTargetCamera->GetViewRow() * m_pTargetCamera->GetProjRow()).Transpose();
 
 	_CommonBufferData.invView = _CommonBufferData.view.Invert();
  	_CommonBufferData.invProj = _CommonBufferData.proj.Invert();
 	
-	//±×¸²ÀÚ ·»´õ¸µ¿¡ »ç¿ë
- 	_CommonBufferData.invViewProj = _CommonBufferData.viewProj.Invert();
+	//å ìŒ“ëªŒì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ? 	_CommonBufferData.invViewProj = _CommonBufferData.viewProj.Invert();
 
 	_CommonBufferData.eyeWorld = m_pTargetCamera->GetmViewPos();
 
@@ -533,7 +520,7 @@ void DearsGraphicsEngine::RenderEquipDepthMap(ModelBuffer* _modelbuffer)
 void DearsGraphicsEngine::Rend_InstancedModels(ModelBuffer* _modelbuffers)
 {
 	SetPipelineState(Dears::Graphics::BasicInstancingPSO);
-	///¿©±â¼­ ·»´õ·¯¸¦ °ÅÃÄ ·»´õ¸µÀÌ °¡´ÉÇÏµµ·Ï
+	///å ì™ì˜™å ì©ì„œ å ì™ì˜™å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì‹¹ë“¸ì˜™å ì™ì˜™
 	mpRenderer->Rend_InstancedModels(_modelbuffers);
 }
 
@@ -553,8 +540,8 @@ void DearsGraphicsEngine::Rend_DebugBox(Vector3 _size, Vector3 _rotation, Vector
 	VSConstantBufferData temp;
 	temp.world = (Matrix::CreateScale(_size) * Matrix::CreateRotationX(_rotation.x) * Matrix::CreateRotationY(_rotation.y) *
 		Matrix::CreateRotationZ(_rotation.z) * Matrix::CreateTranslation(_transpose)).Transpose();
-	UpdateConstantBuffer(Debug_ModelBuffer, temp);
-	mpRenderer->Render(Debug_ModelBuffer);
+	UpdateConstantBuffer(Debug_ModelBuffer.get(), temp);
+	mpRenderer->Render(Debug_ModelBuffer.get());
 
 }
 
@@ -568,9 +555,9 @@ void DearsGraphicsEngine::Rend_DebugBox(Matrix _size, Matrix _rotation, Matrix _
 	VSConstantBufferData temp;
  	temp.world = (_size * _rotation * _transpose).Transpose();
 
-	UpdateConstantBuffer(Debug_ModelBuffer, temp);
+	UpdateConstantBuffer(Debug_ModelBuffer.get(), temp);
 
-	mpRenderer->Render(Debug_ModelBuffer);
+	mpRenderer->Render(Debug_ModelBuffer.get());
 }
 
 void DearsGraphicsEngine::Rend_DebugBox(Matrix _size, Matrix _rotation, Matrix _transpose, Matrix _tempMatrix = Matrix())
@@ -583,9 +570,9 @@ void DearsGraphicsEngine::Rend_DebugBox(Matrix _size, Matrix _rotation, Matrix _
 	temp.world = _size * _rotation * _transpose* _tempMatrix;
 	temp.world = temp.world.Transpose();
 	
-	UpdateConstantBuffer(Debug_ModelBuffer, temp);
+	UpdateConstantBuffer(Debug_ModelBuffer.get(), temp);
 
-	mpRenderer->Render(Debug_ModelBuffer);
+	mpRenderer->Render(Debug_ModelBuffer.get());
 }
 
 void DearsGraphicsEngine::Rend_DebugBox(AABB& _AABB, Matrix Scale, Matrix _rotation, Matrix _tempMatrix )
@@ -618,9 +605,9 @@ void DearsGraphicsEngine::Rend_DebugSphere(Vector3 _size, Vector3 _rotation, Vec
 	temp.world = (Matrix::CreateScale(_size) * Matrix::CreateRotationX(_rotation.x) * Matrix::CreateRotationY(_rotation.y) *
 		Matrix::CreateRotationZ(_rotation.z) * Matrix::CreateTranslation(_transpose)).Transpose();
 
-	UpdateConstantBuffer(Debug_ModelBuffer, temp);
+	UpdateConstantBuffer(Debug_ModelBuffer.get(), temp);
 
-	mpRenderer->Render(Debug_ModelBuffer);
+	mpRenderer->Render(Debug_ModelBuffer.get());
 }
 
 void DearsGraphicsEngine::Rend_DebugCapsule(Vector3 _size, Vector3 _rotation, Vector3 _transpose)
@@ -634,9 +621,9 @@ void DearsGraphicsEngine::Rend_DebugCapsule(Vector3 _size, Vector3 _rotation, Ve
 	temp.world = (Matrix::CreateScale(_size) * Matrix::CreateRotationX(_rotation.x) * Matrix::CreateRotationY(_rotation.y) *
 		Matrix::CreateRotationZ(_rotation.z) * Matrix::CreateTranslation(_transpose)).Transpose();
 
-	UpdateConstantBuffer(Debug_ModelBuffer, temp);
+	UpdateConstantBuffer(Debug_ModelBuffer.get(), temp);
 
-	mpRenderer->Render(Debug_ModelBuffer);
+	mpRenderer->Render(Debug_ModelBuffer.get());
 }
 
 void DearsGraphicsEngine::Rend_CubeMap(ModelBuffer* _modelBuffer)
@@ -757,6 +744,16 @@ void DearsGraphicsEngine::EndRenderImGui()
 	m_pDearsImGui->UIEndRender();
 }
 
+void DearsGraphicsEngine::AddEditorPanel(IEditorPanel* panel)
+{
+	m_pDearsImGui->AddPanel(panel);
+}
+
+void DearsGraphicsEngine::SetRenderViewportWidth(int viewportWidth)
+{
+	mpRenderer->SetViewportWidth(viewportWidth);
+}
+
 void DearsGraphicsEngine::LightInitialize(CommonConstantBufferData* _psBufferData, UINT _num)
 {
 	mpLightHelper->Initialize(_psBufferData, _num);
@@ -770,7 +767,7 @@ void DearsGraphicsEngine::ChangeLightMaxNum(CommonConstantBufferData* _psBufferD
 void DearsGraphicsEngine::LightUpdate(CommonConstantBufferData* _psBufferData)
 {
 	//mpLightHelper->Update(_psBufferData);
-	//TODO : ¿©±â¼­ ±×¸²ÀÚ ¾÷µ¥ÀÌÆ®±îÁö ÇØÁÖ´Â°Ô ÁÁ¾Æº¸ÀÎ´Ù.
+	//TODO : å ì™ì˜™å ì©ì„œ å ìŒ“ëªŒì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™íŠ¸å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ìŒëŠ”ê³¤ì˜™ å ì™ì˜™å ì‹£ë¸ì˜™å ì‹¸ëŒì˜™.
 	mpRenderer->LightUpdate(_psBufferData);
 
 
@@ -859,13 +856,13 @@ Matrix DearsGraphicsEngine::CreateShadowViewMatrix(const Light& light)
 {
 	Vector3 up = Vector3(0.0f, 1.0f, 0.0f);
 
-	// Á¶¸íÀÌ ¾Æ·¡ÂÊÀ» ¹Ù¶óº¸°í ÀÖ´Â °æ¿ì, up º¤ÅÍ¸¦ ¹İÀü½ÃÅµ´Ï´Ù.
+	// å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì‹£ë¤„ì˜™å ì™ì˜™å ì™ì˜™ å ìŒ•ë¼ë³´ê³¤ì˜™ å ìŒëŒì˜™ å ì™ì˜™å ? up å ì™ì˜™å ì‹¶ëªŒì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™í‚µå ì‹¹ëŒì˜™.
 	if (light.direction == up || light.direction == -up)
 	{
 		up = Vector3(0.0f, 0.0f, 1.0f);
 	}
 
-	// LookAt ÇÔ¼ö¸¦ »ç¿ëÇØ shadowView ¸ÅÆ®¸¯½º¸¦ »ı¼º
+	// LookAt å ìŒ‰ì‡½ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ?shadowView å ì™ì˜™íŠ¸å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	
 	return Matrix::CreateLookAt(light.position, light.position + light.direction, up);
 }
@@ -874,12 +871,12 @@ Matrix DearsGraphicsEngine::CreateShadowProjectionMatrix(const Light& light, flo
 {
 	if (light.lightType == static_cast<int>(LightEnum::DIRECTIONAL_LIGHT))
 	{
-		// Á÷±³ Åõ¿µ ¸ÅÆ®¸¯½º (Orthographic Projection)
+		// å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™íŠ¸å ì™ì˜™å ì™ì˜™ (Orthographic Projection)
 		return Matrix::CreateOrthographic(m_screenWidth, m_screenHeight, nearPlane, farPlane);
 	}
 	else
 	{
-		// ¿ø±Ù Åõ¿µ ¸ÅÆ®¸¯½º (Perspective Projection)
+		// å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™íŠ¸å ì™ì˜™å ì™ì˜™ (Perspective Projection)
 		return Matrix::CreatePerspectiveFieldOfView(fieldOfView, aspectRatio, nearPlane, farPlane);
 	}
 }

@@ -1,8 +1,9 @@
-#pragma once
+ï»¿#pragma once
 #include <windows.h>
 #include <wrl.h>
 #include <directxtk/SimpleMath.h>
 #include <map>
+#include <memory>
 #include <string>
 
 #include "Renderer.h"
@@ -16,117 +17,83 @@ using DirectX::SimpleMath::Vector3;
 using DirectX::SimpleMath::Vector4;
 using DirectX::SimpleMath::Quaternion;
 
-///Á¦ÀÏ ÃÖ»óÀ§¿¡¼­ ±×·¡ÇÈ½ºÀÇ ¸ğµç°ÍÀ» ´ã´çÇÏ´Â Å¬·¡½º 
 class DearsGraphicsEngine
 {
 public:
 	DearsGraphicsEngine(HWND _hWnd, int screenWidth, int screenHeight);
 	~DearsGraphicsEngine();
 
-	/// Window°ü·Ã ÇÔ¼ö
+	/// Windowå ì™ì˜™å ì™ì˜™ å ìŒ‰ì‡½ì˜™
 private:
 	HWND m_hWnd;
 	int m_screenWidth;
 	int m_screenHeight;
 
-	//µğ¹ÙÀÌ½º¿Í µğ¹ÙÀÌ½º ÄÁÅØ½ºÆ®´Â Áß¾Ó¿¡¼­ °ü¸®ÇÏ´Â°Ô ÁÁ´Ù.
-	ComPtr<ID3D11Device> m_pDevice;										//µğ¹ÙÀÌ½º
-	ComPtr<ID3D11DeviceContext> m_pDeviceContext;						//µğ¹ÙÀÌ½º ÄÁÅØ½ºÆ®
+	ComPtr<ID3D11Device> m_pDevice;										
+	ComPtr<ID3D11DeviceContext> m_pDeviceContext;						
 
 public:
-	///·»´õ·¯¸¦ °¡Áö°í ÀÖ´Â ÀÚ·á±¸Á¶. 
-	Renderer* mpRenderer;
+	// ?ëš¯ì‘€?ì„ë’— åª›ì•¹ê»œ??
+	std::unique_ptr<Renderer> mpRenderer;
+	std::unique_ptr<DearsImGui> m_pDearsImGui;
+	std::unique_ptr<GraphicsResourceManager> m_pResourceManager;
+	std::unique_ptr<AnimationHelper> mpAnimationHelper;
+	std::unique_ptr<LightHelper> mpLightHelper;
+	std::unique_ptr<ParticleManager> m_pParticleManager;
 
-	///UI »ı¼ºÀ» À§ÇÑ 2D Å¬·¡½º
-	DearsImGui* m_pDearsImGui;
-
-	///±×·¡ÇÈ½º ¸®¼Ò½º ¸Å´ÏÀú
-	GraphicsResourceManager* m_pResourceManager;
-
-	AnimationHelper* mpAnimationHelper;
-	LightHelper* mpLightHelper;
-
-	///Ä«¸Ş¶ó, ÀÌÈÄ °ÔÀÓ¿£Áø°ú ±×·¡ÇÈ½º ¿£Áø ¸ğµÎ ¾Æ´Â ¶óÀÌºê·¯¸®·Î »©¼­ ¼öÁ¤¿¡ ¿ëÀÌÇÔÀ» µĞ´Ù.
+	// é®ê¾©ëƒ¼??- ?ëªƒ??ë¨¯ê½Œ SetCamera()æ¿¡?äºŒì‡±ì—¯è«›ì†ì“¬
 	Camera* m_pTargetCamera;
-
-	///ÆÄÆ¼Å¬ ¸Å´ÏÀú
-	ParticleManager* m_pParticleManager;
 public:
-	//DX¸¦ ÃÊ±âÈ­ÇÑ´Ù.
 	void Initialize();
 
-	//¾÷µ¥ÀÌÆ®.
 	void Update();
-	//·»´õ¸µÀ» ÁØºñÇÑ´Ù.
+	
 	void BeginRender();
-	//·»´õ¸µÀ» ³¡³½´Ù.
+	
 	void EndRender();
 
-	//¿£ÁøÀ» Á¾·áÇÑ´Ù.
 	void Finalize();
 
 	void RendParticle();
 
 	void RendPostProcessing();
 
-	// È­¸éÀÇ °¡·Î±æÀÌ¸¦ °¡Á®¿Â´Ù.
 	int GetScreenWidth() const;
-	// È­¸éÀÇ ¼¼·Î±æÀÌ¸¦ °¡Á®¿Â´Ù.
+	
 	int GetScreenHeight() const;
-	//È­¸éºñ¸¦ °¡Á®¿Â´Ù. -> Renderer·Î »©´Â°Ô ÁÁÀ» µí ÇÏ´Ù.
+	
 	float GetAspectRatio();
 
-	//¸ğµ¨À» Ãß°¡, ¸ğµ¨ÀÇ VB, IB, p, Model*, boneNameVec
 	void AddModel(std::string _basePath, std::string _fileName);
-	//¾Ö´Ï¸ŞÀÌ¼ÇÀ» Ãß°¡
 	void AddAnimation(std::string _basePath, std::string _fileName);
-	//3DÅØ½ºÃÄ¸¦ Ãß°¡
 	void Add3DTexture(std::string _basePath, std::string _fileName);
-	//2DÅØ½ºÃÄ¸¦ Ãß°¡
 	void Add2DTexture(std::string _basePath, std::string _fileName);
 	void AddDDSTexture(std::string _basePath, std::string _fileName, bool isCubeMap = true);
 	void Add2DMipMapTexture(std::string _basePath, std::string _fileName);
-	//¹öÅØ½º ¹öÆÛ¸¦ °¡Áö°í ¿Â´Ù.
 	ComPtr<ID3D11Buffer> Get_VertexBuffer(std::string _modelName);
-	//ÀÎµ¦½º¹öÆÛ¸¦ °¡Áö°í ¿Â´Ù.
 	ComPtr<ID3D11Buffer> Get_IndexBuffer(std::string _modelName);
-	//ÀÎµ¦½º ¼ö¸¦ °¡Áö°í ¿Â´Ù.
 	unsigned int Get_NumIndex(std::string _modelName);
-	//¸ğµ¨ÀÇ Á¤º¸¸¦ °¡Áö°í ¿Â´Ù. ¸Ş½¬ÀÇ ÀÌ¸§ÀÌ ¾Æ´Ñ ÆÄÀÏ¸íÀ» ³Ö´Â´Ù.
 	Model* Get_ModelInfo(std::string _modelName);
-	//¾Ö´Ï¸ŞÀÌ¼Ç Á¤º¸¸¦ °¡Áö°í ¿Â´Ù.
 	Animation* Get_Animation(std::string _animeName);
-	//ÅØ½ºÃÄ¸¦ °¡Áö°í ¿Â´Ù.
 	ComPtr<ID3D11ShaderResourceView> Get_Textures(std::string _textureName);
-	//ÆùÆ®¸¦ °¡Áö°í ¿Â´Ù.
 	ImFont* Get_Font(std::string _fontName);
 	//
 	int Get_TargetModelBoneIndex(std::string _modelName, std::string _boneName);
 
-	// ¹«±âÀÇ ·»´õ½Ã ¾²´Â ÇÔ¼ö -> º»ÀÇ offsetMatrix°¡ °öÇØÁø Matrix¸¦ ¹Ş¾Æ¿Â´Ù.
 	Matrix GetTargetBoneMatrix(std::string _targetModel, std::string _targetBoneName);
-	// ½ÇÁ¦ º»ÀÇ À§Ä¡¸¦ ¹Ş¾Æ¿À´Â ÇÔ¼ö -> º»ÀÇ offsetMatrix°¡ °öÇØÁöÁö ¾ÊÀº º»ÀÇ À§Ä¡°ª¸¸ ¹Ş¾Æ¿Â´Ù, ±âº» ½ºÄÉÀÏ = 1
 	Matrix GetTargetBoneAboveMatrix(std::string _targetModel, std::string _targetBoneName, float _scale = 1.f);
 	Matrix GetTargetBoneAboveMatrix(std::string _targetModel, int _index, float _scale = 1.f);
 
 	AABB Get_AABB(std::string __targetModel);
 
-	//¸®¼Ò½º ÄÁÅ×ÀÌ³Ê¾ÈÀÇ Æ¯Á¤ ¹öÅØ½º ¹öÆÛ¸¦ Áö¿î´Ù.
 	void Erase_VertexBuffer(std::string _modelName);
-	//¸®¼Ò½º ÄÁÅ×ÀÌ³Ê¾ÈÀÇ Æ¯Á¤ ÀÎµ¦½º ¹öÆÛ¸¦ Áö¿î´Ù.
 	void Erase_IndexBuffer(std::string _modelName);
-	//¸®¼Ò½º ÄÁÅ×ÀÌ³Ê¾ÈÀÇ Æ¯Á¤ ÀÎµ¦½ºNumÀ» Áö¿î´Ù.
 	void Erase_NumIndex(std::string _modelName);
-	//¸®¼Ò½º ÄÁÅ×ÀÌ³Ê¾ÈÀÇ Æ¯Á¤ ¸ğµ¨Á¤º¸¸¦ Áö¿î´Ù.
 	void Erase_ModelInfo(std::string _modelName);
-	//¸®¼Ò½º ÄÁÅ×ÀÌ³Ê¾ÈÀÇ Æ¯Á¤ ¾Ö´Ï¸ŞÀÌ¼Ç Á¤º¸¸¦ Áö¿î´Ù.
 	void Erase_Animation(std::string _animName);
-	//¸®¼Ò½º ÄÁÅ×ÀÌ³Ê ¾ÈÀÇ Æ¯Á¤ ÅØ½ºÃÄ¸¦ Áö¿î´Ù.
 	void Erase_Textures(std::string _textureName);
-	//¸®¼Ò½º ÄÁÅ×ÀÌ³Ê ¾ÈÀÇ Æ¯Á¤ ÆùÆ®¸¦ Áö¿î´Ù.
 	void Erase_Font(std::string _fontName);
 
-	//ÄÁ½ºÅÏÆ® ¹öÆÛ¸¦ »ı¼ºÇÑ´Ù. ¾Æ¿À ³ªÁß¿¡ ÀÌ ¹Ø¿¡ ÇÔ¼öµé ÅÛÇÃ¸´À¸·Î ¹Ù²ÙÀÚ ¸øºÁÁÖ°Ú´Ù.. 
 	ComPtr<ID3D11Buffer> CreateConstantBuffer(VSConstantBufferData& _VsConstantBufferData);
 	ComPtr<ID3D11Buffer> CreateConstantBuffer(VSBoneConstantBufferData& _VsBoneConstantBufferData);
 	ComPtr<ID3D11Buffer> CreateConstantBuffer(VSTargetBoneConstantBufferData& _PsConstantBufferData);
@@ -137,41 +104,31 @@ public:
 	ComPtr<ID3D11Buffer> CreateConstantBuffer(CommonConstantBufferData& _CommonConstantBufferData);
 	ComPtr<ID3D11Buffer> CreateConstantBuffer(VSInstantConstantBufferData& _VSInstantConstantBufferData);
 
-	//Strucured BufferÀ» »ı¼ºÇÑ´Ù. 
+	//Strucured Buffer. 
 	ComPtr<ID3D11Buffer> CreateStructuredBuffer(CSParticleData& _TestCSParticleData, unsigned int _count);
 
 
-	//°©ÀÚ±â ±Ş ±ÍÂú¾ÆÁ®¼­ ±×³É ÅÛÇÃ¸´À¸·Î Â§´Ù.
 	template <typename T>
 	ComPtr<ID3D11Buffer> CreateConstantBuffer(T& _bufferData)
 	{
 		return RendererHelper::CreateConstantBuffer(m_pDevice, _bufferData);
 	}
 
-	// °øÅë ÄÁ½ºÅÏÆ® ¹öÆÛ¸¦ ¾÷µ¥ÀÌÆ®ÇÑ´Ù.
 	void UpdateCommonConstantBuffer(CommonConstantBufferData& _CommonBufferData);
 
-	//ÄÁ½ºÅÏÆ®¹öÆÛ¸¦ ¾÷µ¥ÀÌÆ®ÇÑ´Ù.
 	void UpdateConstantBuffer(ModelBuffer* _pModelBuffer, VSConstantBufferData& _VsConstantBufferData);
-	//º» ÄÁ½ºÅÏÆ® ¹öÆÛ¸¦ ¾÷µ¥ÀÌÆ®ÇÑ´Ù.
 	void UpdateBoneConstantBuffer(ModelBuffer* _pModelBuffer, VSBoneConstantBufferData& _VsBoneConstantBufferData);
 	
-	//µÎ ¾Ö´Ï¸ŞÀÌ¼ÇÀÇ º¸°£À» ÇÏ¸ç º» ÄÁ½ºÅÏÆ® ¹öÆÛ¸¦ ¾÷µ¥ÀÌÆ®ÇÑ´Ù.-> Trangision »ç¿ë ½Ã
 	bool UpdateTransitionBoneConstantBuffer(ModelBuffer* _pModelBuffer, VSBoneConstantBufferData& _VsBoneConstantBufferData);
-	//Å¸°Ù º» ÄÁ½ºÅÏÆ® ¹öÆÛ¸¦ ¾÷µ¥ÀÌÆ®ÇÑ´Ù.
 	void UpdateTargetBoneConstantBuffer(ModelBuffer* _pModelBuffer, VSTargetBoneConstantBufferData& _VsTargetBoneConstantBufferData);
 
 
-	//ÄÁ½ºÅÏÆ®¹öÆÛ¸¦ ¾÷µ¥ÀÌÆ®ÇÑ´Ù.
 	void UpdateConstantBuffer(ModelBuffer* _pModelBuffer, PSConstantBufferData& _PsConstantBufferData);
 
-	//¿Ü°û¼±À» ±×¸®´Âµ¥ °ü·ÃµÈ VSconstantBufferÀ» ¾÷µ¥ÀÌÆ®ÇÑ´Ù.
 	void UpdateVSEdgeConstantBuffer(ModelBuffer* _pModelBuffer, VSEdgeConstantBufferData& _pPSEdgeConstantBuffer);
 
-	//¿Ü°û¼±À» ±×¸®´Âµ¥ °ü·ÃµÈ PSconstantBufferÀ» ¾÷µ¥ÀÌÆ®ÇÑ´Ù.
 	void UpdatePSEdgeConstantBuffer(ModelBuffer* _pModelBuffer, PSEdgeConstantBufferData& _pPSEdgeConstantBuffer);
 
-	//¹°À» Ç¥ÇöÇÒ¶§ ÇÊ¿äÇÑ VSWaterConstnatBufferÀ» ¾÷µ¥ÀÌÆ®ÇÑ´Ù.
 	void UpdateVSWaterConstantBuffer(ModelBuffer* _pModelBuffer, VSWaterConstantBufferData& _pPSEdgeConstantBuffer);
 	void UpdateVSPBRConstantBuffer(ModelBuffer* _pModelBuffer, PBRVertexShaderConstantData& _PBRConstantData);
 	void UpdatePSPBRConstantBuffer(ModelBuffer* _pModelBuffer, PBRPixelShaderConstantData& _PBRConstantData);
@@ -180,10 +137,8 @@ public:
 	void UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer, VSShadowConstantBufferData& _VsShadowConstantBufferData);
 	void UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer, PsShadowConstantBufferData& _VsShadowConstantBufferData);
 
-	//Å¥ºê¸ÊÀ» ¼¼ÆÃÇÑ´Ù.
 	void Set_CubeMap(std::string environmentTexture, std::string diffuseTextureName, std::string specularTextureName, std::string BRDFTextureName);
 	
-	//PipelineState¸¦ ¼¼ÆÃÇÑ´Ù.
 	void SetPipelineState(PipelineStateObject& _pso);
 	void Rend_AnimateModel(ModelBuffer* _modelBuffer);
 	void Rend_Model(ModelBuffer* _modelBuffer);
@@ -192,10 +147,10 @@ public:
 	void Rend_ThinFilm(ModelBuffer* _modelBuffer);
 
 	void Rend_EquipmentModel(ModelBuffer* _modelBuffer);
-	void SetOpacityFactor(float blendFactor[4]);							//Åõ¸íµµ¸¦ ¼³Á¤ÇÑ´Ù.
-	void Rend_OpacitiyModel(ModelBuffer* _modelBuffer);						//Åõ¸íÇÑ Á¤Àû ¿ÀºêÁ§Æ®¸¦ ·»´õÇÑ´Ù.
+	void SetOpacityFactor(float blendFactor[4]);							
+	void Rend_OpacitiyModel(ModelBuffer* _modelBuffer);						
 
-	void Rend_EdgeModel(ModelBuffer* _modelBuffer);							//¿Ü°û¼±ÀÌ ÀÕ´Â ¿ÀºêÁ§Æ®¸¦ ·»´õÇÑ´Ù.
+	void Rend_EdgeModel(ModelBuffer* _modelBuffer);							
 	void Rend_Water(ModelBuffer* _modelBuffer);
 
 
@@ -215,84 +170,65 @@ public:
 	void Rend_DebugCapsule(Vector3 _size, Vector3 _rotation, Vector3 _transpose);
 
 	void Rend_CubeMap(ModelBuffer* _modelBuffer);
-	//·»´õ¸µ¿¡ ÇÊ¿äÇÑ Ä«¸Ş¶ó¸¦ ¼¼ÆÃÇÑ´Ù.
+	//å ì™ì˜™å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì‹­ìš¸ì˜™å ì™ì˜™ ì¹´å ìŒ¨ë°ì˜™ å ì™ì˜™å ì™ì˜™å ì‹¼ëŒì˜™.
 	void SetCamera(Camera* _pTargetCamera);
 
-	ModelBuffer* Debug_ModelBuffer;		///*ÀÓ½Ã*
-	ModelBuffer* PostProcessingBuffer;
+	std::unique_ptr<ModelBuffer> Debug_ModelBuffer;
+	std::unique_ptr<ModelBuffer> PostProcessingBuffer;
 
 
 	VSConstantBufferData m_VSConstantBufferData;
 	PSConstantBufferData m_PSConstantBufferData;
 	VSBoneConstantBufferData m_VSBoneConstantBufferData;
 
-	/// UI ÀÛ¾÷ -------------------------------------------------------------------------------------------------
+	/// UI -------------------------------------------------------------------------------------------------
 
-	// [[[ÃÊ±âÈ­¿¡ ¼³Á¤]]]
-	// [±âº» °æ·Î, ÆÄÀÏ ÀÌ¸§, ÆùÆ® »çÀÌÁî, ÇÑ±ÛÀÎ°¡¿ä?] ÆùÆ®¸¦ Ãß°¡ (ÆÄÀÏÀÌ¸§Àº ÆùÆ® ID·Î ÀÚµ¿ ¼³Á¤)
+	void AddEditorPanel(IEditorPanel* panel);
+	void SetRenderViewportWidth(int viewportWidth);
+
 	void AddFont(std::string _basePath, std::string _fileName, float _size, bool _isKorean);
 
-	// ÆùÆ®¸¦ ¸ğµÎ Ãß°¡ÇßÀ¸¸é ¼ÂÆÃ ¿Ï·á¸¦ È£ÃâÇÔ
 	void FontSetFinish();
 
-	// [[[·»´õ·¯¿¡ ¼³Á¤]]]
-	// ÇÁ·¹ÀÓ ¼³Á¤
 	void UIBegineRender();
 
-	// ----- ÀÌ¹ÌÁö ¹× ÆùÆ® -----------------------------------
 
-	// [½ÃÀÛ À§Ä¡xy, °¡·Î¼¼·Î] Äµ¹ö½º ¼³Á¤ 
 	void UICanvasSet(Vector2 _posXY, Vector2 _sizeWH = Vector2());
 
-	// ÀÌ¹ÌÁö¸¦ ±×¸®±â ½ÃÀÛÇÒ °ÍÀÓÀ» ¼±¾ğ
 	void UIDrawImageStart();
 
-	// [½ÃÀÛ À§Ä¡xy, °¡·Î¼¼·Î, UIÀÌ¸§, ÅØ½ºÃ³ ÀÌ¸§] ÀÌ¹ÌÁö¸¦ ±×¸®±â
+	
 	void UIDrawImage(Vector2 _posXY, Vector2 _sizeWH, std::string _textureName, Vector4 _rgba = Vector4(1.0f, 1.0f, 1.0f, 1.0f));
 
-	// ´õ ÀÌ»ó Ãß°¡µÇ´Â ÀÌ¹ÌÁö°¡ ¾øÀ½À» ¼±¾ğ
 	void UIDrawImageFin();
 
-	// [font ¸®¼Ò½º ÀÌ¸§] ¼³Á¤ÇÑ ÆùÆ®¸¦ »ç¿ëÇÒ °ÍÀÓÀ» ¼±¾ğ
 	void UIStartFontID(std::string _fontName);
 
-	// [À§Ä¡xy, ¶ç¿ï ¹®Àå, RGBA°ª] ÅØ½ºÆ®¸¦ ±×¸®´Â ÇÔ¼ö	//C++
 	void UIDrawText(Vector2 _pos, std::u8string _text, Vector4 _rgba = Vector4(0.0f, 0.0f, 0.0f, 1.0f));
 
-	// [À§Ä¡xy, ¶ç¿ï ¹®Àå, RGBA°ª, ÀÎ¼öµé...] º¯ÇÏ´Â ¼ıÀÚ¸¦ Æ÷ÇÔÇÑ ÅØ½ºÆ®¸¦ ±×¸®´Â ÇÔ¼ö	//C++
 	template<typename ...Args>
 	void UIDrawTextWithNum(Vector2 _posXY, const std::u8string _formatText, Vector4 _rgba = Vector4(0.0f, 0.0f, 0.0f, 1.0f), Args&& ...args);
 
-	// ÀÌÀü±îÁö ¼³Á¤ÇÑ ÆùÆ®¸¦ ´õ »ç¿ëÇÏÁö ¾ÊÀ» °ÍÀÓÀ» ¼±¾ğ
 	void UIFinFontID();
 
-	// ----- ±âº» µµÇü ±×¸®±â -----------------------------------
+	// -----  -----------------------------------
 
-	// ÇöÀç À©µµ¿ì °¡Á®¿À±â, ±âº» ±×¸®±â ÇÔ¼öµéÀÇ ¹Ù·Î À§¿¡ È£Ãâ
 	void SetUICurrentWindow();
 
-	// [À§Ä¡xy, °¡·Î¼¼·Î, RGBA] »ç°¢ÇüÀÇ Å×µÎ¸®¸¸ ±×¸®´Â ÇÔ¼ö 
 	void UIDrawRect(Vector2 _posXY, Vector2 _sizeWH, Vector4 _rgba, float _rounding = 0.0f, float _thickness = 1.0f);
 
-	// [½ÃÀÛ À§Ä¡xy, °¡·Î¼¼·Î, RGBA, ¸ğ¼­¸® µÕ±Ù Á¤µµ] Ã¤¿öÁø »ç°¢ÇüÀ» ±×¸®´Â ÇÔ¼ö
 	void UIDrawRectFilled(Vector2 _posXY, Vector2 _sizeWH, Vector4 _rgba, float _rounding = 0.0f);							
 
-	// [½ÃÀÛ À§Ä¡xy, °¡·Î¼¼·Î, RGBA, ¸ğ¼­¸® µÕ±Ù Á¤µµ, µÎ²²] »ç°¢Çü°ú Å×µÎ¸®¸¦ ±×¸®´Â ÇÔ¼ö
 	void UIDrawRectwithBorder(Vector2 _posXY, Vector2 _sizeWH, Vector4 _rgba, float _rounding = 0.0f, float _thickness = 1.0f);
 	
-	// [point ½Ã°è¹æÇâÀ¸·Î 4°³, RGBA, µÎ²²] ÀÚÀ¯Çü »ç°¢ÇüÀÇ Å×µÎ¸®¸¸ ±×¸®´Â ÇÔ¼ö
 	void UIFreeRect(Vector2 _posXY1, Vector2 _posXY2, Vector2 _posXY3, Vector2 _posXY4, Vector4 _rgba, float _thickness);
 	
-	// [point ½Ã°è¹æÇâÀ¸·Î 4°³, RGBA] Ã¤¿öÁø ÀÚÀ¯Çü »ç°¢ÇüÀ» ±×¸®´Â ÇÔ¼ö
 	void UIFreeRectFilled(Vector2 _posXY1, Vector2 _posXY2, Vector2 _posXY3, Vector2 _posXY4, Vector4 _rgba);
 	
-	// [point ½Ã°è¹æÇâÀ¸·Î 4°³, RGBA, µÎ²²] ÀÚÀ¯Çü »ç°¢Çü°ú Å×µÎ¸®¸¦ ±×¸®´Â ÇÔ¼ö
 	void UIFreeRectwithBorder(Vector2 _posXY1, Vector2 _posXY2, Vector2 _posXY3, Vector2 _posXY4, Vector4 _rgba, float _thickness, Vector4 _borderRgba);
 
-	// [½ÃÀÛÁ¡ À§Ä¡xy, ³¡Á¡ À§Ä¡xy, RGBA] ¼±À» ±×¸®´Â ÇÔ¼ö 
 	void UIDrawLine(Vector2 _sPosXY, Vector2 _ePosXY, Vector4 _rgba);
 
-	// [½ÃÀÛ À§Ä¡xy, ¹İÁö¸§, RGBA] ¿øÀ» ±×¸®´Â ÇÔ¼ö 
 	void UIDrawCir(Vector2 _posXY, float _radius, Vector4 _rgba);
 	// -----------------------------------------------------
 
@@ -300,54 +236,39 @@ public:
 
 	void EndRenderImGui();
 
-	/// ¶óÀÌÆ® ÀÛ¾÷ -------------------------------------------------------------------------------------------------
-	// [PS¹öÆÛ±¸Á¶, ¸¸µå·Á´Â ºûÀÇ °³¼ö] ¿øÇÏ´Â LightÀÇ °³¼ö¸¦ ¸¸µé°í, PSConstantBufferData¿¡ ÀüÇØÁØ´Ù.
+	/// å ì™ì˜™å ì™ì˜™íŠ¸ å ìŒœì–µì˜™ -------------------------------------------------------------------------------------------------
 	void LightInitialize(CommonConstantBufferData* _psBufferData, UINT _num);
 
-	// [PS¹öÆÛ±¸Á¶, ¸¸µå·Á´Â ºûÀÇ °³¼ö] PS ¹öÆÛÀÇ Max LightÀÇ °³¼ö Á¶Á¤
 	void ChangeLightMaxNum(CommonConstantBufferData* _psBufferData, UINT _num);
 
-	// [PS¹öÆÛ±¸Á¶] Light Update, PS ¹öÆÛ ¾÷µ¥ÀÌÆ® Àü¿¡ È£Ãâ
 	void LightUpdate(CommonConstantBufferData* _psBufferData);
 
-	// [PS¹öÆÛ±¸Á¶] ÇöÀç ÄÁ½ºÅÏÆ® ¹öÆÛÀÇ ºûÀÇ °³¼ö¿Í Á¤º¸ Ãâ·Â
 	void PrintLightInfo(CommonConstantBufferData* _psBufferData);
 
-	// ¶óÀÌÆ® ³»ÀÇ ¼ººĞ ÀüÃ¼ ¼³Á¤ [PS¹öÆÛ±¸Á¶, Á¾·ù, ¼¼±â, ºû °­µµ ÇÏ¶ôÀÇ ½ÃÀÛ, ºû °­µµ ÇÏ¶ôÀÇ ³¡, ¹æÇâ, À§Ä¡, spotPower]
 	void SetLightSettingAll(CommonConstantBufferData* _psBufferData, UINT _index, LightEnum _lightType, float _strength, float _fallOffStart,
 							float _fallOffEnd, Vector3 _dir, Vector3 _pos, float _spotPower, Vector3 _color = Vector3(1.0f, 1.0f, 1.0f));
-	// Directional Light ¼³Á¤
+	// Directional Light 
 	void SetDirLight(CommonConstantBufferData* _psBufferData, UINT _index, float _strength, Vector3 _dir, Vector3 _color = Vector3(1.0f, 1.0f, 1.0f));
 
-	// Point Light ¼³Á¤
+	// Point Light 
 	void SetPointLight(CommonConstantBufferData* _psBufferData, UINT _index, float _strength, float _fallOffStart,
 		float _fallOffEnd, Vector3 _pos, Vector3 _color = Vector3(1.0f, 1.0f, 1.0f));
 
-	// Spot Light ¼³Á¤
+	// Spot Light 
 	void SetSpotLight(CommonConstantBufferData* _psBufferData, UINT _index, float _strength, float _fallOffStart,
 		float _fallOffEnd, Vector3 _dir, Vector3 _pos, float _spotPower, Vector3 _color = Vector3(1.0f, 1.0f, 1.0f));
 
-	// ÇöÀç ÀÎµ¦½ºÀÇ ¶óÀÌÆ®¸¦ NONEÀ¸·Î ¹Ù²ß´Ï´Ù. -> Light ¿¬»ê ¾ÈÇÔ
 	void SetLightOff(CommonConstantBufferData* _psBufferData, UINT _index);
 
-	// [PS¹öÆÛ±¸Á¶, index, ºûÀÇ ¼¼±â(0~1)] ºûÀÇ ¼¼±â¸¦ ¼³Á¤, 0~1ÀÇ °ª¸¸ ³Ö´Â´Ù.
 	void SetLightStrength(CommonConstantBufferData* _psBufferData, UINT _index, float _strength);
-	// [PS¹öÆÛ±¸Á¶, index, ºûÀÇ Á¾·ù] ºûÀÇ Á¾·ù¸¦ ¼³Á¤
 	void SetLightType(CommonConstantBufferData* _psBufferData, UINT _index, LightEnum _lightType);
-	// [PS¹öÆÛ±¸Á¶, index, ºûÀÇ ¹æÇâ] ºûÀÇ ¹æÇâ ¼³Á¤, _dirÀº ´ÜÀ§ º¤ÅÍ·Î ³ÖÀ» °Í.
 	void SetLightDir(CommonConstantBufferData* _psBufferData, UINT _index, Vector3 _dir);
-	// [PS¹öÆÛ±¸Á¶, index, ºûÀÇ °­µµ°¡ ÁÙ¾îµå´Â ÁöÁ¡ÀÇ ½ÃÀÛ °Å¸®] ºûÀÇ ¹üÀ§ ¼³Á¤ : 5ÀÌÇÏ·Î ¼³Á¤½Ã ¿À·ù³¯ ¼ö ÀÖÀ½
 	void SetLightFallOffStart(CommonConstantBufferData* _psBufferData, UINT _index, float _distance);
-	// [PS¹öÆÛ±¸Á¶, index, ºû ¹üÀ§ÀÇ ³¡] ºûÀÇ ¹üÀ§ ¼³Á¤ : 5ÀÌÇÏ·Î ¼³Á¤½Ã ¿À·ù³¯ ¼ö ÀÖÀ½
 	void SetLightFallOffEnd(CommonConstantBufferData* _psBufferData, UINT _index, float _length);
-	// [PS¹öÆÛ±¸Á¶, index, ºûÀÇ À§Ä¡] ºûÀÇ À§Ä¡¸¦ ¼³Á¤
 	void SetLightPos(CommonConstantBufferData* _psBufferData, UINT _index, Vector3 _pos);
-	// [PS¹öÆÛ±¸Á¶, index, ºûÀÇ spotPower(0~100)] ºûÀÇ spotPower¸¦ ¼³Á¤ : Å¬¼ö·Ï ºûÀÌ ¸ğ¾ÆÁü
 	void SetLightSpotPower(CommonConstantBufferData* _psBufferData, UINT _index, float _power);
-	// [PS¹öÆÛ±¸Á¶, index, ºûÀÇ ¹æÇâ] ºûÀÇ »ö±ò ¼³Á¤
 	void SetLightColor(CommonConstantBufferData* _psBufferData, UINT _index, Vector3 _rgb);
 
-	// [PS¹öÆÛ±¸Á¶, º¹»çÇÒ ºû, º¹»çµÉ ÀÎµ¦½º] Æ¯Á¤ ÀÎµ¦½ºÀÇ ºû º¹»çÇÏ±â
 	void CopyLight(CommonConstantBufferData* _psBufferData, UINT _copy, UINT _origin);
 
 	Matrix CreateShadowViewMatrix(const Light& light);

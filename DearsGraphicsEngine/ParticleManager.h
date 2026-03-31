@@ -17,7 +17,6 @@ public:
 private:
 	ComPtr<ID3D11Device> m_pDevice;											//디바이스
 	ComPtr<ID3D11DeviceContext> m_pDeviceContext;							//디바이스 컨텍스트
-	//ComPtr<ID3D11DeviceContext1> m_pDeviceContext;						//디바이스 컨텍스트
 public:
 	ObjectPool<CSParticleData>* m_pParticleObjectpool;
 

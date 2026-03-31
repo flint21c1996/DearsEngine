@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "DearsImGui.h"
 #include <windows.h>
 #include <iostream>
@@ -17,14 +17,17 @@ DearsImGui::DearsImGui(HWND _hWnd, ComPtr<ID3D11Device>& _pDevice, ComPtr<ID3D11
 	m_pResourceManager = _pResourceManager;
 
 	ImGui::CreateContext();
-	io = &ImGui::GetIO(); // Ã¢À» ÃÊ±âÈ­ÇÏ°Å³ª ¼³Á¤ÇÏ´Âµ¥ »ç¿ë
+	io = &ImGui::GetIO(); // ì°½å ì™ì˜™ å ì‹­ê¹ì˜™í™”å ì‹¹ê±°ë†‚ì˜™ å ì™ì˜™å ì™ì˜™å ì‹¹ëŠ”ë“¸ì˜™ å ì™ì˜™å ?
+	// Keep a small default editor font for panels. Large localized fonts are
+	// loaded separately and used only where explicit UI text needs them.
+	io->Fonts->AddFontDefault();
 /*	io->FontGlobalScale = 0.5f;*/
-	//io->Fonts->TexDesiredWidth = 2048; // ÆùÆ® ¾ÆÆ²¶ó½ºÀÇ ÅØ½ºÃ³ ³Êºñ¸¦ Á¦ÇÑ, °¡·Î Å©±â°¡ ÀÌ ÀÌ»óÀ¸·Î ³Ñ¾î°¡¸é ¼¼·Î·Î µé¾î°¨. ³Ê¹« Å©¸é GPU¿¡¼­ ¸ø Ã³¸®ÇØ¼­ ÇÏ´Â Çàµ¿.
+	//io->Fonts->TexDesiredWidth = 2048; // å ì™ì˜™íŠ¸ å ì™ì˜™í‹€å ì™ì˜™å ì™ì˜™ å ìŒ”ì™ì˜™ì²˜ å ì‹­ë¸ì˜™ å ì™ì˜™å ì™ì˜™, å ì™ì˜™å ì™ì˜™ í¬å ì©ê°€ å ì™ì˜™ å ì‹±ì‚¼ì˜™å ì™ì˜™å ì™ì˜™ å ì‹¼ì–´ê°€å ì™ì˜™ å ì™ì˜™å ì‹¸ë¤„ì˜™ å ì™ì˜™è¼‰? å ì‹­ë±„ì˜™ í¬å ì™ì˜™ GPUå ì™ì˜™å ì™ì˜™ å ì™ì˜™ ì²˜å ì™ì˜™å ìŒ”ì‡½ì˜™ å ì‹¹ëŒì˜™ å ì…ë™.
 
 	ImGui_ImplWin32_Init(_hWnd);
 	ImGui_ImplDX11_Init(m_pDevice.Get(), m_pDeviceContext.Get());
 
-	//±âº» ½ºÅ¸ÀÏ ¼³Á¤
+	//å ì©ë³¸ å ì™ì˜™íƒ€å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	ImGui::StyleColorsDark();
 }
 
@@ -39,7 +42,7 @@ void DearsImGui::UILoadFonts(std::string _basePath, std::string _fileName, float
 {
 	const std::string fontPath = _basePath + _fileName;
 	ImFont* tempFont;
-	// ±âº» ÆùÆ® Å©±â º¯°æ
+	// å ì©ë³¸ å ì™ì˜™íŠ¸ í¬å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	if (_isKorean)
 	{
 		tempFont = io->Fonts->AddFontFromFileTTF(fontPath.c_str(), _size, nullptr, io->Fonts->GetGlyphRangesKorean());
@@ -48,7 +51,7 @@ void DearsImGui::UILoadFonts(std::string _basePath, std::string _fileName, float
 	{
 		tempFont = io->Fonts->AddFontFromFileTTF(fontPath.c_str(), _size);
 	}
-	m_pResourceManager->Add_Font(_fileName, tempFont); // ¸®¼Ò½º ÄÁÅ×ÀÌ³Ê¿¡ ÆùÆ® Ãß°¡
+	m_pResourceManager->Add_Font(_fileName, tempFont); // å ì™ì˜™å ìŒ€ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì‹±ë„ˆìš¸ì˜™ å ì™ì˜™íŠ¸ å ìŒ©ê³¤ì˜™
 }
 
 void DearsImGui::UIBuildFonts()
@@ -59,49 +62,24 @@ void DearsImGui::UIBuildFonts()
 
 void DearsImGui::UIBeginRender()
 {
-	// ImGui ÇÁ·¹ÀÓ ½ÃÀÛ
+	// ImGui å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
 }
 
-///UI °ü·Ã ÀÛ¾÷ -> °ÔÀÓ ¿£ÁøÀÇ ÄÁÅÙÃ÷¿¡¼­ ÇÒ ºÎºĞÀÓ
+///UI å ì™ì˜™å ì™ì˜™ å ìŒœì–µì˜™
 void DearsImGui::UISetting()
 {
-	///// 0. Äµ¹ö½º ¼³Á¤
-	//DrawStart(Vector2(0, 0), Vector2(static_cast<float>(m_endScreenWidth), static_cast<float>(m_endScreenHeight)));
+	// ?ê¹…ì¤‰???ë¨®ëµ’???â‘¤ê¼¸ ï§â‘¤ëª¢ æ´¹ëªƒâ”æ¹²?(?ë¨¯ì‘€ ?ëš®ì¤ˆ??ï§¡?
+	for (IEditorPanel* panel : m_panels)
+		panel->Draw();
+}
 
-	///// 1. ¾Æ¹«·± ÀÌº¥Æ®°¡ ¾ø´Â ÀÌ¹ÌÁö
-	//DrawImageStart();
-	////StartUI_TYPE(UI_TYPE::IMAGE);
-	//DrawImage(Vector2(1720, 20), Vector2(200, 200), "coco.jpg");
-	//DrawImage(Vector2(845, 800), Vector2(230, 75), "startButton.png");
-	//if (Hovering() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-	//{
-	//	DrawText(Vector2(960, 750), "click!");
-	//}
-	//DrawImage(t_imagePos, Vector2(200, 200), "bird.png");
-	//Drag(t_imagePos);
-	//DrawImageEnd();
-
-	///// 4. ±âº» µµÇü ±×¸®±â Àü À©µµ¿ì °¡Á®¿À±â
-	//GetCurrentWindow();
-
-	///// 5. µµÇü ±×¸®±â -> È¤½Ã ¾Æ·¡¿¡ ±×·Á¾ß ÇÏ¸é ÇÔ¼ö ºĞ¸®¸¦ ÇØ¾ß ÇÔ. ÇÊ¿ä¿¡ µû¶ó ÃßÈÄ Á¦ÀÛ(ÇöÀç ¿¹Á¤ ¾øÀ½)
-	//DrawRect(Vector2(100, 100), Vector2(200, 50), Vector4(1.0f, 1.0f, 0.0f, 1.0f));
-	//DrawLine(Vector2(110, 110), Vector2(160, 160), Vector4(1.0f, 0.0f, 0.0f, 1.0f));
-	//DrawCircle(Vector2(150, 150), 20.0f, Vector4(0.0f, 0.0f, 1.0f, 1.0f));
-
-	///// 7. ÆùÆ®¸¦ Ãâ·ÂÇÏ±â (ÇÔ¼öÈ­ ÇØ¾ß ÇÔ)
-
-	///// 8. Äµ¹ö½º ¼³Á¤ ¿Ï·á
-	//DrawEnd();
-
-	/// »õ Ã¢ ¸¸µé±â ¿¹½Ã
-	// newSettingWindow(Vector2(100,100), Vector2(500,500), "Setting1");
-	// ...(±â´É Ãß°¡)
-	// DrawEnd();
+void DearsImGui::AddPanel(IEditorPanel* panel)
+{
+	m_panels.push_back(panel);
 }
 
 void DearsImGui::UIRender()
@@ -116,27 +94,36 @@ void DearsImGui::UIEndRender()
 
 void DearsImGui::UICanvasSet(Vector2 _posXY, Vector2 _sizeWH)
 {
-	// Ã¢ÀÇ À§Ä¡ ¼³Á¤
-	ImGui::SetNextWindowPos(ImVec2(_posXY.x, _posXY.y)); // Ã¢ÀÇ À§Ä¡ ¼³Á¤
-	ImGui::SetNextWindowSize(ImVec2(_sizeWH.x, _sizeWH.y)); // Ã¢ÀÇ Å©±â ¼³Á¤
-	// ImGui ½ºÅ¸ÀÏ¿¡¼­ ÆĞµùÀ» Á¦°Å
+	// ì°½å ì™ì˜™ å ì™ì˜™ì¹˜ å ì™ì˜™å ì™ì˜™
+	ImGui::SetNextWindowPos(ImVec2(_posXY.x, _posXY.y)); // ì°½å ì™ì˜™ å ì™ì˜™ì¹˜ å ì™ì˜™å ì™ì˜™
+	ImGui::SetNextWindowSize(ImVec2(_sizeWH.x, _sizeWH.y)); // ì°½å ì™ì˜™ í¬å ì™ì˜™ å ì™ì˜™å ì™ì˜™
+	// ImGui å ì™ì˜™íƒ€å ì‹¹ìš¸ì˜™å ì™ì˜™ å ì‹»ë“¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
 
-	ImGui::Begin("UI Canvas", NULL, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav); //¿©±â¼­ Begin°ú End´Â ¼³Á¤Ã¢À» ±×¸®°Ô ÇÑ´Ù.
+	// The canvas is only a drawing surface for overlay text and images.
+	// It should never block mouse interaction with editor panels behind it.
+	ImGui::Begin(
+		"UI Canvas",
+		NULL,
+		ImGuiWindowFlags_NoBackground |
+		ImGuiWindowFlags_NoDecoration |
+		ImGuiWindowFlags_NoNav |
+		ImGuiWindowFlags_NoInputs
+	);
 }
 
 void DearsImGui::UICanvasSetFin()
 {
 	ImGui::End();
-	// ½ºÅ¸ÀÏ ¼³Á¤ º¹¿ø
+	// å ì™ì˜™íƒ€å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	ImGui::PopStyleVar(2);
 }
 
 void DearsImGui::NewUISetWindow(Vector2 _posXY, Vector2 _sizeWH, const std::string _windowName)
 {
-	ImGui::SetNextWindowPos(ImVec2(_posXY.x, _posXY.y)); // Ã¢ÀÇ À§Ä¡ ¼³Á¤
-	ImGui::SetNextWindowSize(ImVec2(_sizeWH.x, _sizeWH.y)); // Ã¢ÀÇ Å©±â ¼³Á¤
+	ImGui::SetNextWindowPos(ImVec2(_posXY.x, _posXY.y)); // ì°½å ì™ì˜™ å ì™ì˜™ì¹˜ å ì™ì˜™å ì™ì˜™
+	ImGui::SetNextWindowSize(ImVec2(_sizeWH.x, _sizeWH.y)); // ì°½å ì™ì˜™ í¬å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	ImGui::Begin("Settings1");
 }
 
@@ -147,9 +134,9 @@ void DearsImGui::SetUICurrentWindow()
 
 void DearsImGui::UIDrawText(Vector2 _posXY, const std::string _text, Vector4 _rgba)
 {
-	ImGui::SetCursorPos(ImVec2(_posXY.x, _posXY.y)); // ÀÌ¹ÌÁö¸¦ Ç¥½ÃÇÒ À§Ä¡ (x, y)
+	ImGui::SetCursorPos(ImVec2(_posXY.x, _posXY.y)); // å ì‹±ë±„ì˜™å ì™ì˜™å ì™ì˜™ í‘œå ì™ì˜™å ì™ì˜™ å ì™ì˜™ì¹˜ (x, y)
 
-		// _text¸¦ '\n'À¸·Î ³ª´©¾î °¢ ÁÙÀ» Ã³¸®
+		// _textå ì™ì˜™ '\n'å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™ å ì™ì˜™å ì™ì˜™ ì²˜å ì™ì˜™
 	std::stringstream ss(_text);
 	std::string line;
 
@@ -157,7 +144,7 @@ void DearsImGui::UIDrawText(Vector2 _posXY, const std::string _text, Vector4 _rg
 	{
 		ImGui::TextColored(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w), line.c_str());
 
-		// ´ÙÀ½ ÁÙ·Î ³Ñ¾î°¡±â À§ÇØ Y ÁÂÇ¥¸¦ ÇöÀç ÁÙ ³ôÀÌ¸¸Å­ ´©ÀûÇÏ¿© Á¶Á¤
+		// å ì™ì˜™å ì™ì˜™ å ìŒ•ë¤„ì˜™ å ì‹¼ì–´ê°€å ì™ì˜™ å ì™ì˜™å ì™ì˜™ Y å ì™ì˜™í‘œå ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™ å ì™ì˜™å ì‹±ëªŒì˜™í¼ å ì™ì˜™å ì™ì˜™å ì‹¹ìš¸ì˜™ å ì™ì˜™å ì™ì˜™
 		_posXY.y += ImGui::GetTextLineHeightWithSpacing();
 		ImGui::SetCursorPos(ImVec2(_posXY.x, _posXY.y));
 	}
@@ -230,8 +217,8 @@ void DearsImGui::UIDrawCircle(Vector2 _posXY, float _radius, Vector4 _rgba)
 
 void DearsImGui::UIDrawImage(Vector2 _posXY, Vector2 _sizeWH, ComPtr<ID3D11ShaderResourceView> _srv, Vector4 _rgba)
 {
-	ImGui::SetCursorPos(ImVec2(_posXY.x, _posXY.y)); // ÀÌ¹ÌÁö¸¦ Ç¥½ÃÇÒ À§Ä¡ (x, y)
-	ImGui::Image((void*)_srv.Get(), ImVec2(_sizeWH.x, _sizeWH.y), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)); // ÀÌ¹ÌÁö¸¦ È­¸é¿¡ Ç¥½Ã
+	ImGui::SetCursorPos(ImVec2(_posXY.x, _posXY.y)); // å ì‹±ë±„ì˜™å ì™ì˜™å ì™ì˜™ í‘œå ì™ì˜™å ì™ì˜™ å ì™ì˜™ì¹˜ (x, y)
+	ImGui::Image((void*)_srv.Get(), ImVec2(_sizeWH.x, _sizeWH.y), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)); // å ì‹±ë±„ì˜™å ì™ì˜™å ì™ì˜™ í™”å ì½ì— í‘œå ì™ì˜™
 }
 
 bool DearsImGui::Hovering()
@@ -271,7 +258,7 @@ void DearsImGui::UIEndFontID()
 
 void DearsImGui::Drag(Vector2& _posXY)
 {
-	// µå·¡±× Ã³¸®
+	// å ì²ë˜å ì™ì˜™ ì²˜å ì™ì˜™
 	if (ImGui::IsItemHovered() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 	{
 		ImVec2 dragDelta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
@@ -284,6 +271,6 @@ void DearsImGui::Drag(Vector2& _posXY)
 
 std::string DearsImGui::ConvertUTF8String(const std::u8string& _text)
 {
-	// char8_t´Â C++20ºÎÅÍ µµÀÔµÈ ÀÚ·áÇüÀÌ´Ù. ´õ ÀÌ»ó ¹®ÀÚ¿­·Î Ãë±Ş ¹ŞÁö ¾ÊÀ¸¹Ç·Î º¯È¯À» ÇØÁà¾ß¸¸ ÇÑ´Ù.
+	// char8_tå ì™ì˜™ C++20å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ìŒ‰ë“¸ì˜™ å ìŒ˜ë¤„ì˜™å ì™ì˜™å ì‹±ëŒì˜™. å ì™ì˜™ å ì‹±ì‚¼ì˜™ å ì™ì˜™å ìŒ˜ìš¸ì˜™å ì™ì˜™ å ì™ì˜™å ?å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì‹¤ë¤„ì˜™ å ì™ì˜™í™˜å ì™ì˜™ å ì™ì˜™å ì™ì˜™è”˜å ?å ì‹¼ëŒì˜™.
 	return std::string(_text.begin(), _text.end());
 }

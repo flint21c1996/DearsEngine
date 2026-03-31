@@ -1,67 +1,92 @@
-#pragma once
+ï»¿#pragma once
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <unordered_map>
+#include <string>
+#include <vector>
 #include "LayerEnum.h"
 #include "FBXLoader.h"
-#include "GraphicsResourceContainer.h"
-#include "GeometryGenerator.h"	//¹Ú½º¸¸µé¶§ ÇÊ¿äÇÔ.
+#include "GeometryGenerator.h"
 #include "RendererHelper.h"
+#include "ModelInfo.h"
+#include "BufferData.h"
+#include "ObjectPool.h"
+#include "BufferEnum.h"
+#include <imgui.h>
+#include <memory>
 
-///¸®¼Ò½º¸¦ »ı¼º, ÀúÀå, »èÁ¦¸¦ µµ¸Ã¾ÆÇÏ´Â Å¬·¡½º
-///FBXLoader, GraphicsResourceContainer¿Í ±ä¹ĞÇÏ°Ô ¿òÁ÷ÀÎ´Ù.
+using Microsoft::WRL::ComPtr;
+
+/// æ´¹ëªƒì˜’?ìŒë’ª ç”±ÑŠëƒ¼?ã…¼ì“½ æ¿¡ì’•ëµ«, ?Â€?? è­°ê³ ì‰¶, ??ì £ç‘œ??ëŒ€ë–¦.
+/// FBXLoaderæ¿¡??ëš¯ì”ª???ì„í€¬ GPU è¸°ê¾ªëç‘œ??ì•¹ê½¦???ëŒ€? ï§ë“­ë¿‰ è¹‚ë‹¿??ì’•ë–.
+/// (GraphicsResourceContainerç‘œ??â‰ªë‹” ?ë“¯ë¹€)
 class GraphicsResourceManager
 {
 public:
-	GraphicsResourceManager(ComPtr<ID3D11Device> _pDevice, ComPtr<ID3D11DeviceContext> _pDeviceContext);
-	~GraphicsResourceManager();
+    GraphicsResourceManager(ComPtr<ID3D11Device> _pDevice, ComPtr<ID3D11DeviceContext> _pDeviceContext);
+    ~GraphicsResourceManager();
+
+    void Initialize();
+    void Update();
+    void Finalize();
+
+    // ----- æ¿¡ì’•ë±¶ -----
+    void AddModel(std::string _basePath, std::string _fileName);
+    void AddModel(MeshData _meshData, std::string _meshName);
+    void AddAnimation(std::string _basePath, std::string _fileName);
+    void Add3DTexture(std::string _basePath, std::string _fileName);
+    void Add2DTexture(std::string _basePath, std::string _fileName);
+    void Add2DMipMapTexture(std::string _basePath, std::string _fileName);
+    void AddDDSTexture(std::string _basePath, std::string _fileName, bool isCubeMap = true);
+    void Add_Font(std::string fontName, ImFont* _font);
+
+    // ----- è­°ê³ ì‰¶ -----
+    ComPtr<ID3D11Buffer> Get_VertexBuffer(std::string _modelName);
+    ComPtr<ID3D11Buffer> Get_IndexBuffer(std::string _modelName);
+    unsigned int         Get_NumIndex(std::string _modelName);
+    Model*               Get_ModelInfo(std::string _modelName);
+    Animation*           Get_Animation(std::string _animName);
+    ComPtr<ID3D11ShaderResourceView> Get_Textures(std::string _textureName);
+    ImFont*              Get_Font(std::string _fontName);
+    Matrix               Get_TargetBoneMatrix(std::string _modelName, std::string _boneName);
+    Matrix               Get_TargetBoneAboveMatrix(std::string _modelName, std::string _boneName);
+    Matrix               Get_TargetBoneAboveMatrix(std::string _modelName, int _index);
+    int                  Get_TargetModelBoneIndex(std::string _modelName, std::string _boneName);
+
+    // ----- ??ì £ -----
+    void Erase_VertexBuffer(std::string _modelName);
+    void Erase_IndexBuffer(std::string _modelName);
+    void Erase_NumIndex(std::string _modelName);
+    void Erase_ModelInfo(std::string _modelName);
+    void Erase_Animation(std::string _animName);
+    void Erase_Textures(std::string _textureName);
+    void Erase_Font(std::string _fontName);
 
 private:
-	ComPtr<ID3D11Device> mpDevice; 
-	ComPtr<ID3D11DeviceContext> mpDeviceContext;
+    ComPtr<ID3D11Device>        mpDevice;
+    ComPtr<ID3D11DeviceContext> mpDeviceContext;
+    std::unique_ptr<FBXLoader>  mpFBXLoader;
 
-	FBXLoader* mpFBXLoader;
-	GraphicsResourceContainer* mpGraphicsResourceContainer;
-public:
-	void Initialize();
-	void Update();
-	void Finalize();
+    // ç”±ÑŠëƒ¼???Â€?Î¼ëƒ¼
+    std::unordered_map<std::string, ComPtr<ID3D11Buffer>>              mVertexBuffers;
+    std::unordered_map<std::string, ComPtr<ID3D11Buffer>>              mIndexBuffers;
+    std::unordered_map<std::string, unsigned int>                      mNumIndex;
+    std::unordered_map<std::string, Model*>                            mModels;
+    std::unordered_map<std::string, Animation*>                        mModelAnimations;
+    std::unordered_map<std::string, ComPtr<ID3D11ShaderResourceView>>  mTextures;
+    std::unordered_map<std::string, ImFont*>                           mFont;
+    std::unordered_map<std::string, std::vector<std::string>>          mModelBoneName;
 
-public:
-	void AddModel(std::string _basePath, std::string _fileName);
-	void AddModel(MeshData _meshData, std::string _meshName);
-	void AddAnimation(std::string _basePath, std::string _fileName);
-	void Add3DTexture(std::string _basePath, std::string _fileName);
-	void Add2DTexture(std::string _basePath, std::string _fileName);
-	void Add2DMipMapTexture(std::string _basePath, std::string _fileName);
-	void AddDDSTexture(std::string _basePath, std::string _fileName, bool isCubeMap = true);
-	void Add_Font(std::string fontName, ImFont* _font);
+    template<typename Resource, typename Key>
+    bool CheckResource(const Key& _key, const Resource& _resource);
 
-	//ÄÁÅ×ÀÌ³Ê¿¡¼­ ÇÊ¿äÇÑ ¸®¼Ò½º¸¦ °¡Áö°í ¿Â´Ù.
-	ComPtr<ID3D11Buffer> Get_VertexBuffer(std::string _modelName);
-	ComPtr<ID3D11Buffer> Get_IndexBuffer(std::string _modelName);
-	unsigned int Get_NumIndex(std::string _modelName);
-	Model* Get_ModelInfo(std::string _modelName);
-	Animation* Get_Animation(std::string _modelName);
-	ComPtr<ID3D11ShaderResourceView> Get_Textures(std::string _modelName);
-	ImFont* Get_Font(std::string _modelName);
-	Matrix Get_TargetBoneMatrix(std::string _modelName, std::string _boneName);
-	Matrix Get_TargetBoneAboveMatrix(std::string _modelName, std::string _boneName);
-	Matrix Get_TargetBoneAboveMatrix(std::string _modelName, int _index);
-	int Get_TargetModelBoneIndex(std::string _modelName, std::string _boneName);
-
-	//ÄÁÅ×ÀÌ³Ê¿¡¼­ Æ¯Á¤ ¸®¼Ò½º¸¦ Áö¿î´Ù.
-	void Erase_VertexBuffer(std::string _modelName);
-	void Erase_IndexBuffer(std::string _modelName);
-	void Erase_NumIndex(std::string _modelName);
-	void Erase_ModelInfo(std::string _modelName);
-	void Erase_Animation(std::string _animName);
-	void Erase_Textures(std::string _modelName);
-	void Erase_Font(std::string _modelName);
-
-
-
-private:
-
-
-
+    Matrix SearchBoneMatrix(std::string _modelName, std::string _boneName);
+    Matrix SearchBoneAboveMatrix(std::string _modelName, std::string _boneName);
+    Matrix SearchBoneAboveMatrix(std::string _modelName, int _index);
 };
+
+template<typename Resource, typename Key>
+bool GraphicsResourceManager::CheckResource(const Key& _key, const Resource& _resource)
+{
+    return _resource.find(_key) != _resource.end();
+}

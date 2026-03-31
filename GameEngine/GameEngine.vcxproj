@@ -147,9 +147,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AStar.h" />
+    <ClInclude Include="DemoScene.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="EntityManager.h" />
     <ClInclude Include="GameEngine.h" />
+    <ClInclude Include="IScene.h" />
     <ClInclude Include="InputEnum.h" />
     <ClInclude Include="InputManager.h" />
     <ClInclude Include="FileManager.h" />
@@ -157,10 +159,14 @@
     <ClInclude Include="ResourceEnum.h" />
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="tempObject.h" />
+    <ClInclude Include="RenderObject.h" />
+    <ClInclude Include="SceneHierarchyPanel.h" />
+    <ClInclude Include="ObjectInspectorPanel.h" />
     <ClInclude Include="TimeManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AStar.cpp" />
+    <ClCompile Include="DemoScene.cpp" />
     <ClCompile Include="Entity.cpp" />
     <ClCompile Include="EntityManager.cpp" />
     <ClCompile Include="GameEngine.cpp" />
@@ -168,6 +174,7 @@
     <ClCompile Include="FileManager.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="tempObject.cpp" />
+    <ClCompile Include="RenderObject.cpp" />
     <ClCompile Include="TimeManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

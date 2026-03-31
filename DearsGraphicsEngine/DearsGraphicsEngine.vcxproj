@@ -177,6 +177,7 @@
     <ClInclude Include="GraphicsResourceContainer.h" />
     <ClInclude Include="GraphicsResourceManager.h" />
     <ClInclude Include="DearsImGui.h" />
+    <ClInclude Include="IEditorPanel.h" />
     <ClInclude Include="LayerEnum.h" />
     <ClInclude Include="LightHelper.h" />
     <ClInclude Include="Light.h" />

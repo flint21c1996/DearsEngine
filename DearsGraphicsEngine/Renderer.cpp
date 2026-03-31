@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "Renderer.h"
 #include <directxtk/SimpleMath.h>
 using namespace Dears;
@@ -23,8 +23,7 @@ Renderer::Renderer(HWND _hWnd, int _startScreenWidth, int _startScreenHeight, in
 
 Renderer::~Renderer()
 {
-	delete mpTargetCamera;
-	//delete m_pResourceManager;
+	// mpTargetCamera???ëš¯ì‘€?ì„? ?ë”†ì“¬ (DearsGraphicsEngine??æ„¿Â€ç”±?
 	delete m_pRenderHelper;
 }
 
@@ -40,40 +39,45 @@ bool Renderer::Initialize(GraphicsResourceManager* _pResourceManager)
 		return false;
 	}
 	m_pResourceManager = _pResourceManager;
-	// ·£´õ ÇïÆÛ »ı¼º
+	// å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	m_pRenderHelper = new RendererHelper();
 
 
-	CommonConstantBufferData CCBD;	//mpCommonConstantBuffer¸¸ ÃÊ±âÈ­ ½ÃÅ°°í ¹ö¸± º¯¼ö
+	CommonConstantBufferData CCBD;	//mpCommonConstantBufferå ì™ì˜™ å ì‹­ê¹ì˜™í™” å ì™ì˜™í‚¤å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	mpCommonConstantBuffer = RendererHelper::CreateConstantBuffer(m_pDevice, CCBD);
 	return true;
 }
 
+void Renderer::SetViewportWidth(int viewportWidth)
+{
+	m_pD3dScreenViewport.Width = static_cast<float>(viewportWidth);
+}
+
 void Renderer::BeginRender()
 {
-	// ·»´õ¸µÇÒ ºäÆ÷Æ®¸¦ ¼³Á¤ÇÑ´Ù. (1¹ø¿¡, m_pD3dScreenViewport ¼³Á¤)
+	// å ì™ì˜™å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™íŠ¸å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì‹¼ëŒì˜™. (1å ì™ì˜™å ì™ì˜™, m_pD3dScreenViewport å ì™ì˜™å ì™ì˜™)
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
 
-	float clearColor[4] = { 0.5f, 0.5f, 0.5f, 1.0f }; // »ç¿ëÇÒ »ö
-	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView.Get(), clearColor); // renderTargetView¸¦ clearColor·Î ½Ï Áö¿î´Ù.
+	float clearColor[4] = { 0.5f, 0.5f, 0.5f, 1.0f }; // å ì™ì˜™å ì™ì˜™å ?å ì™ì˜™
+	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView.Get(), clearColor); // renderTargetViewå ì™ì˜™ clearColorå ì™ì˜™ å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ?
 
-	float clearColor1[4] = { 0.f, 0.f, 0.f, 0.0f }; // »ç¿ëÇÒ »ö
-	m_pDeviceContext->ClearRenderTargetView(m_pTempTargetview.Get(), clearColor1); // renderTargetView¸¦ clearColor·Î ½Ï Áö¿î´Ù.
+	float clearColor1[4] = { 0.f, 0.f, 0.f, 0.0f }; // å ì™ì˜™å ì™ì˜™å ?å ì™ì˜™
+	m_pDeviceContext->ClearRenderTargetView(m_pTempTargetview.Get(), clearColor1); // renderTargetViewå ì™ì˜™ clearColorå ì™ì˜™ å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ?
 
-	//¸ğµç »ùÇÃ·¯µéÀ» °øÅëÀ¸·Î »ç¿ë
+	//å ì™ì˜™å ?å ì™ì˜™å ì‹œë¤„ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ?
 	m_pDeviceContext->VSSetSamplers(0, UINT(Dears::Graphics::sampleStates.size()),
 		Dears::Graphics::sampleStates.data());
 	m_pDeviceContext->PSSetSamplers(0, UINT(Dears::Graphics::sampleStates.size()),
 		Dears::Graphics::sampleStates.data());
 
-	// ±íÀÌ-½ºÅÄ½Çºä ¸®¼Â
+	// å ì™ì˜™å ì™ì˜™-å ì™ì˜™å ì‹ì‹¤ë¸ì˜™ å ì™ì˜™å ì™ì˜™
 	m_pDeviceContext->ClearDepthStencilView(mpDepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 	m_pDeviceContext->ClearDepthStencilView(m_depthOnlyDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 
 
-	//Å¥ºê¸Ê ¸®¼Ò½º¸¦ GPU·Î ¹Ì¸® º¸³»³õ´Â´Ù.
+	//íå ì™ì˜™å ?å ì™ì˜™å ìŒ€ì™ì˜™å ì™ì˜™ GPUå ì™ì˜™ å ì‹±ëªŒì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™å ìŠ¹ëŒì˜™.
 	SetCommonShaderResourceToGPU();
 }
 
@@ -88,7 +92,7 @@ void Renderer::SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _environ
 
 void Renderer::SetCommonConstant(ComPtr<ID3D11Buffer>& commonConstsBuffer)
 {
-	// ½¦ÀÌ´õ¿Í ÀÏ°ü¼º À¯Áö register(b1)***
+	// å ì™ì˜™å ì‹±ëŒì˜™å ì™ì˜™ å ì‹¹ê³¤ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ register(b1)***
 	m_pDeviceContext->VSSetConstantBuffers(1, 1, commonConstsBuffer.GetAddressOf());
 	m_pDeviceContext->PSSetConstantBuffers(1, 1, commonConstsBuffer.GetAddressOf());
 }
@@ -114,7 +118,7 @@ bool Renderer::SetCommonShaderResourceToGPU()
 void Renderer::Render(ModelBuffer* _modelbuffer)
 {
 
-	// ¹öÅØ½º/ÀÎµ¦½º ¹öÆÛ ¼³Á¤
+	// å ì™ì˜™å ìŒ”ì™ì˜™/å ì‹¸ë“¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	m_pDeviceContext->IASetVertexBuffers(0, 1, _modelbuffer->m_pVertexBuffer.GetAddressOf(), &stride, &offset);
@@ -127,8 +131,8 @@ void Renderer::Render(ModelBuffer* _modelbuffer)
 	m_pDeviceContext->VSSetConstantBuffers(6, 1, _modelbuffer->m_VSPBRConstantBuffer.GetAddressOf());
 
 	m_pDeviceContext->PSSetConstantBuffers(0, 1, _modelbuffer->m_pPSConstantBuffer.GetAddressOf());
-	m_pDeviceContext->PSSetConstantBuffers(2, 1, _modelbuffer->m_PSPBRConstantBuffer.GetAddressOf());	//¿øÀÎÀÌ ¹»±î..?
-	m_pDeviceContext->PSSetConstantBuffers(3, 1, _modelbuffer->m_PSThinFilmConstantBuffer.GetAddressOf());	//¿øÀÎÀÌ ¹»±î..?
+	m_pDeviceContext->PSSetConstantBuffers(2, 1, _modelbuffer->m_PSPBRConstantBuffer.GetAddressOf());	//å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™..?
+	m_pDeviceContext->PSSetConstantBuffers(3, 1, _modelbuffer->m_PSThinFilmConstantBuffer.GetAddressOf());	//å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™..?
 
 	ID3D11ShaderResourceView* vertexResources[1] =
 	{
@@ -168,7 +172,7 @@ void Renderer::Render_CubeMap(ModelBuffer* _modelbuffer)
 {
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
-	// Å¥ºê¸ÅÇÎ
+	// íå ì™ì˜™å ì™ì˜™å ?
 	m_pDeviceContext->IASetVertexBuffers(
 		0, 1, _modelbuffer->m_pVertexBuffer.GetAddressOf(), &stride,
 		&offset);
@@ -205,22 +209,22 @@ void Renderer::Finalize()
 
 bool Renderer::InitalizeD3D()
 {
-	// ½º¿Ò Ã¼ÀÎ »ı¼º
+	// å ì™ì˜™å ì™ì˜™ ì²´å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	RendererHelper::CreateSwapChain(m_pDevice, m_hWnd, m_numQualityLevels, m_endScreenWidth, m_endScreenHeight, mpSwapChain);
 	 
-	// ¸ŞÀÎ ·»´õ Å¸°Ù ºä »ı¼º
+	// å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ íƒ€å ì™ì˜™ å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	RendererHelper::CreateRenderTargetView(m_pDevice, mpSwapChain, m_pRenderTargetView, mpBackBuffer);
 	HRESULT hr = m_pDevice->CreateShaderResourceView(mpBackBuffer.Get(), nullptr, mpMainRenderTargetSRV.GetAddressOf());
 
-	// ±âº» ºä Æ÷Æ® ¼¼ÆÃ
+	// å ì©ë³¸ å ì™ì˜™ å ì™ì˜™íŠ¸ å ì™ì˜™å ì™ì˜™
 	RendererHelper::SetViewPort(m_pDeviceContext, m_startScreenWidth, m_startScreenHeight, m_endScreenWidth, m_endScreenHeight, m_pD3dScreenViewport);
-	// ½ÇÇè¿ë ºä Æ÷Æ®
+	// å ì™ì˜™å ì™ì˜™å ?å ì™ì˜™ å ì™ì˜™íŠ¸
 	RendererHelper::SetViewPort(m_pDeviceContext, 0, 0, 1920 *0.5, 1080 * 0.5, m_pD3dtempViewport);
 	
-	// ±íÀÌ ½ºÅÙ½Ç ºä »ı¼º
+	// å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ìŒ•ì™ì˜™ å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	RendererHelper::CreateDepthStencilBuffer(m_pDevice, m_numQualityLevels, m_endScreenWidth, m_endScreenHeight, mpDepthStencilView);
 
-	//½ÇÇè¿ë ·»´õ Å¸°Ù
+	//å ì™ì˜™å ì™ì˜™å ?å ì™ì˜™å ì™ì˜™ íƒ€å ì™ì˜™
 	RendererHelper::CreateRenderTargetView(m_pDevice, mpSwapChain, m_pTempTargetview, mpTempBuffer, 1, 1920 * 0.5, 1080 * 0.5);
 	hr = m_pDevice->CreateShaderResourceView(mpTempBuffer.Get(), nullptr, mpTempTargetSRV.GetAddressOf());
 
@@ -234,7 +238,7 @@ void Renderer::SetPipelineState(const PipelineStateObject& _pso)
 	m_pDeviceContext->PSSetShader(_pso.m_pPixelShader.Get(), 0, 0);
 	m_pDeviceContext->IASetInputLayout(_pso.m_pInputLayout.Get());
 	m_pDeviceContext->RSSetState(_pso.m_pRasterizerState.Get());
-	m_pDeviceContext->OMSetBlendState(_pso.m_pBlendState.Get(), _pso.m_blendFactor, 0xffffffff);		 //0xffffffff - ¸ğµç »ùÇÃÀ» È°¼ºÈ­ ½ÃÅ°°Ú´Ù.
+	m_pDeviceContext->OMSetBlendState(_pso.m_pBlendState.Get(), _pso.m_blendFactor, 0xffffffff);		 //0xffffffff - å ì™ì˜™å ?å ì™ì˜™å ì™ì˜™å ì™ì˜™ í™œå ì™ì˜™í™” å ì™ì˜™í‚¤å ìŒ˜ëŒì˜™.
 	m_pDeviceContext->OMSetDepthStencilState(_pso.m_pDepthStencilState.Get(), _pso.m_stencilRef);
 	m_pDeviceContext->IASetPrimitiveTopology(_pso.m_primitiveTopology);
 	//m_pDeviceContext->PSSetSamplers(0, 1, _pso.m_pSamplerState.GetAddressOf());
@@ -249,7 +253,7 @@ void Renderer::UpdateCommonConstantBuffer(CommonConstantBufferData& _CommonBuffe
 {
 	RendererHelper::UpdateBuffer(m_pDeviceContext, _CommonBufferData, mpCommonConstantBuffer);
 
-	// ½¦ÀÌ´õ¿Í ÀÏ°ü¼º À¯Áö register(b1)***
+	// å ì™ì˜™å ì‹±ëŒì˜™å ì™ì˜™ å ì‹¹ê³¤ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ register(b1)***
 	m_pDeviceContext->VSSetConstantBuffers(1, 1, mpCommonConstantBuffer.GetAddressOf());
 	m_pDeviceContext->PSSetConstantBuffers(1, 1, mpCommonConstantBuffer.GetAddressOf());
 }
@@ -261,15 +265,15 @@ void Renderer::RenderDepthMap(ModelBuffer* _modelbuffer)
 //	m_pDeviceContext->RSSetViewports(1, &m_pD3dtempViewport);
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
 	
-	//È­¸é¿¡ ¶ç¾îº¸´Â, -> ´ë°­ È®ÀÎÇÒ¼ö ÀÖ´Â
+	//í™”å ì½ì— å ì™ì˜™å’€ëªŒì˜™å ? -> å ìˆê°• í™•å ì™ì˜™å ìŒ€ì‡½ì˜™ å ìŒëŒì˜™
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), m_depthOnlyDSV.Get());
 	
 	m_pDeviceContext->OMSetRenderTargets(0,NULL, m_depthOnlyDSV.Get());
-	//´Ù¸¥ ·»´õÅ¸°Ù¿¡ ±×¸®´Â
+	//å ìŒ•ëªŒì˜™ å ì™ì˜™å ì™ì˜™íƒ€å ìŒ•ìš¸ì˜™ å ìŒ“ëªŒì˜™å ì™ì˜™
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pTempRednerTargetview.GetAddressOf(), m_depthOnlyDSV.Get());
 
 
-	// ¹öÅØ½º/ÀÎµ¦½º ¹öÆÛ ¼³Á¤
+	// å ì™ì˜™å ìŒ”ì™ì˜™/å ì‹¸ë“¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	m_pDeviceContext->IASetVertexBuffers(0, 1, _modelbuffer->m_pVertexBuffer.GetAddressOf(), &stride, &offset);
@@ -293,7 +297,7 @@ void Renderer::RenderDepthMap(ModelBuffer* _modelbuffer)
 
 	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 
-	m_pDeviceContext->PSSetShaderResources(15, 1, m_depthOnlySRV.GetAddressOf());	  //(ÅØ½ºÃÄÀÇ ¹øÈ£(ÀÎµ¦½º), SRVÀÇ °³¼ö, Æ÷ÀÎÅÍ(ÁÖ¼Ò°ª))
+	m_pDeviceContext->PSSetShaderResources(15, 1, m_depthOnlySRV.GetAddressOf());	  //(å ìŒ”ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™í˜¸(å ì‹¸ë“¸ì˜™å ì™ì˜™), SRVå ì™ì˜™ å ì™ì˜™å ì™ì˜™, å ì™ì˜™å ì™ì˜™å ì™ì˜™(å ìŒì†Œê³¤ì˜™))
 }
 
 void Renderer::RenderAniDepthMap(ModelBuffer* _modelbuffer)
@@ -302,15 +306,15 @@ void Renderer::RenderAniDepthMap(ModelBuffer* _modelbuffer)
 	//	m_pDeviceContext->RSSetViewports(1, &m_pD3dtempViewport);
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
 
-	//È­¸é¿¡ ¶ç¾îº¸´Â, -> ´ë°­ È®ÀÎÇÒ¼ö ÀÖ´Â
+	//í™”å ì½ì— å ì™ì˜™å’€ëªŒì˜™å ? -> å ìˆê°• í™•å ì™ì˜™å ìŒ€ì‡½ì˜™ å ìŒëŒì˜™
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), m_depthOnlyDSV.Get());
 
 	m_pDeviceContext->OMSetRenderTargets(0, NULL, m_depthOnlyDSV.Get());
-	//´Ù¸¥ ·»´õÅ¸°Ù¿¡ ±×¸®´Â
+	//å ìŒ•ëªŒì˜™ å ì™ì˜™å ì™ì˜™íƒ€å ìŒ•ìš¸ì˜™ å ìŒ“ëªŒì˜™å ì™ì˜™
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pTempRednerTargetview.GetAddressOf(), m_depthOnlyDSV.Get());
 
 
-	// ¹öÅØ½º/ÀÎµ¦½º ¹öÆÛ ¼³Á¤
+	// å ì™ì˜™å ìŒ”ì™ì˜™/å ì‹¸ë“¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	m_pDeviceContext->IASetVertexBuffers(0, 1, _modelbuffer->m_pVertexBuffer.GetAddressOf(), &stride, &offset);
@@ -334,7 +338,7 @@ void Renderer::RenderAniDepthMap(ModelBuffer* _modelbuffer)
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
 	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 
-	m_pDeviceContext->PSSetShaderResources(15, 1, m_depthOnlySRV.GetAddressOf());	  //(ÅØ½ºÃÄÀÇ ¹øÈ£(ÀÎµ¦½º), SRVÀÇ °³¼ö, Æ÷ÀÎÅÍ(ÁÖ¼Ò°ª))
+	m_pDeviceContext->PSSetShaderResources(15, 1, m_depthOnlySRV.GetAddressOf());	  //(å ìŒ”ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™í˜¸(å ì‹¸ë“¸ì˜™å ì™ì˜™), SRVå ì™ì˜™ å ì™ì˜™å ì™ì˜™, å ì™ì˜™å ì™ì˜™å ì™ì˜™(å ìŒì†Œê³¤ì˜™))
 }
 
 void Renderer::RenderEquipDepthMap(ModelBuffer* _modelbuffer)
@@ -343,15 +347,15 @@ void Renderer::RenderEquipDepthMap(ModelBuffer* _modelbuffer)
 	//	m_pDeviceContext->RSSetViewports(1, &m_pD3dtempViewport);
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
 
-	//È­¸é¿¡ ¶ç¾îº¸´Â, -> ´ë°­ È®ÀÎÇÒ¼ö ÀÖ´Â
+	//í™”å ì½ì— å ì™ì˜™å’€ëªŒì˜™å ? -> å ìˆê°• í™•å ì™ì˜™å ìŒ€ì‡½ì˜™ å ìŒëŒì˜™
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), m_depthOnlyDSV.Get());
 
 	m_pDeviceContext->OMSetRenderTargets(0, NULL, m_depthOnlyDSV.Get());
-	//´Ù¸¥ ·»´õÅ¸°Ù¿¡ ±×¸®´Â
+	//å ìŒ•ëªŒì˜™ å ì™ì˜™å ì™ì˜™íƒ€å ìŒ•ìš¸ì˜™ å ìŒ“ëªŒì˜™å ì™ì˜™
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pTempRednerTargetview.GetAddressOf(), m_depthOnlyDSV.Get());
 
 
-	// ¹öÅØ½º/ÀÎµ¦½º ¹öÆÛ ¼³Á¤
+	// å ì™ì˜™å ìŒ”ì™ì˜™/å ì‹¸ë“¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	m_pDeviceContext->IASetVertexBuffers(0, 1, _modelbuffer->m_pVertexBuffer.GetAddressOf(), &stride, &offset);
@@ -376,12 +380,12 @@ void Renderer::RenderEquipDepthMap(ModelBuffer* _modelbuffer)
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 
-	m_pDeviceContext->PSSetShaderResources(15, 1, m_depthOnlySRV.GetAddressOf());	  //(ÅØ½ºÃÄÀÇ ¹øÈ£(ÀÎµ¦½º), SRVÀÇ °³¼ö, Æ÷ÀÎÅÍ(ÁÖ¼Ò°ª))
+	m_pDeviceContext->PSSetShaderResources(15, 1, m_depthOnlySRV.GetAddressOf());	  //(å ìŒ”ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™í˜¸(å ì‹¸ë“¸ì˜™å ì™ì˜™), SRVå ì™ì˜™ å ì™ì˜™å ì™ì˜™, å ì™ì˜™å ì™ì˜™å ì™ì˜™(å ìŒì†Œê³¤ì˜™))
 }
 
 void Renderer::RenderEdge(ModelBuffer* _modelbuffer)
 {
-	// ¹öÅØ½º/ÀÎµ¦½º ¹öÆÛ ¼³Á¤
+	// å ì™ì˜™å ìŒ”ì™ì˜™/å ì‹¸ë“¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
@@ -397,7 +401,7 @@ void Renderer::RenderEdge(ModelBuffer* _modelbuffer)
 
 void Renderer::RenderSampler(ModelBuffer* _modelbuffer)
 {
-	// ¹öÅØ½º/ÀÎµ¦½º ¹öÆÛ ¼³Á¤
+	// å ì™ì˜™å ìŒ”ì™ì˜™/å ì‹¸ë“¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	m_pDeviceContext->IASetVertexBuffers(0, 1, _modelbuffer->m_pVertexBuffer.GetAddressOf(), &stride, &offset);
@@ -419,7 +423,7 @@ void Renderer::RenderSampler(ModelBuffer* _modelbuffer)
 /////
 void Renderer::RenderPostProcessing(ModelBuffer* _modelbuffer)
 {
-	// ¹öÅØ½º/ÀÎµ¦½º ¹öÆÛ ¼³Á¤
+	// å ì™ì˜™å ìŒ”ì™ì˜™/å ì‹¸ë“¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	m_pDeviceContext->IASetVertexBuffers(0, 1, _modelbuffer->m_pVertexBuffer.GetAddressOf(), &stride, &offset);
@@ -439,37 +443,37 @@ void Renderer::RenderPostProcessing(ModelBuffer* _modelbuffer)
 
 }
 
-//ÀÎ½ºÅÏ½º ¸ğµ¨ÀÇ °æ¿ì vertexConstantBuffer¿Ü¿¡µµ instanceConstantBufferµµ GPU·Î º¸³»ÁÖ¾î¾ßÇÑ´Ù.
+//å ì‹¸ì™ì˜™å ì‹¹ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ?vertexConstantBufferå ìŒ¤ìš¸ì˜™å ì™ì˜™ instanceConstantBufferå ì™ì˜™ GPUå ì™ì˜™ å ì™ì˜™å ì™ì˜™å ìŒì–µì˜™å ì™ì˜™ç£¯å ?
 void Renderer::Rend_InstancedModels(ModelBuffer* _modelBuffers)
 {
-		/// ÀÎ½ºÅÏ½º ¸ğµ¨ÀÇ °æ¿ì VertexConstantBuffer ¿Ü¿¡µµ InstanceConstantBufferµµ GPU·Î º¸³»ÁÖ¾î¾ß ÇÑ´Ù.
+		/// å ì‹¸ì™ì˜™å ì‹¹ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ?VertexConstantBuffer å ìŒ¤ìš¸ì˜™å ì™ì˜™ InstanceConstantBufferå ì™ì˜™ GPUå ì™ì˜™ å ì™ì˜™å ì™ì˜™å ìŒì–µì˜™å ?å ì‹¼ëŒì˜™.
 
-	// 1. ¹öÅØ½º/ÀÎµ¦½º ¹öÆÛ ¼³Á¤
-		UINT stride = sizeof(Vertex); // Á¤Á¡ µ¥ÀÌÅÍÀÇ Å©±â
+	// 1. å ì™ì˜™å ìŒ”ì™ì˜™/å ì‹¸ë“¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
+		UINT stride = sizeof(Vertex); // å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™å ì™ì˜™ í¬å ì™ì˜™
 		UINT offset = 0;
-		m_pDeviceContext->IASetVertexBuffers(0, 1, _modelBuffers->m_pVertexBuffer.GetAddressOf(), &stride, &offset); // Á¤Á¡ ¹öÆÛ ¼³Á¤
-		m_pDeviceContext->IASetIndexBuffer(_modelBuffers->m_pIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0); // ÀÎµ¦½º ¹öÆÛ ¼³Á¤
+		m_pDeviceContext->IASetVertexBuffers(0, 1, _modelBuffers->m_pVertexBuffer.GetAddressOf(), &stride, &offset); // å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
+		m_pDeviceContext->IASetIndexBuffer(_modelBuffers->m_pIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0); // å ì‹¸ë“¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 
-		// 3. ÀÎ½ºÅÏ½º »ó¼ö ¹öÆÛ Ãß°¡
-		// ÀÎ½ºÅÏ½º µ¥ÀÌÅÍ°¡ µé¾îÀÖ´Â »ó¼ö ¹öÆÛ¸¦ ¼³Á¤ÇØ¾ß ÇÔ
-		m_pDeviceContext->VSSetConstantBuffers(0, 1, _modelBuffers->m_InstanceConstantBuffer.GetAddressOf()); // Instance Constant Buffer (ÀÎ½ºÅÏ½º ¹öÆÛ)
+		// 3. å ì‹¸ì™ì˜™å ì‹¹ì™ì˜™ å ì™ì˜™å ?å ì™ì˜™å ì™ì˜™ å ìŒ©ê³¤ì˜™
+		// å ì‹¸ì™ì˜™å ì‹¹ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì‹¶ê³¤ì˜™ å ì™ì˜™å ì™ì˜™çµå ?å ì™ì˜™å ?å ì™ì˜™å ìŒœëªŒì˜™ å ì™ì˜™å ì™ì˜™å ìŒ”ì–µì˜™ å ì™ì˜™
+		m_pDeviceContext->VSSetConstantBuffers(0, 1, _modelBuffers->m_InstanceConstantBuffer.GetAddressOf()); // Instance Constant Buffer (å ì‹¸ì™ì˜™å ì‹¹ì™ì˜™ å ì™ì˜™å ì™ì˜™)
 
-		// 4. ÇÈ¼¿ ¼ÎÀÌ´õ »ó¼ö ¹öÆÛ
+		// 4. å ì‹«ì‡½ì˜™ å ì™ì˜™å ì‹±ëŒì˜™ å ì™ì˜™å ?å ì™ì˜™å ì™ì˜™
 		m_pDeviceContext->PSSetConstantBuffers(0, 1, _modelBuffers->m_pPSConstantBuffer.GetAddressOf());
 
-		// 5. ¼ÎÀÌ´õ ¸®¼Ò½º (ÅØ½ºÃ³)
+		// 5. å ì™ì˜™å ì‹±ëŒì˜™ å ì™ì˜™å ìŒ€ì™ì˜™ (å ìŒ”ì™ì˜™ì²˜)
 		ID3D11ShaderResourceView* pixelResources[1] =
 		{
 			_modelBuffers->m_diffusetexture.Get(),
 		};
-		m_pDeviceContext->PSSetShaderResources(0, 1, pixelResources); // ÅØ½ºÃ³ ¼³Á¤
+		m_pDeviceContext->PSSetShaderResources(0, 1, pixelResources); // å ìŒ”ì™ì˜™ì²˜ å ì™ì˜™å ì™ì˜™
 
-		// 6. ÀÎ½ºÅÏ½º µå·Î¿ì È£Ãâ
-		// ±âÁ¸ DrawIndexed ´ë½Å DrawIndexedInstanced¸¦ »ç¿ëÇÏ¿© ÀÎ½ºÅÏ½º¸¦ ÇÑ ¹ø¿¡ ¿©·¯ °³ ·»´õ¸µ
-		UINT instanceCount = _modelBuffers->mNumInstances; // ÀÎ½ºÅÏ½º °³¼ö
+		// 6. å ì‹¸ì™ì˜™å ì‹¹ì™ì˜™ å ì™ì˜™æå ?í˜¸å ì™ì˜™
+		// å ì™ì˜™å ì™ì˜™ DrawIndexed å ì™ì˜™å ?DrawIndexedInstancedå ì™ì˜™ å ì™ì˜™å ì™ì˜™è‡¼å ?å ì‹¸ì™ì˜™å ì‹¹ì™ì˜™å ì™ì˜™ å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™
+		UINT instanceCount = _modelBuffers->mNumInstances; // å ì‹¸ì™ì˜™å ì‹¹ì™ì˜™ å ì™ì˜™å ì™ì˜™
 		m_pDeviceContext->DrawIndexedInstanced(_modelBuffers->mNumIndices, instanceCount, 0, 0, 0);
 
-		// 7. ºäÆ÷Æ® ¹× ·»´õ Å¸°Ù ¼³Á¤
+		// 7. å ì™ì˜™å ì™ì˜™íŠ¸ å ì™ì˜™ å ì™ì˜™å ì™ì˜™ íƒ€å ì™ì˜™ å ì™ì˜™å ì™ì˜™
 		//m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
 		//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 

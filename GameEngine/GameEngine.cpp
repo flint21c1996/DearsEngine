@@ -1,12 +1,14 @@
-#include "GameEngine.h"
+ï»¿#include "GameEngine.h"
 #include "TimeManager.h"
 #include "InputManager.h"
 #include "FileManager.h"
 #include "Camera.h"
+#include "DemoScene.h"
+#include "IScene.h"
 #include <math.h>
 #include "Pool.h"
 
-///±êÇãºê Å×½ºÆ®
+///å ì™ì˜™å ì™ì˜™å ?å ìŒ“ì™ì˜™íŠ¸
  
 Vector3 dir = { 1.f, -1.f, 1.f };
 
@@ -17,26 +19,35 @@ GameEngine::GameEngine(HWND _hWnd, const int _screenWidth, const int _screenHeig
 	m_screenHeight = _screenHeight;
 	m_pTimeManager = nullptr;
 	m_pInputManager = nullptr;
-	m_pFileManager = new FileManager();
-	m_pDearsGraphicsEngine = new DearsGraphicsEngine(m_hWnd, m_screenWidth, m_screenHeight);
-	tempAStar = new AStar;
-	tempEasing = new EasingFunc;
+	m_pFileManager = std::make_unique<FileManager>();
+	m_pDearsGraphicsEngine = std::make_unique<DearsGraphicsEngine>(m_hWnd, m_screenWidth, m_screenHeight);
+	tempAStar = std::make_unique<AStar>();
+	tempEasing = std::make_unique<EasingFunc>();
 }
 
 GameEngine::~GameEngine()
 {
-	delete tempAStar;
-	delete m_pDearsGraphicsEngine;
-	delete m_pFileManager;
+	// unique_ptr???ë¨®ë£?ì‡°ì¤ˆ ?ëŒì £
 }
 
 void GameEngine::Initialize()
 {
+	// Initialize follows the same order every frame depends on:
+	// managers and renderer first, then sample assets, cameras, scene content,
+	// editor panels, and finally lighting state.
 	InitializeManager();
 	m_pDearsGraphicsEngine->Initialize();
 
+	LoadDemoAssets();
+	InitializeCameras();
+	CreateSceneObjects();
+	InitializeEditorPanels();
+	InitializeLighting();
+}
 
-	///¸ğµ¨ Ãß°¡ÀÇ ¿¹½ÃÄÚµå
+void GameEngine::LoadDemoAssets()
+{
+	// Models
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Character 01.FBX");
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Armor 05.FBX");
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Armor 01.FBX");
@@ -54,12 +65,11 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Bow 03.fbx");
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Vest 01.FBX");
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Shoulder 12.fbx");
-	//m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Tree_02.fbx");
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Rock_05.fbx");
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/Test/", "Sung.fbx");
 	m_pDearsGraphicsEngine->AddModel("../TestAsset/", "Michelle.fbx");
 
-	///¾Ö´Ï¸ŞÀÌ¼Ç Ãß°¡
+	// Animations
 	m_pDearsGraphicsEngine->AddAnimation("../TestAsset/", "CatwalkIdle.fbx");
 	m_pDearsGraphicsEngine->AddAnimation("../TestAsset/", "CatwalkWalkForward.fbx");
 	m_pDearsGraphicsEngine->AddAnimation("../TestAsset/Test/", "Character@Cast Spell 02.FBX");
@@ -70,7 +80,7 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->AddAnimation("../TestAsset/Test/", "Character@Mutant Run.FBX");
 	m_pDearsGraphicsEngine->AddAnimation("../TestAsset/Test/", "Character@Slash Attack.FBX");
 
-	///2DÅØ½ºÃÄ Ãß°¡
+	// Textures
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "Red.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "Yellow.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "Blue.png");
@@ -78,7 +88,6 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "BillBoardTest.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "ss.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "Water.png");
-	//m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "pngegg.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "Hair-Orange.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "Weapon-Black.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "coco.jpg");
@@ -91,7 +100,9 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/metalball2/", "height.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/", "ThinPattern.png");
 	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/", "ThinPattern2.png");
-	
+	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "M-Cos-16-Blue.png");
+
+	// DDS textures
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "saintpeters.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_diffuseIBL.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/Test/", "Atrium_specularIBL.dds");
@@ -109,458 +120,179 @@ void GameEngine::Initialize()
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube3/", "MyCube3SpecularHDR.dds");
 	m_pDearsGraphicsEngine->AddDDSTexture("../TestAsset/MyCube3/", "MyCube3Brdf.dds", false);
 
+	// UI textures and fonts
 	m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "startButton.png");
-	//m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/Test/", "pngegg.png");		//ºôº¸µå¿¡ ¾µ °ÍÀº 2D Texture·Î ÀĞ´Â´Ù.
-	m_pDearsGraphicsEngine->Add2DMipMapTexture("../TestAsset/Test/", "pngegg.png");		//ºôº¸µå¿¡ ¾µ °ÍÀº 2D Texture·Î ÀĞ´Â´Ù.
-	//m_pDearsGraphicsEngine->Add2DTexture("../TestAsset/", "Paladin_diffuse.png");
-
-	///ÆùÆ®Ãß°¡
-	///ÆùÆ®Ãß°¡
-// 	m_pDearsGraphicsEngine->AddFont("../../Resources/Font/", "B.ttf", 40.0f, true);
-// 	m_pDearsGraphicsEngine->AddFont("../TestAsset/Test/", "L.ttf", 20.0f, true);
-// 	//m_pDearsGraphicsEngine->AddFont("../../Resources/Font/", "L_100.ttf", 10.f, true);
-//	m_pDearsGraphicsEngine->AddFont("../../Resources/Font/", "M.ttf", 100.f, true);
-// 	m_pDearsGraphicsEngine->AddFont("../../Resources/Font/", "NotoSansKR-Regular(24).ttf", 24.f, true);
-// 	m_pDearsGraphicsEngine->AddFont("../../Resources/Font/", "NotoSansKR-Regular(32).ttf", 32.f, true);
-// 	m_pDearsGraphicsEngine->AddFont("../../Resources/Font/", "NotoSansKR-Regular(36).ttf", 36.f, true);
-// 	m_pDearsGraphicsEngine->AddFont("../../Resources/Font/", "NotoSansKR-Regular(40).ttf", 40.f, true);
+	m_pDearsGraphicsEngine->Add2DMipMapTexture("../TestAsset/Test/", "pngegg.png");
 	m_pDearsGraphicsEngine->AddFont("../../Resources/Font/", "NotoSansKR-Regular(48).ttf", 48.f, true);
-	//m_pDearsGraphicsEngine->AddFont("../../Resources/Font/", "NotoSansKR-Regular(60).ttf", 60.f, true);
+	m_pDearsGraphicsEngine->FontSetFinish();
+}
 
-
-	m_pDearsGraphicsEngine->FontSetFinish();	//ÆùÆ® ¼¼ÆÃÀ» ¿Ï·á
-
-	///3DÅØ½ºÃÄÀÇ Ãß°¡
-	//m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/", "Ch03_1001_Diffuse.png");
-	//m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/", "Ch03_1001_Normal.png");
-	m_pDearsGraphicsEngine->Add3DTexture("../TestAsset/Test/", "M-Cos-16-Blue.png");
-
-	//¸ğµ¨ »èÁ¦ÀÇ ¿¡½ÃÄÚµå
-	//m_pDearsGraphicsEngine->Erase_Animation("CatwalkIdle.fbx");
-	//m_pDearsGraphicsEngine->Erase_VertexBuffer("Ch03");
-
-	///±×·¡ÇÈ½º¿¡¼­ »ç¿ëÇÒ Ä«¸Ş¶óÀÇ ¼¼ÆÃ
-	tempCamera = new Camera(m_screenWidth, m_screenHeight);
-	tempCamera->SetSpeed(20.0f); // Ä«¸Ş¶ó ÀÌµ¿¼Óµµ¸¦ Á¶Á¤ÇÔ
-	tempCamera->SetEyePos(Vector3(0.f,0.f, -30.f));
-	//tempCamera->SetDirection(Vector3(0.0f, 0.0f, 1.0f), Vector3(0.0f, 1.0f, 0.0f));
-	//tempCamera->SetAircraftAxes(0.0f, 0.0f, 0.0f);
+void GameEngine::InitializeCameras()
+{
+	tempCamera = std::make_unique<Camera>(m_screenWidth, m_screenHeight);
+	tempCamera->SetSpeed(20.0f);
+	tempCamera->SetEyePos(Vector3(0.f, 0.f, -30.f));
 	tempCamera->ProjectionSettings(70.f, 0.1f, 10000.0f);
-	tempCamera->SetAircraftAxes(0,0,0);
-	m_pDearsGraphicsEngine->SetCamera(tempCamera);
+	tempCamera->SetAircraftAxes(0, 0, 0);
+	m_pDearsGraphicsEngine->SetCamera(tempCamera.get());
 
-	///±×¸²ÀÚ¸Ê¿¡¼­ »ç¿ëÇÒ Ä«¸Ş¶óÀÇ ¼¼ÆÃ
-	lightCamera = new Camera(m_screenWidth, m_screenHeight);
+	lightCamera = std::make_unique<Camera>(m_screenWidth, m_screenHeight);
 	lightCamera->SetSpeed(20.0f);
-	lightCamera->SetEyePos(Vector3(-50.f, 50.0f, -50.f));		  //ÀÌÈÄ lightÀÇ À§Ä¡¸¦ ¾÷µ¥ÀÌÆ®
+	lightCamera->SetEyePos(Vector3(-50.f, 50.0f, -50.f));
 	lightCamera->SetDirection(Vector3(1.0f, -1.0f, 1.0f));
 	lightCamera->ProjectionSettings(70.f, 10.f, 1000.0f);
 	lightCamera->SetAircraftAxes(0, 0, 0);
+}
 
-	tempObject1 = new tempObject(m_pDearsGraphicsEngine);
-	tempObject1->Initialize();
-	tempObject1->CreateVSConstantBuffer();
-	tempObject1->CreateVSBoneConstantBuffer();
-	tempObject1->CreatePSConstantBuffer();
-	///tempObject1->SetModelBuffer("Character 01", "M-Cos-16-Blue.png","Character 01.FBX", "Character@Slash Attack.FBX");
-	tempObject1->SetVIBuffer("Character 01"); 
-	tempObject1->SetDiffuseTexture("M-Cos-16-Blue.png");
-	tempObject1->SetModelInfo("Character 01.FBX");
-	tempObject1->SetAnimation("Character@Slash Attack.FBX");
-	tempObject1->SetObjectScl(Matrix::CreateScale(0.1));
+void GameEngine::CreateSceneObjects()
+{
+	// The engine owns the active scene object, but the scene itself is
+	// responsible for deciding which sample objects exist in the world.
+	m_pActiveScene = std::make_unique<DemoScene>(m_pDearsGraphicsEngine.get());
+	m_pActiveScene->Initialize();
+}
 
-	tempObject2 = new tempObject(m_pDearsGraphicsEngine);
-	tempObject2->Initialize();
-	tempObject2->CreateVSConstantBuffer();
-	//tempObject2->CreateVSTargetBoneConstantBuffer();
-	tempObject2->CreatePSConstantBuffer();
-	///tempObject2->SetModelBuffer("Sung" , "ss.png", "Sung.fbx");
-	tempObject2->SetVIBuffer("Axe 01");
-	tempObject2->SetModelInfo("Axe 01.fbx");
-	tempObject2->SetDiffuseTexture("ss.png");
-	tempObject2->SetTargetBoneIndex(m_pDearsGraphicsEngine->Get_TargetModelBoneIndex("Character 01", "RigRPalm"));
-	tempObject2->GetObjectTargetBoneMatrix(tempObject1->mpVSBoneConstantBufferData);
-	//tempObject2->SetObjectPos(m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigRPalm", 0.1f));
-	//tempObject2->SetObjectPos(Matrix::CreateTranslation({0,-20,0}));
+void GameEngine::InitializeEditorPanels()
+{
+	if (m_pActiveScene)
+	{
+		m_pActiveScene->RegisterEditorPanels(m_screenWidth);
 
-	tempObject3 = new tempObject(m_pDearsGraphicsEngine);
-	tempObject3->Initialize();
-	tempObject3->CreateVSConstantBuffer();
-	tempObject3->CreateVSBoneConstantBuffer();
-	tempObject3->CreatePSConstantBuffer();
+		// The main gameplay camera should match the reduced render viewport.
+		// Without this adjustment the 3D image is stretched after the editor
+		// lane shrinks the visible render width.
+		const int editorPanelWidth = GetEditorPanelWidth(static_cast<float>(m_screenWidth));
+		const int renderViewportWidth = m_screenWidth - editorPanelWidth;
+		tempCamera->SetAspectRatio(renderViewportWidth, m_screenHeight);
+	}
+}
 
-
-
-	tempObject3->SetVIBuffer("BillBoardSquare");
-	tempObject3->SetDiffuseTexture("pngegg.png");
-	tempObject3->SetObjectScl(Matrix::CreateScale(5));
-	tempObject3->SetObjectPos(Matrix::CreateTranslation({ 10,3,-10 }));
-
-	tempObject4 = new tempObject(m_pDearsGraphicsEngine);
-	tempObject4->Initialize();
-	tempObject4->CreateVSPBRConstantBuffer();
-	tempObject4->CreatePSPBRConstantBuffer();
-	tempObject4->CreatePSThinFilmConstantBuffer();
-
-	tempObject4->SetPBRTextures(
-		//"ThinPattern.png",
-		"albedo.png",
-		"normal.png",
-		"ao.png",
-		"metallic.png",
-		"roughness.png",
-		"height.png"
-	);
-	tempObject4->mPSThinFilmConstantBufferData.useAlbedoMap = 1;
-	tempObject4->SetVIBuffer("MySphere");
-	tempObject4->SetModelInfo("Hat 04.FBX");
-	tempObject4->SetDiffuseTexture("albedo.png");
-	tempObject4->SetTargetBoneIndex(m_pDearsGraphicsEngine->Get_TargetModelBoneIndex("Character 01", "RigHead"));
-	tempObject4->GetObjectTargetBoneMatrix(tempObject1->mpVSBoneConstantBufferData);
-	tempObject4->SetObjectRot(Matrix::CreateRotationX(1.570));
-	//tempObject4->SetObjectPos(m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigHead", 0.1f));
-	tempObject4->SetObjectScl(Matrix::CreateScale(5));
-	tempObject4->SetObjectPos(Matrix::CreateTranslation({ 0,10, 0 }));
-
-	//tempObject4->SetObjectPos(Matrix::CreateTranslation({ 10,0,0 }));
-
-
-
-	tempObject5 = new tempObject(m_pDearsGraphicsEngine);
-	tempObject5->Initialize();
-	tempObject5->CreateVSConstantBuffer();
-	tempObject5->CreatePSConstantBuffer();
-	///tempObject5->SetModelBuffer("MySphere", "ss.png");
-	tempObject5->SetVIBuffer("MySquare");
-	tempObject5->SetDiffuseTexture("White.png");
-	tempObject5->SetObjectScl(Matrix::CreateScale(5, 5, 5));
-	tempObject5->SetObjectPos(Matrix::CreateTranslation({ 0,0,0 }));
-
-	tempObject5->CreateVSEdgeConstantBuffer();
-	tempObject5->mVSEdgeConstantBufferData.EdgeScaleMatrix = Matrix::CreateScale(1.01); //¿Ü°û¼±ÀÇ ½ºÄÉÀÏ(µÎ²²), 1+aÀÌ¾î¾ß ÇÑ´Ù.
-	tempObject5->mPSEdgeConstantBufferData.color = { 1,1,1 };		//¿Ü°û¼±ÀÇ »ö±ò
-	tempObject5->CreatePSEdgeConstantBuffer();
-
-
-	tempObject6 = new tempObject(m_pDearsGraphicsEngine);
-	tempObject6->Initialize();
-	tempObject6->CreateVSConstantBuffer();
-	tempObject6->CreatePSConstantBuffer();
-	tempObject6->CreateVSInstanceConstantBuffer();
-	tempObject6->SetVIBuffer("MyBox");
-	tempObject6->SetDiffuseTexture("Water.png");
-	tempObject6->SetObjectScl(Matrix::CreateScale(5,5,5));
-	tempObject6->SetObjectPos(Matrix::CreateTranslation({ 5,-20, 0 }));
-
-	tempObject6->CreateVSWaterConstantBuffer();
-	tempObject6->mVSWaterConstantBufferData.time = 0.0f;
-	tempObject6->mVSWaterConstantBufferData.speed = 0.1f;
-
-
-	tempObject7 = new tempObject(m_pDearsGraphicsEngine);
-	tempObject7->Initialize();
-	tempObject7->CreateVSConstantBuffer();
-	tempObject7->CreatePSConstantBuffer();
-	//tempObject6->SetVIBuffer("MySquare");
-	tempObject7->SetVIBuffer("MySquare");
-	tempObject7->SetDiffuseTexture("ss.png");
-	tempObject7->SetObjectScl(Matrix::CreateScale(200));
-	tempObject7->SetObjectPos(Matrix::CreateTranslation({ 0,-25, 0 }));
-
-	tempObject9 = new tempObject(m_pDearsGraphicsEngine);
-	tempObject9->Initialize();
-	tempObject9->CreateVSConstantBuffer();
-	tempObject9->CreatePSConstantBuffer();
-	//tempObject9->SetModelBuffer("CubeMap", "Atrium_specularIBL.dds" );
-	tempObject9->SetVIBuffer("CubeMap");
-	tempObject9->SetObjectScl(Matrix::CreateScale(1));
-	tempObject9->SetObjectPos(Matrix::CreateTranslation({ 0,0,0 }));
-
-
-	///¶óÀÌÆ®ÀÇ ¼¼ÆÃ----------------------------
+void GameEngine::InitializeLighting()
+{
+	// Lighting stays in GameEngine because it is part of the renderer setup.
+	// Scene-local UI positions now live inside DemoScene instead of here.
 	m_pDearsGraphicsEngine->LightInitialize(&tempCCConstantBuffer, 3);
-	Vector3 dir = { 1.f, -1.f, 1.f };
-	dir.Normalize();
-	
-	//auto e = lightCamera->mViewDir;
 
-	//lightCamera->SetDirection(dir, {0,1,0});
-	m_pDearsGraphicsEngine->SetDirLight(&tempCCConstantBuffer, 0,1.f, dir);
+	Vector3 lightDirection = { 1.f, -1.f, 1.f };
+	lightDirection.Normalize();
+
+	m_pDearsGraphicsEngine->SetDirLight(&tempCCConstantBuffer, 0, 1.f, lightDirection);
 	tempCCConstantBuffer.light[0].position = lightCamera->GetmViewPos();
-	//m_pDearsGraphicsEngine->SetPointLight(&tempCCConstantBuffer, 1, 5.0f, 1.0f, 10.0f, Vector3(0.0f, -3.0f, -4.0f), Vector3(0.0f, 1.0f, 0.0f));
-	//m_pDearsGraphicsEngine->SetSpotLight(&tempCCConstantBuffer, 2, 20.0f, 10.f, 70.0f, Vector3(0.0f, -1.0f, 0.0f), Vector3(0.0f, 45.0f, -0.0f), 10.0f, Vector3(1.0f, 1.0f, 1.0f));
-	lightCamera->SetDirection(dir);
-	
-
-
+	lightCamera->SetDirection(lightDirection);
 	lightCamera->SetEyePos(tempCCConstantBuffer.light[0].position);
 
-	uiPoint = { 1720, 400 };
-	uiPoint = { 1720, 700 };
-
 	m_pDearsGraphicsEngine->Set_CubeMap("MyCube1EnvHDR.dds", "MyCube1DiffuseHDR.dds", "MyCube1SpecularHDR.dds", "MyCube1Brdf.dds");
-
-
 }
 
 void GameEngine::Update()
 {
-	m_pTimeManager->Tick(); // TickÀÌ ÀÖ¾î¾ß DeltaTimeÀÌ ¾÷µ¥ÀÌÆ® µÈ´Ù.
-	m_pTimeManager->DeltaTime();
+	// Update keeps engine-level flow in one place:
+	// input, camera, demo controls, lighting, scene objects, presentation, renderer.
+	m_pTimeManager->Tick();
+	const float deltaTime = m_pTimeManager->DeltaTime();
 
+	UpdateInputState();
+	UpdateCameraControls(deltaTime);
+	UpdateDemoControls();
+	UpdateLightingState();
+	UpdateSceneObjects(deltaTime);
+	UpdatePresentationControls();
+	m_pDearsGraphicsEngine->Update();
+}
+
+void GameEngine::UpdateInputState()
+{
 	m_pInputManager->Update();
 	tempCamera->OnMouseMove(static_cast<int>(m_pInputManager->GetMousePos().x), static_cast<int>(m_pInputManager->GetMousePos().y));
 	lightCamera->OnMouseMove(static_cast<int>(m_pInputManager->GetMousePos().x), static_cast<int>(m_pInputManager->GetMousePos().y));
-	tempCCConstantBuffer.light[0].direction = lightCamera->mViewDir;
+}
 
+void GameEngine::UpdateCameraControls(float deltaTime)
+{
 	if (m_pInputManager->GetKeyState(KEY::T) == KEY_STATE::TAP)
 	{
-		if (tempCamera->mIsFirstPersonMode)
-		{
-			tempCamera->mIsFirstPersonMode = false;
-		}
-		else
-		{
-			tempCamera->mIsFirstPersonMode = true;
-		}
+		tempCamera->mIsFirstPersonMode = !tempCamera->mIsFirstPersonMode;
 	}
 
 	if (m_pInputManager->GetKeyState(KEY::Y) == KEY_STATE::TAP)
 	{
-		if (lightCamera->mIsFirstPersonMode)
-		{
-			lightCamera->mIsFirstPersonMode = false;
-		}
-		else
-		{
-			lightCamera->mIsFirstPersonMode = true;
-		}
+		lightCamera->mIsFirstPersonMode = !lightCamera->mIsFirstPersonMode;
 	}
+
 	if (m_pInputManager->GetKeyState(KEY::UP) == KEY_STATE::HOLD)
 	{
-		tempCamera->MoveForward(m_pTimeManager->DeltaTime());
+		tempCamera->MoveForward(deltaTime);
 	}
 	if (m_pInputManager->GetKeyState(KEY::DOWN) == KEY_STATE::HOLD)
 	{
-		tempCamera->MoveForward(-m_pTimeManager->DeltaTime());
+		tempCamera->MoveForward(-deltaTime);
 	}
 	if (m_pInputManager->GetKeyState(KEY::LEFT) == KEY_STATE::HOLD)
 	{
-		tempCamera->MoveRight(-m_pTimeManager->DeltaTime());
+		tempCamera->MoveRight(-deltaTime);
 	}
 	if (m_pInputManager->GetKeyState(KEY::RIGHT) == KEY_STATE::HOLD)
 	{
-		tempCamera->MoveRight(m_pTimeManager->DeltaTime());
+		tempCamera->MoveRight(deltaTime);
 	}
 	if (m_pInputManager->GetKeyState(KEY::N) == KEY_STATE::HOLD)
 	{
-		tempCamera->MoveUp(m_pTimeManager->DeltaTime());
+		tempCamera->MoveUp(deltaTime);
 	}
 	if (m_pInputManager->GetKeyState(KEY::M) == KEY_STATE::HOLD)
 	{
-		tempCamera->MoveUp(-m_pTimeManager->DeltaTime());
+		tempCamera->MoveUp(-deltaTime);
 	}
-//¾Ö´Ï¸ŞÀÌ¼Ç
-	static Vector3 tempVec = { 0,0,0 };
-		if (m_pInputManager->GetKeyState(KEY::W) == KEY_STATE::HOLD)
-		{
-			tempVec.z += 0.1f;
-		}
-		if (m_pInputManager->GetKeyState(KEY::A) == KEY_STATE::HOLD)
-		{
-			tempVec.x -= 0.1f;
+}
 
+void GameEngine::UpdateDemoControls()
+{
+	// Sample-scene controls are delegated to the scene
+	// so the engine loop only coordinates high-level flow.
+	if (m_pActiveScene)
+	{
+		m_pActiveScene->HandleDemoInput(*m_pInputManager);
+	}
+}
 
-		}
-		if (m_pInputManager->GetKeyState(KEY::S) == KEY_STATE::HOLD)
-		{
-			tempVec.z -= 0.1f;
-
-		}
-		if (m_pInputManager->GetKeyState(KEY::D) == KEY_STATE::HOLD)
-		{
-			tempVec.x += 0.1f;
-
-		}
-		if (m_pInputManager->GetKeyState(KEY::F) == KEY_STATE::TAP)
-		{
-			//tempObject1->SetNextAnimation("Character@Cast Spell 02.FBX");
-			CSParticleData temp;
-			temp.position = tempVec;
-			//temp.position = { 0, 20.f, 0 };
-			temp.playTime = 0;
-
-			temp.color = { 1,1,1 };
-			temp.lifeTime = 10;
-
-			temp.direction = { 0,0,0 };
-			temp.velocity = 20.0f;
-
-			temp.Rotation = { 0, 0, 0 };
-			temp.opacity = 1;
-
-			temp.Scale = { 1,1,1 };
-			temp.deltaOpacity = -0.1f;
-
-			temp.deltaRotation = { 0 ,0, 1 };
-			temp.SclRandomFactor = 0;
-
-			temp.deltaScale = { 0.f, 0.f, 0.f };
-
-			temp.PosRandomFactor = { 0, 0, 0 };
-			temp.RotRandomFactor = { 0, 0, 0 };
-			temp.dirRandomFactor = { 0, 0, 0 };
-
-			temp.deltaColor = { 0, 0, 0 };
-
-			temp.gravity = 0;
-			temp.colorRandomFactor = { 0, 0, 0 };
-
-			m_pDearsGraphicsEngine->m_pParticleManager->AddParticle(1, temp);
-
-			//
-		}
-		if (m_pInputManager->GetKeyState(KEY::_1) == KEY_STATE::HOLD)
-		{
-			m_pDearsGraphicsEngine->Set_CubeMap("MyCube1EnvHDR.dds", "MyCube1DiffuseHDR.dds", "MyCube1SpecularHDR.dds", "MyCube1Brdf.dds");
-		}
-		if (m_pInputManager->GetKeyState(KEY::_2) == KEY_STATE::HOLD)
-		{
-			m_pDearsGraphicsEngine->Set_CubeMap("MyCube2EnvHDR.dds", "MyCube2DiffuseHDR.dds", "MyCube2SpecularHDR.dds", "MyCube2Brdf.dds");
-
-		}
-		if (m_pInputManager->GetKeyState(KEY::_3) == KEY_STATE::HOLD)
-		{
-			m_pDearsGraphicsEngine->Set_CubeMap("MyCube3EnvHDR.dds", "MyCube3DiffuseHDR.dds", "MyCube3SpecularHDR.dds", "MyCube3Brdf.dds");
-
-		}
-///ºûÀÇ ÀÌµ¿
-// 	if (m_pInputManager->GetKeyState(KEY::A) == KEY_STATE::HOLD)
-// 	{
-// 		lightCamera->MoveRight(-m_pTimeManager->DeltaTime());
-// 	}
-// 	if (m_pInputManager->GetKeyState(KEY::D) == KEY_STATE::HOLD)
-// 	{
-// 		lightCamera->MoveRight(m_pTimeManager->DeltaTime());
-// 	}
-// 	if (m_pInputManager->GetKeyState(KEY::W) == KEY_STATE::HOLD)
-// 	{
-// 		lightCamera->MoveForward(m_pTimeManager->DeltaTime());
-// 	}
-// 	if (m_pInputManager->GetKeyState(KEY::S) == KEY_STATE::HOLD)
-// 	{
-// 		lightCamera->MoveForward(-m_pTimeManager->DeltaTime());
-// 	}
-// 	if (m_pInputManager->GetKeyState(KEY::Q) == KEY_STATE::HOLD)
-// 	{
-// 		lightCamera->MoveUp(-m_pTimeManager->DeltaTime());
-// 	}
-// 	if (m_pInputManager->GetKeyState(KEY::E) == KEY_STATE::HOLD)
-// 	{
-// 		lightCamera->MoveUp(m_pTimeManager->DeltaTime());
-// 	}
-// 	tempCCConstantBuffer.light[0].position = lightCamera->GetmViewPos();
-// Àåºñ±³Ã¼ ¿¡½ÃÄÚµå
-// 	if (m_pInputManager->GetKeyState(KEY::_3) == KEY_STATE::TAP)
-// 	{
-// 		tempObject4->SetModelBuffer("Hood 02", "Hood 02", "Hood 02", "Weapon-Black.png");
-// 		tempObject5->SetModelBuffer("Mask 01", "Mask 01", "Mask 01", "Weapon-Black.png");
-// 		tempObject6->SetModelBuffer("Cape 02", "Cape 02", "Cape 02", "Weapon-Black.png");
-// 	}
-
+void GameEngine::UpdateLightingState()
+{
+	tempCCConstantBuffer.light[0].direction = lightCamera->mViewDir;
 	m_pDearsGraphicsEngine->LightUpdate(&tempCCConstantBuffer);
 	m_pDearsGraphicsEngine->LightUpdate(&tempLightCConstantBuffer);
-	static int tempTime = 0.0f;
-
-	m_pDearsGraphicsEngine->SetCamera(lightCamera);
+	m_pDearsGraphicsEngine->SetCamera(lightCamera.get());
 	tempCCConstantBuffer.light[0].viewProj = (lightCamera->GetViewRow() * lightCamera->GetProjRow()).Transpose();
-	//std::cout<< lightCamera->mViewDir.x << " / " << lightCamera->mViewDir.y << " / " << lightCamera->mViewDir.z << std::endl;
-	//m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempCCConstantBuffer);
-	//m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempLightCConstantBuffer);
+}
 
-	tempObject1->UpdateAnimationTime(m_pTimeManager->DeltaTime() * 1.f);
-	tempObject1->Update();
-
-//	tempObject2->GetObjectTargetBoneMatrix(tempObject1->mpVSBoneConstantBufferData);
-	//tempObject2->SetObjectPos(m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigRPalm", 0.1f));
-	tempObject2->SetObjectPos(m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", tempObject2->mTargetBoneIndex, 0.1f));
-
-	tempObject2->Update();
-
-	tempObject3->Update();
-
-
-	//tempObject4->GetObjectTargetBoneMatrix(tempObject1->mpVSBoneConstantBufferData);
-	//tempObject4->SetObjectPos(m_pDearsGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", "RigHead", 0.1f));
-	tempObject4->Update();
-
-	//tempObject5->UpdatePSConstantBufferData(tempCCConstantBuffer);
-	tempObject5->Update();
- //	Matrix tempShadowView = m_pDearsGraphicsEngine->CreateShadowViewMatrix(tempCCConstantBuffer.light[0]);
- //	Matrix tempShadowProjection = m_pDearsGraphicsEngine->CreateShadowProjectionMatrix(tempCCConstantBuffer.light[0], 0, 1, 0, 0);
-//	tempObject5->UpdateVSShadowConstantBufferData(tempShadowView, tempShadowProjection);
-	
-	///UVÁÂÇ¥¸¦ Áõ°¡½ÃÄÑÁÖ±â À§ÇØ
-	tempObject6->mVSWaterConstantBufferData.time += m_pTimeManager->DeltaTime();
-	tempObject6->Update();
-
-	tempObject7->Update();
-
-	tempObject9->Update();
-
-	if (m_pInputManager->GetKeyState(KEY::I) == KEY_STATE::HOLD)
+void GameEngine::UpdateSceneObjects(float deltaTime)
+{
+	if (m_pActiveScene)
 	{
-		tempObject3->mPSConstantBuffer.mipmapLevel+=0.1f;
+		m_pActiveScene->Update(deltaTime);
 	}
-	if (m_pInputManager->GetKeyState(KEY::O) == KEY_STATE::HOLD)
+}
+
+void GameEngine::UpdatePresentationControls()
+{
+	// Visual test controls belong to the demo scene because they only tweak
+	// sample content and do not describe engine-wide behavior.
+	if (m_pActiveScene)
 	{
-		tempObject3->mPSConstantBuffer.mipmapLevel-=0.1f;
+		m_pActiveScene->HandlePresentationInput(*m_pInputManager, *tempEasing, m_pTimeManager->DeltaTime());
 	}
-
-
-	static float temptime = 0;
-	if (m_pInputManager->GetKeyState(KEY::_4) == KEY_STATE::HOLD)
-	{
-		temptime += m_pTimeManager->DeltaTime();
-		tempEasing->EasingFuncMap["easeInOutBack"](1600, 300, temptime, &uiPoint.x);
-		tempEasing->EasingFuncMap["easeOutBounce"](1600, 300, temptime, &uiPoint2.x);
-		std::cout << "1 - " << uiPoint.x << std::endl;
-		std::cout << "2 - " << uiPoint2.x << std::endl;
-	}
-	if (m_pInputManager->GetKeyState(KEY::_5) == KEY_STATE::HOLD)
-	{
-		temptime = 0;
-		uiPoint.x = 1600;
-		uiPoint2.x = 1600;
-	}
-
-	if (m_pInputManager->GetKeyState(KEY::_9) == KEY_STATE::HOLD)
-	{
-		for (int i = 0; i < 4; i++)
-		{
-			opacityValue[i] -= 0.01f;
-		}
-		m_pDearsGraphicsEngine->SetOpacityFactor(opacityValue);	//Åõ¸íµµ¸¦ ¸îÀ¸·Î ÇÒ°ÍÀÎÁö..
-		tempObject4->mPSThinFilmConstantBufferData.time += 0.001;
-
-
-	}
-
-	if (m_pInputManager->GetKeyState(KEY::_0) == KEY_STATE::HOLD)
-	{
-		for (int i = 0; i < 4; i++)
-		{
-			opacityValue[i] += 0.01f;
-		}
-		m_pDearsGraphicsEngine->SetOpacityFactor(opacityValue);
-		tempObject4->mPSThinFilmConstantBufferData.time -= 0.001;
-
-	}
-	m_pDearsGraphicsEngine->Update();
 }
 
 void GameEngine::Render()
 {
+	if (!m_pActiveScene)
+	{
+		return;
+	}
+
+	// Rendering still lives in GameEngine, but scene-specific debug input
+	// is applied by the scene before draw calls begin.
+	m_pActiveScene->HandleRenderInput(*m_pInputManager);
+
 	if (m_pInputManager->GetKeyState(KEY::Z) == KEY_STATE::TAP)
 	{
 		tempCamera->SetPerspective();
@@ -569,54 +301,62 @@ void GameEngine::Render()
 	{
 		tempCamera->SetOrthgraphic(0.1f);
 	}
-	static float a1 = 0.0f;
-	if (m_pInputManager->GetKeyState(KEY::U) == KEY_STATE::HOLD)
-	{
-		a1 += 0.01f;
-		tempObject4->SetObjectRot(Matrix::CreateRotationY(a1));
-	}
-
-	static float a2 = 0.0f;
-	if (m_pInputManager->GetKeyState(KEY::K) == KEY_STATE::HOLD)
-	{
-		a2 += 0.01f;
-		tempObject4->mVSPBRConstantBufferData.heightScale = a2;
-	}
-	if (m_pInputManager->GetKeyState(KEY::L) == KEY_STATE::HOLD)
-	{
-		a2 -= 0.01f;
-		tempObject4->mVSPBRConstantBufferData.heightScale = a2;
-	}
 
 	m_pDearsGraphicsEngine->BeginRender();
 
-	m_pDearsGraphicsEngine->UIDrawImageStart();												//±×¸²À» ±×¸®±âÀü È£Ãâ
-	m_pDearsGraphicsEngine->UIDrawImage(Vector2(1720, 20), Vector2(200, 200), "coco.jpg", Vector4(0.2f, 0.2f, 0.2f, 0.8f));	//coco.jpg°¡ ¸®¼Ò½º ÄÁÅ×ÀÌ³Ê ¾È¿¡ ÀÌ¹Ì Á¸ÀçÇØ¾ßÇÔ
-	m_pDearsGraphicsEngine->UIDrawImage(Vector2(0, 0), Vector2(200, 200), "coco.jpg");	//coco.jpg°¡ ¸®¼Ò½º ÄÁÅ×ÀÌ³Ê ¾È¿¡ ÀÌ¹Ì Á¸ÀçÇØ¾ßÇÔ
-	m_pDearsGraphicsEngine->UIDrawImage(uiPoint2, Vector2(200, 100), "startButton.png");	//coco.jpg°¡ ¸®¼Ò½º ÄÁÅ×ÀÌ³Ê ¾È¿¡ ÀÌ¹Ì Á¸ÀçÇØ¾ßÇÔ
-	m_pDearsGraphicsEngine->UIDrawImageFin();													//±×¸²À» ´Ù ±×¸®°í È£Ãâ
-	//m_pDearsGraphicsEngine->UIFreeRectFilled(Vector2(100, 100), Vector2(200, 100), Vector2(300, 500), Vector2(10, 500), Vector4(1.0f, 1.0f, 0.0f, 1.0f));		//»ç°¢ÇüÀ» ±×¸°´Ù.
-	//m_pDearsGraphicsEngine->UIFreeRectwithBorder(Vector2(500, 100), Vector2(600, 100), Vector2(700, 500), Vector2(400, 500), Vector4(1.0f, 1.0f, 0.0f, 1.0f), 10.0f, Vector4(0.0f, 1.0f, 0.0f, 1.0f));		//»ç°¢ÇüÀ» ±×¸°´Ù.
-	//m_pDearsGraphicsEngine->UIFreeRect(Vector2(100, 100), Vector2(200, 100), Vector2(300, 500), Vector2(10, 500), Vector4(0.0f, 1.0f, 0.0f, 1.0f), 10.0f);		//»ç°¢ÇüÀ» ±×¸°´Ù.
-	//m_pDearsGraphicsEngine->UIDrawLine(Vector2(110, 110), Vector2(160, 160), Vector4(1.0f, 0.0f, 0.0f, 1.0f));	//¶óÀÎÀ» ±×¸°´Ù.
-	//m_pDearsGraphicsEngine->UIDrawCir(Vector2(150, 150), 20.0f, Vector4(0.0f, 0.0f, 1.0f, 1.0f));				//¿øÀ» ±×¸°´Ù.
+	// These images are part of the current sample presentation layer.
+	m_pDearsGraphicsEngine->UIDrawImageStart();
+	m_pDearsGraphicsEngine->UIDrawImage(Vector2(1720, 20), Vector2(200, 200), "coco.jpg", Vector4(0.2f, 0.2f, 0.2f, 0.8f));
+	m_pDearsGraphicsEngine->UIDrawImage(Vector2(0, 0), Vector2(200, 200), "coco.jpg");
+	m_pDearsGraphicsEngine->UIDrawImage(m_pActiveScene->GetSecondaryUiPoint(), Vector2(200, 100), "startButton.png");
+	m_pDearsGraphicsEngine->UIDrawImageFin();
+	//m_pDearsGraphicsEngine->UIFreeRectFilled(Vector2(100, 100), Vector2(200, 100), Vector2(300, 500), Vector2(10, 500), Vector4(1.0f, 1.0f, 0.0f, 1.0f));		//å ì¹ê°å ì™ì˜™å ì™ì˜™ å ìŒ“ëªŒì˜™å ì™ì˜™.
+	//m_pDearsGraphicsEngine->UIFreeRectwithBorder(Vector2(500, 100), Vector2(600, 100), Vector2(700, 500), Vector2(400, 500), Vector4(1.0f, 1.0f, 0.0f, 1.0f), 10.0f, Vector4(0.0f, 1.0f, 0.0f, 1.0f));		//å ì¹ê°å ì™ì˜™å ì™ì˜™ å ìŒ“ëªŒì˜™å ì™ì˜™.
+	//m_pDearsGraphicsEngine->UIFreeRect(Vector2(100, 100), Vector2(200, 100), Vector2(300, 500), Vector2(10, 500), Vector4(0.0f, 1.0f, 0.0f, 1.0f), 10.0f);		//å ì¹ê°å ì™ì˜™å ì™ì˜™ å ìŒ“ëªŒì˜™å ì™ì˜™.
+	//m_pDearsGraphicsEngine->UIDrawLine(Vector2(110, 110), Vector2(160, 160), Vector4(1.0f, 0.0f, 0.0f, 1.0f));	//å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ìŒ“ëªŒì˜™å ì™ì˜™.
+	//m_pDearsGraphicsEngine->UIDrawCir(Vector2(150, 150), 20.0f, Vector4(0.0f, 0.0f, 1.0f, 1.0f));				//å ì™ì˜™å ì™ì˜™ å ìŒ“ëªŒì˜™å ì™ì˜™.
 
-	ImGuiIO* io = &ImGui::GetIO(); // Ã¢À» ÃÊ±âÈ­ÇÏ°Å³ª ¼³Á¤ÇÏ´Âµ¥ »ç¿ë
-	m_pDearsGraphicsEngine->UIStartFontID("NotoSansKR-Regular(48).ttf");	//¾²·Á´Â ÆùÆ® Àû¿ë
-	ImGui::SetWindowFontScale(0.5f);  // ÆùÆ® Å©±â¸¦ 1.5¹è·Î Å°¿ò
-	m_pDearsGraphicsEngine->UIDrawText(Vector2(150, 600), u8"1~4 Àåºñ\nQWER ¾Ö´Ï¸ŞÀÌ¼Ç º¸°£", Vector4(1.0f));
+	m_pDearsGraphicsEngine->UIStartFontID("NotoSansKR-Regular(48).ttf");
+	ImGui::SetWindowFontScale(0.5f);
+	m_pDearsGraphicsEngine->UIDrawText(
+		Vector2(150, 600),
+		u8"1~3: íë¸Œë§µ ë³€ê²½\nWASD: íŒŒí‹°í´ ìœ„ì¹˜ ì´ë™\nF: íŒŒí‹°í´ ìƒì„±",
+		Vector4(1.0f));
 	
 	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 100), u8"FPS : %.1f", Vector4(1.0f), m_pTimeManager->FPS());
 	
-	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 120), u8"¸¶¿ì½º xÁÂÇ¥: %.2f \n¸¶¿ì½º yÁÂÇ¥: %.2f", Vector4(1.0f), m_pInputManager->GetMousePos().x, m_pInputManager->GetMousePos().y);
+	m_pDearsGraphicsEngine->UIDrawTextWithNum(
+		Vector2(0, 120),
+		u8"ë§ˆìš°ìŠ¤ xì¢Œí‘œ: %.2f \në§ˆìš°ìŠ¤ yì¢Œí‘œ: %.2f",
+		Vector4(1.0f),
+		m_pInputManager->GetMousePos().x,
+		m_pInputManager->GetMousePos().y);
 	
-	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 170), u8"Ä«¸Ş¶ó ÁÂÇ¥: %.2f, %.2f, %.2f", Vector4(0.5f), tempCamera->GetmViewPos().x, tempCamera->GetmViewPos().y, tempCamera->GetmViewPos().z);
+	m_pDearsGraphicsEngine->UIDrawTextWithNum(
+		Vector2(0, 170),
+		u8"ì¹´ë©”ë¼ ì¢Œí‘œ: %.2f, %.2f, %.2f",
+		Vector4(0.5f),
+		tempCamera->GetmViewPos().x,
+		tempCamera->GetmViewPos().y,
+		tempCamera->GetmViewPos().z);
 	
-	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 190), u8"Ä«¸Ş¶ó axis(RPY): %.1f, %.1f, %.1f", Vector4(1.0f), DirectX::XMConvertToDegrees(tempCamera->mRoll), (tempCamera->mPitch), (tempCamera->mYaw));
+	m_pDearsGraphicsEngine->UIDrawTextWithNum(
+		Vector2(0, 190),
+		u8"ì¹´ë©”ë¼ axis(RPY): %.1f, %.1f, %.1f",
+		Vector4(1.0f),
+		DirectX::XMConvertToDegrees(tempCamera->mRoll),
+		(tempCamera->mPitch),
+		(tempCamera->mYaw));
 	
-	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 210), u8"light Ä«¸Ş¶ó ÁÂÇ¥: %.2f, %.2f, %.2f", Vector4(1.0f), lightCamera->GetmViewPos().x, lightCamera->GetmViewPos().y, lightCamera->GetmViewPos().z);
+	m_pDearsGraphicsEngine->UIDrawTextWithNum(
+		Vector2(0, 210),
+		u8"Light ì¹´ë©”ë¼ ì¢Œí‘œ: %.2f, %.2f, %.2f",
+		Vector4(1.0f),
+		lightCamera->GetmViewPos().x,
+		lightCamera->GetmViewPos().y,
+		lightCamera->GetmViewPos().z);
 	Matrix e = tempCCConstantBuffer.light[0].viewProj;
-	m_pDearsGraphicsEngine->UIDrawImage(uiPoint, Vector2(200, 100), "startButton.png");	//coco.jpg°¡ ¸®¼Ò½º ÄÁÅ×ÀÌ³Ê ¾È¿¡ ÀÌ¹Ì Á¸ÀçÇØ¾ßÇÔ
+	m_pDearsGraphicsEngine->UIDrawImage(m_pActiveScene->GetPrimaryUiPoint(), Vector2(200, 100), "startButton.png");
 
 	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 230), u8"light viewProj: %.2f, %.2f, %.2f, %.2f", Vector4(1.0f), e._11, e._12, e._13, e._14);
 	m_pDearsGraphicsEngine->UIDrawTextWithNum(Vector2(0, 250), u8"light viewProj: %.2f, %.2f, %.2f, %.2f", Vector4(1.0f), e._21, e._22, e._23, e._24);
@@ -632,39 +372,33 @@ void GameEngine::Render()
 
 
 
-	//m_pDearsGraphicsEngine->UIStartFontID("B.ttf");	//¾²·Á´Â ÆùÆ® Àû¿ë
-	//m_pDearsGraphicsEngine->UIDrawText(Vector2(100, 900), u8"±¹¸³¹Ú¹°°ü¹®È­Àç´ÜÅ¬·¡½ÄB.ttf / 40.0f", Vector4(0.1f, 0.3f, 0.0f, 1.0f));
-	//m_pDearsGraphicsEngine->UIFinFontID();			//´Ù ›§À»°æ¿ì È£Ãâ
+	//m_pDearsGraphicsEngine->UIStartFontID("B.ttf");	//å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™íŠ¸ å ì™ì˜™å ì™ì˜™
+	//m_pDearsGraphicsEngine->UIDrawText(Vector2(100, 900), u8"å ì™ì˜™å ì™ì˜™å ìŒ˜ë±„ì˜™å ì™ì˜™å ì™ì˜™í™”å ì™ì˜™å ì‹ Ñì˜™å ì™ì˜™å í™.ttf / 40.0f", Vector4(0.1f, 0.3f, 0.0f, 1.0f));
+	//m_pDearsGraphicsEngine->UIFinFontID();			//å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™å ?í˜¸å ì™ì˜™
 
 	//m_pDearsGraphicsEngine->mpRenderer->RenderDepthMap(tempObject1->GetModelBuffer());
 	//m_pDearsGraphicsEngine->mpRenderer->RenderDepthMap(tempObject2->GetModelBuffer());
-	///m_pDearsGraphicsEngine->SetCamera(lightCamera); ¶óÀÌÆ® Ä«¸Ş¶ó Set, CCC¾÷µ¥ÀÌÆ®´Â À§¿¡¼­ ÇØÁØ´Ù.
+	///m_pDearsGraphicsEngine->SetCamera(lightCamera); å ì™ì˜™å ì™ì˜™íŠ¸ ì¹´å ìŒ¨ë°ì˜™ Set, CCCå ì™ì˜™å ì™ì˜™å ì™ì˜™íŠ¸å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ìŒ”ëŒì˜™.
 
-	//È¤½Ã ¸ŞÀÎ Ä«¸Ş¶ó¿¡¼­ º¸°í ½ÍÀ»°æ¿ì
- 	m_pDearsGraphicsEngine->SetCamera(lightCamera);
+	//í˜¹å ì™ì˜™ å ì™ì˜™å ì™ì˜™ ì¹´å ìŒ¨ë¼ì—ì‡½ì˜™ å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™å ? 	m_pDearsGraphicsEngine->SetCamera(lightCamera.get());
  	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempLightCConstantBuffer);
-	m_pDearsGraphicsEngine->RenderDepthMap(tempObject7->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderDepthMap(tempObject5->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderDepthMap(tempObject6->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderAniDepthMap(tempObject1->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderDepthMap(tempObject2->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderDepthMap(tempObject3->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderEquipDepthMap(tempObject4->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderDepthMap(m_pActiveScene->GetTerrain()->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderDepthMap(m_pActiveScene->GetFloor()->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderDepthMap(m_pActiveScene->GetWater()->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderAniDepthMap(m_pActiveScene->GetCharacter()->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderDepthMap(m_pActiveScene->GetWeapon()->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderDepthMap(m_pActiveScene->GetBillboard()->GetModelBuffer());
+	m_pDearsGraphicsEngine->RenderEquipDepthMap(m_pActiveScene->GetPbrSphere()->GetModelBuffer());
 
-	m_pDearsGraphicsEngine->SetCamera(tempCamera);
+	m_pDearsGraphicsEngine->SetCamera(tempCamera.get());
 	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempCCConstantBuffer);
 
 	//m_pDearsGraphicsEngine->Rend_InstancedModels(tempObject6->GetModelBuffer());
- 	m_pDearsGraphicsEngine->Rend_CubeMap(tempObject9->GetModelBuffer());
- //	m_pDearsGraphicsEngine->Rend_AnimateModel(tempObject1->GetModelBuffer());		//¾Ö´Ï¸ŞÀÌ¼Ç ¸ğµ¨À» ·£´õÇÑ´Ù.
- 	//m_pDearsGraphicsEngine->Rend_Model(tempObject1->GetModelBuffer());		//¾Ö´Ï¸ŞÀÌ¼Ç ¸ğµ¨À» ·£´õÇÑ´Ù.
- //	m_pDearsGraphicsEngine->Rend_Model(tempObject2->GetModelBuffer());
+ 	m_pDearsGraphicsEngine->Rend_CubeMap(m_pActiveScene->GetCubeMap()->GetModelBuffer());
 
-	m_pDearsGraphicsEngine->Rend_BillBoard(tempObject3->GetModelBuffer());		//¾Ö´Ï¸ŞÀÌ¼Ç ¸ğµ¨À» ·£´õÇÑ´Ù.
+	m_pDearsGraphicsEngine->Rend_BillBoard(m_pActiveScene->GetBillboard()->GetModelBuffer());
 
-	m_pDearsGraphicsEngine->Rend_PBR(tempObject4->GetModelBuffer());
-	///m_pDearsGraphicsEngine->Rend_ThinFilm(tempObject4->GetModelBuffer());
-	//m_pDearsGraphicsEngine->Rend_Model(tempObject4->GetModelBuffer());
+	m_pDearsGraphicsEngine->Rend_PBR(m_pActiveScene->GetPbrSphere()->GetModelBuffer());
 
 
  	//m_pDearsGraphicsEngine->Rend_Model(tempObject5->GetModelBuffer());
@@ -708,7 +442,7 @@ void GameEngine::Render()
 
 	}
 
-	///¿©±â ÈÄÃ³¸® ÇÊÅÍ¸¦ Àû¿ëÇÒ¼ö ÀÖ´Ù. DearsGame¿£Áø¿¡¼­ ÀÌ·¯ÇÑ ºÎºĞÀÌ Èûµé´Ù¸é.. EndRender¾È¿¡ ³Ö´Â ²Ä¼öµµ °¡´ÉÇÏÁö ¾ÊÀ»±î?
+	///å ì™ì˜™å ì™ì˜™ å ì™ì˜™ì²˜å ì™ì˜™ å ì™ì˜™å ì‹¶ëªŒì˜™ å ì™ì˜™å ì™ì˜™å ìŒ€ì‡½ì˜™ å ìŒëŒì˜™. DearsGameå ì™ì˜™å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì‹±ë¤„ì˜™å ì™ì˜™ å ì‹¸ë¸ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™æ‘¸å ?. EndRenderå ì‹«ìš¸ì˜™ å ìŒëŒì˜™ å ì‹ì‡½ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™å ì™ì˜™ å ì™ì˜™å ì™ì˜™å ì™ì˜™?
 
 	
 
@@ -758,10 +492,22 @@ void GameEngine::GameLoop()
 
 void GameEngine::Finalize()
 {
+	m_pActiveScene.reset();
 
+	if (m_pInputManager)
+	{
+		InputManager::destroyInstance();
+		m_pInputManager = nullptr;
+	}
+
+	if (m_pTimeManager)
+	{
+		TimeManager::destroyInstance();
+		m_pTimeManager = nullptr;
+	}
 }
 
-/// Á¤µ·¿ë-----------------------------------------------------------------------------------
+/// å ì™ì˜™å ì™ì˜™å ì™ì˜™-----------------------------------------------------------------------------------
 void GameEngine::InitializeManager()
 {
 	m_pTimeManager = TimeManager::getInstance();
