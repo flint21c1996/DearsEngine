@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <array>
 #include <memory>
@@ -28,16 +28,10 @@ public:
 	void HandlePresentationInput(InputManager& inputManager, EasingFunc& easingFunc, float deltaTime) override;
 	void HandleRenderInput(InputManager& inputManager) override;
 
-	// GameEngine still renders objects directly, so it queries scene roles through
-	// these accessors instead of touching the raw object container.
-	RenderObject* GetCharacter() const override;
-	RenderObject* GetWeapon() const override;
-	RenderObject* GetBillboard() const override;
-	RenderObject* GetPbrSphere() const override;
-	RenderObject* GetFloor() const override;
-	RenderObject* GetWater() const override;
-	RenderObject* GetTerrain() const override;
-	RenderObject* GetCubeMap() const override;
+	// GameEngine은 이제 Character/Terrain 같은 DemoScene 전용 이름을 묻지 않고,
+	// 각 렌더 패스에 필요한 목록만 받아간다.
+	const std::vector<SceneRenderItem>& GetShadowRenderItems() const override;
+	const std::vector<SceneRenderItem>& GetMainRenderItems() const override;
 	const Vector2& GetPrimaryUiPoint() const override;
 	const Vector2& GetSecondaryUiPoint() const override;
 
@@ -45,10 +39,22 @@ private:
 	void SpawnDemoParticle();
 	RenderObject* GetObject(size_t index) const;
 	void CreateSceneObjects();
+	void CreateRenderItems();
+
+	RenderObject* GetCharacter() const;
+	RenderObject* GetWeapon() const;
+	RenderObject* GetBillboard() const;
+	RenderObject* GetPbrSphere() const;
+	RenderObject* GetFloor() const;
+	RenderObject* GetWater() const;
+	RenderObject* GetTerrain() const;
+	RenderObject* GetCubeMap() const;
 
 private:
 	DearsGraphicsEngine* m_pGraphicsEngine = nullptr;
 	std::vector<std::unique_ptr<RenderObject>> m_objects;
+	std::vector<SceneRenderItem> m_shadowRenderItems;
+	std::vector<SceneRenderItem> m_mainRenderItems;
 	int m_selectedObjectIndex = -1;
 	std::unique_ptr<SceneHierarchyPanel> m_pScenePanel;
 	std::unique_ptr<ObjectInspectorPanel> m_pInspectorPanel;

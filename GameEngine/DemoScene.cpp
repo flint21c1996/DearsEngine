@@ -1,4 +1,4 @@
-#include "DemoScene.h"
+﻿#include "DemoScene.h"
 
 #include "DearsGraphicsEngine.h"
 #include "EasingFunc.h"
@@ -26,6 +26,7 @@ void DemoScene::Initialize()
 	// Scene initialization only creates scene-local objects.
 	// Engine-wide systems such as the renderer or cameras stay in GameEngine.
 	CreateSceneObjects();
+	CreateRenderItems();
 }
 
 void DemoScene::RegisterEditorPanels(int screenWidth)
@@ -223,6 +224,16 @@ RenderObject* DemoScene::GetCubeMap() const
 	return GetObject(CubeMapIndex);
 }
 
+const std::vector<SceneRenderItem>& DemoScene::GetShadowRenderItems() const
+{
+	return m_shadowRenderItems;
+}
+
+const std::vector<SceneRenderItem>& DemoScene::GetMainRenderItems() const
+{
+	return m_mainRenderItems;
+}
+
 const Vector2& DemoScene::GetPrimaryUiPoint() const
 {
 	return m_uiPoint;
@@ -373,4 +384,30 @@ void DemoScene::CreateSceneObjects()
 	GetCubeMap()->SetVIBuffer("CubeMap");
 	GetCubeMap()->SetObjectScl(Matrix::CreateScale(1));
 	GetCubeMap()->SetObjectPos(Matrix::CreateTranslation({ 0,0,0 }));
+}
+
+void DemoScene::CreateRenderItems()
+{
+	// 렌더 아이템 목록은 "이 씬의 어떤 오브젝트를 어떤 방식으로 그릴지"를
+	// GameEngine에 알려주는 얇은 명세다.
+	// GameEngine은 이제 Terrain, Floor 같은 데모 전용 이름을 몰라도 되고,
+	// 각 패스에 들어갈 RenderObject와 렌더 타입만 보고 처리한다.
+	m_shadowRenderItems.clear();
+	m_mainRenderItems.clear();
+
+	// 기존 shadow pass 순서를 그대로 보존한다.
+	// Terrain은 이름만 지형이고 실제로는 크게 키운 MySquare지만,
+	// GameEngine 입장에서는 그냥 StaticMesh shadow caster일 뿐이다.
+	m_shadowRenderItems.push_back({ GetTerrain(), SceneRenderType::StaticMesh });
+	m_shadowRenderItems.push_back({ GetFloor(), SceneRenderType::StaticMesh });
+	m_shadowRenderItems.push_back({ GetWater(), SceneRenderType::StaticMesh });
+	m_shadowRenderItems.push_back({ GetCharacter(), SceneRenderType::SkinnedMesh });
+	m_shadowRenderItems.push_back({ GetWeapon(), SceneRenderType::StaticMesh });
+	m_shadowRenderItems.push_back({ GetBillboard(), SceneRenderType::StaticMesh });
+	m_shadowRenderItems.push_back({ GetPbrSphere(), SceneRenderType::EquipmentMesh });
+
+	// 기존 main scene pass 순서를 그대로 보존한다.
+	m_mainRenderItems.push_back({ GetCubeMap(), SceneRenderType::CubeMap });
+	m_mainRenderItems.push_back({ GetBillboard(), SceneRenderType::Billboard });
+	m_mainRenderItems.push_back({ GetPbrSphere(), SceneRenderType::PbrMesh });
 }

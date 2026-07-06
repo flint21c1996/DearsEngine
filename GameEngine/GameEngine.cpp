@@ -418,13 +418,30 @@ void GameEngine::RenderShadowPass()
 	m_pDearsGraphicsEngine->SetCamera(lightCamera.get());
 	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempLightCConstantBuffer);
 
-	m_pDearsGraphicsEngine->RenderDepthMap(m_pActiveScene->GetTerrain()->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderDepthMap(m_pActiveScene->GetFloor()->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderDepthMap(m_pActiveScene->GetWater()->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderAniDepthMap(m_pActiveScene->GetCharacter()->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderDepthMap(m_pActiveScene->GetWeapon()->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderDepthMap(m_pActiveScene->GetBillboard()->GetModelBuffer());
-	m_pDearsGraphicsEngine->RenderEquipDepthMap(m_pActiveScene->GetPbrSphere()->GetModelBuffer());
+	for (const SceneRenderItem& item : m_pActiveScene->GetShadowRenderItems())
+	{
+		if (!item.object)
+		{
+			continue;
+		}
+
+		// Shadow pass에서는 오브젝트의 "역할 이름"보다
+		// 어떤 셰이더 경로로 depth를 그려야 하는지가 중요하다.
+		// StaticMesh는 일반 depth, SkinnedMesh는 bone buffer가 필요한 depth,
+		// EquipmentMesh는 target bone matrix가 필요한 depth 경로를 탄다.
+		switch (item.renderType)
+		{
+		case SceneRenderType::SkinnedMesh:
+			m_pDearsGraphicsEngine->RenderAniDepthMap(item.object->GetModelBuffer());
+			break;
+		case SceneRenderType::EquipmentMesh:
+			m_pDearsGraphicsEngine->RenderEquipDepthMap(item.object->GetModelBuffer());
+			break;
+		default:
+			m_pDearsGraphicsEngine->RenderDepthMap(item.object->GetModelBuffer());
+			break;
+		}
+	}
 }
 
 void GameEngine::RenderScenePass()
@@ -440,9 +457,38 @@ void GameEngine::RenderScenePass()
 	m_pDearsGraphicsEngine->SetCamera(tempCamera.get());
 	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempCCConstantBuffer);
 
- 	m_pDearsGraphicsEngine->Rend_CubeMap(m_pActiveScene->GetCubeMap()->GetModelBuffer());
-	m_pDearsGraphicsEngine->Rend_BillBoard(m_pActiveScene->GetBillboard()->GetModelBuffer());
-	m_pDearsGraphicsEngine->Rend_PBR(m_pActiveScene->GetPbrSphere()->GetModelBuffer());
+	for (const SceneRenderItem& item : m_pActiveScene->GetMainRenderItems())
+	{
+		if (!item.object)
+		{
+			continue;
+		}
+
+		// Main pass에서는 씬이 넘긴 renderType에 따라 현재 DX11 렌더 함수를 고른다.
+		// 나중에 RHI가 들어오면 이 switch는 "DX11 함수 호출" 대신
+		// backend-independent draw command 생성 쪽으로 바뀔 가능성이 높다.
+		switch (item.renderType)
+		{
+		case SceneRenderType::CubeMap:
+			m_pDearsGraphicsEngine->Rend_CubeMap(item.object->GetModelBuffer());
+			break;
+		case SceneRenderType::Billboard:
+			m_pDearsGraphicsEngine->Rend_BillBoard(item.object->GetModelBuffer());
+			break;
+		case SceneRenderType::PbrMesh:
+			m_pDearsGraphicsEngine->Rend_PBR(item.object->GetModelBuffer());
+			break;
+		case SceneRenderType::SkinnedMesh:
+			m_pDearsGraphicsEngine->Rend_AnimateModel(item.object->GetModelBuffer());
+			break;
+		case SceneRenderType::EquipmentMesh:
+			m_pDearsGraphicsEngine->Rend_EquipmentModel(item.object->GetModelBuffer());
+			break;
+		default:
+			m_pDearsGraphicsEngine->Rend_Model(item.object->GetModelBuffer());
+			break;
+		}
+	}
 }
 
 void GameEngine::RenderParticleAndPostProcessPass()
