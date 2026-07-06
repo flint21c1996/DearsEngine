@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <windows.h>
 #include <memory>
@@ -71,4 +71,15 @@ private:
 	void UpdateLightingState();
 	void UpdateSceneObjects(float deltaTime);
 	void UpdatePresentationControls();
+
+	// RHI를 붙이기 전에 Render()를 작은 단계로 나눠둔다.
+	// 아직 내부 구현은 DX11 기반 DearsGraphicsEngine을 그대로 쓰지만,
+	// 함수 이름만 봐도 프레임 준비, 씬 렌더링, 디버그 렌더링,
+	// 데모 전용 UI 출력이 어떤 순서로 실행되는지 알 수 있게 한다.
+	void HandleRenderControls();
+	void RenderDemoOverlay();
+	void RenderShadowPass();
+	void RenderScenePass();
+	void RenderParticleAndPostProcessPass();
+	void RenderDebugPass();
 };
