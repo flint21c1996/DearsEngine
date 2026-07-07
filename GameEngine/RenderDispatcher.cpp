@@ -8,6 +8,28 @@ RenderDispatcher::RenderDispatcher(DearsGraphicsEngine* graphicsEngine)
 {
 }
 
+void RenderDispatcher::RenderShadowItems(const std::vector<SceneRenderItem>& items)
+{
+	// 목록 순회는 디스패처가 맡는다.
+	// GameEngine은 "shadow pass에서 이 목록을 처리해줘"라고 요청만 하고,
+	// 각 item이 어떤 렌더 함수로 이어지는지는 이 클래스 안에 모아둔다.
+	for (const SceneRenderItem& item : items)
+	{
+		RenderShadowItem(item);
+	}
+}
+
+void RenderDispatcher::RenderMainItems(const std::vector<SceneRenderItem>& items)
+{
+	// Main pass도 같은 방식으로 처리한다.
+	// 이 함수가 있으면 나중에 sorting, batching, render queue 최적화를
+	// GameEngine을 건드리지 않고 이쪽에서 시작할 수 있다.
+	for (const SceneRenderItem& item : items)
+	{
+		RenderMainItem(item);
+	}
+}
+
 void RenderDispatcher::RenderShadowItem(const SceneRenderItem& item)
 {
 	if (!m_pGraphicsEngine || !item.object)

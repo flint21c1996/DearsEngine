@@ -420,10 +420,7 @@ void GameEngine::RenderShadowPass()
 	m_pDearsGraphicsEngine->SetCamera(lightCamera.get());
 	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempLightCConstantBuffer);
 
-	for (const SceneRenderItem& item : m_pActiveScene->GetShadowRenderItems())
-	{
-		m_pRenderDispatcher->RenderShadowItem(item);
-	}
+	m_pRenderDispatcher->RenderShadowItems(m_pActiveScene->GetShadowRenderItems());
 }
 
 void GameEngine::RenderScenePass()
@@ -439,10 +436,7 @@ void GameEngine::RenderScenePass()
 	m_pDearsGraphicsEngine->SetCamera(tempCamera.get());
 	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempCCConstantBuffer);
 
-	for (const SceneRenderItem& item : m_pActiveScene->GetMainRenderItems())
-	{
-		m_pRenderDispatcher->RenderMainItem(item);
-	}
+	m_pRenderDispatcher->RenderMainItems(m_pActiveScene->GetMainRenderItems());
 }
 
 void GameEngine::RenderParticleAndPostProcessPass()
