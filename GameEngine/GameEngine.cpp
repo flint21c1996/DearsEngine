@@ -420,27 +420,7 @@ void GameEngine::RenderShadowPass()
 
 	for (const SceneRenderItem& item : m_pActiveScene->GetShadowRenderItems())
 	{
-		if (!item.object)
-		{
-			continue;
-		}
-
-		// Shadow pass에서는 오브젝트의 "역할 이름"보다
-		// 어떤 셰이더 경로로 depth를 그려야 하는지가 중요하다.
-		// StaticMesh는 일반 depth, SkinnedMesh는 bone buffer가 필요한 depth,
-		// EquipmentMesh는 target bone matrix가 필요한 depth 경로를 탄다.
-		switch (item.renderType)
-		{
-		case SceneRenderType::SkinnedMesh:
-			m_pDearsGraphicsEngine->RenderAniDepthMap(item.object->GetModelBuffer());
-			break;
-		case SceneRenderType::EquipmentMesh:
-			m_pDearsGraphicsEngine->RenderEquipDepthMap(item.object->GetModelBuffer());
-			break;
-		default:
-			m_pDearsGraphicsEngine->RenderDepthMap(item.object->GetModelBuffer());
-			break;
-		}
+		RenderShadowItem(item);
 	}
 }
 
@@ -450,44 +430,78 @@ void GameEngine::RenderScenePass()
 	// 라이트 카메라에서 다시 플레이어/에디터 카메라로 돌아온 뒤,
 	// 공통 view/projection constant buffer를 갱신하고 실제 씬 오브젝트를 그린다.
 	//
-	// 아직은 GameEngine이 CubeMap, Billboard, PBR Sphere 같은
-	// DemoScene 전용 오브젝트 역할을 직접 물어보고 있다.
-	// 다음 정리 단계에서는 씬이 render list를 만들어주고,
-	// GameEngine은 그 목록을 순서대로 렌더링하게 바꾸는 것이 좋다.
+	// 이제 GameEngine은 Terrain, PBR Sphere 같은 DemoScene 전용 이름을
+	// 직접 묻지 않고, 씬이 넘겨준 render item 목록만 순서대로 처리한다.
+	// 아직은 renderType을 현재 DX11 렌더 함수로 매핑하지만,
+	// 그 매핑도 나중에는 RHI 계층으로 내려가는 것이 목표다.
 	m_pDearsGraphicsEngine->SetCamera(tempCamera.get());
 	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempCCConstantBuffer);
 
 	for (const SceneRenderItem& item : m_pActiveScene->GetMainRenderItems())
 	{
-		if (!item.object)
-		{
-			continue;
-		}
+		RenderMainItem(item);
+	}
+}
 
-		// Main pass에서는 씬이 넘긴 renderType에 따라 현재 DX11 렌더 함수를 고른다.
-		// 나중에 RHI가 들어오면 이 switch는 "DX11 함수 호출" 대신
-		// backend-independent draw command 생성 쪽으로 바뀔 가능성이 높다.
-		switch (item.renderType)
-		{
-		case SceneRenderType::CubeMap:
-			m_pDearsGraphicsEngine->Rend_CubeMap(item.object->GetModelBuffer());
-			break;
-		case SceneRenderType::Billboard:
-			m_pDearsGraphicsEngine->Rend_BillBoard(item.object->GetModelBuffer());
-			break;
-		case SceneRenderType::PbrMesh:
-			m_pDearsGraphicsEngine->Rend_PBR(item.object->GetModelBuffer());
-			break;
-		case SceneRenderType::SkinnedMesh:
-			m_pDearsGraphicsEngine->Rend_AnimateModel(item.object->GetModelBuffer());
-			break;
-		case SceneRenderType::EquipmentMesh:
-			m_pDearsGraphicsEngine->Rend_EquipmentModel(item.object->GetModelBuffer());
-			break;
-		default:
-			m_pDearsGraphicsEngine->Rend_Model(item.object->GetModelBuffer());
-			break;
-		}
+void GameEngine::RenderShadowItem(const SceneRenderItem& item)
+{
+	if (!item.object)
+	{
+		return;
+	}
+
+	// Shadow pass에서는 오브젝트의 "역할 이름"보다
+	// 어떤 셰이더 경로로 depth를 그려야 하는지가 중요하다.
+	// StaticMesh는 일반 depth, SkinnedMesh는 bone buffer가 필요한 depth,
+	// EquipmentMesh는 target bone matrix가 필요한 depth 경로를 탄다.
+	//
+	// 지금은 여기서 DX11용 DearsGraphicsEngine 함수를 직접 부르지만,
+	// RHI를 도입하면 이 함수가 "공통 shadow draw command"를 만드는
+	// 위치로 바뀔 가능성이 높다.
+	switch (item.renderType)
+	{
+	case SceneRenderType::SkinnedMesh:
+		m_pDearsGraphicsEngine->RenderAniDepthMap(item.object->GetModelBuffer());
+		break;
+	case SceneRenderType::EquipmentMesh:
+		m_pDearsGraphicsEngine->RenderEquipDepthMap(item.object->GetModelBuffer());
+		break;
+	default:
+		m_pDearsGraphicsEngine->RenderDepthMap(item.object->GetModelBuffer());
+		break;
+	}
+}
+
+void GameEngine::RenderMainItem(const SceneRenderItem& item)
+{
+	if (!item.object)
+	{
+		return;
+	}
+
+	// Main pass에서는 씬이 넘긴 renderType에 따라 현재 DX11 렌더 함수를 고른다.
+	// 이 switch는 지금 당장은 "렌더 타입 -> DX11 렌더 함수" 매핑이지만,
+	// 나중에는 "렌더 타입 -> RHI pipeline / draw command" 매핑으로 옮겨갈 부분이다.
+	switch (item.renderType)
+	{
+	case SceneRenderType::CubeMap:
+		m_pDearsGraphicsEngine->Rend_CubeMap(item.object->GetModelBuffer());
+		break;
+	case SceneRenderType::Billboard:
+		m_pDearsGraphicsEngine->Rend_BillBoard(item.object->GetModelBuffer());
+		break;
+	case SceneRenderType::PbrMesh:
+		m_pDearsGraphicsEngine->Rend_PBR(item.object->GetModelBuffer());
+		break;
+	case SceneRenderType::SkinnedMesh:
+		m_pDearsGraphicsEngine->Rend_AnimateModel(item.object->GetModelBuffer());
+		break;
+	case SceneRenderType::EquipmentMesh:
+		m_pDearsGraphicsEngine->Rend_EquipmentModel(item.object->GetModelBuffer());
+		break;
+	default:
+		m_pDearsGraphicsEngine->Rend_Model(item.object->GetModelBuffer());
+		break;
 	}
 }
 

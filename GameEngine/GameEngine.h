@@ -12,6 +12,7 @@ class TimeManager;
 class InputManager;
 class FileManager;
 class IScene;
+struct SceneRenderItem;
 struct ModelBuffer;
 struct VSConstantBufferData;
 struct VSBoneConstantBufferData;
@@ -82,4 +83,6 @@ private:
 	void RenderScenePass();
 	void RenderParticleAndPostProcessPass();
 	void RenderDebugPass();
+	void RenderShadowItem(const SceneRenderItem& item);
+	void RenderMainItem(const SceneRenderItem& item);
 };
