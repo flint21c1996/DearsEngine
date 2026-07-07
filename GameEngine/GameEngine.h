@@ -12,6 +12,7 @@ class TimeManager;
 class InputManager;
 class FileManager;
 class IScene;
+class RenderDispatcher;
 struct SceneRenderItem;
 struct ModelBuffer;
 struct VSConstantBufferData;
@@ -36,6 +37,7 @@ private:
 
 	std::unique_ptr<FileManager> m_pFileManager;
 	std::unique_ptr<DearsGraphicsEngine> m_pDearsGraphicsEngine;
+	std::unique_ptr<RenderDispatcher> m_pRenderDispatcher;
 	std::unique_ptr<EasingFunc> tempEasing;
 
 	std::unique_ptr<Camera> tempCamera;
@@ -83,6 +85,4 @@ private:
 	void RenderScenePass();
 	void RenderParticleAndPostProcessPass();
 	void RenderDebugPass();
-	void RenderShadowItem(const SceneRenderItem& item);
-	void RenderMainItem(const SceneRenderItem& item);
 };

@@ -47,6 +47,9 @@
     <ClInclude Include="Pool.h">
       <Filter>Manager\EntityManager</Filter>
     </ClInclude>
+    <ClInclude Include="RenderDispatcher.h">
+      <Filter>GameEngine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameEngine.cpp">
@@ -71,6 +74,9 @@
     </ClCompile>
     <ClCompile Include="EntityManager.cpp">
       <Filter>Manager\EntityManager</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderDispatcher.cpp">
+      <Filter>GameEngine</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

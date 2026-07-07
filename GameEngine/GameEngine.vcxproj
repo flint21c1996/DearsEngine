@@ -160,6 +160,7 @@
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="tempObject.h" />
     <ClInclude Include="RenderObject.h" />
+    <ClInclude Include="RenderDispatcher.h" />
     <ClInclude Include="SceneHierarchyPanel.h" />
     <ClInclude Include="ObjectInspectorPanel.h" />
     <ClInclude Include="TimeManager.h" />
@@ -175,6 +176,7 @@
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="tempObject.cpp" />
     <ClCompile Include="RenderObject.cpp" />
+    <ClCompile Include="RenderDispatcher.cpp" />
     <ClCompile Include="TimeManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
