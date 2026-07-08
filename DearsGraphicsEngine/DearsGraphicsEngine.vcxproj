@@ -156,6 +156,7 @@
     <ClCompile Include="ModelBuffer.h" />
     <ClCompile Include="ModelInfo.cpp" />
     <ClCompile Include="ParticleManager.cpp" />
+    <ClCompile Include="ParticleRenderer.cpp" />
     <ClCompile Include="PipelineStateObject.cpp" />
     <ClCompile Include="PipelineStateObject.h" />
     <ClCompile Include="PostProcessRenderer.cpp" />
@@ -190,6 +191,7 @@
     <ClInclude Include="ModelInfo.h" />
     <ClInclude Include="ObjectPool.h" />
     <ClInclude Include="ParticleManager.h" />
+    <ClInclude Include="ParticleRenderer.h" />
     <ClInclude Include="PostProcessRenderer.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RendererHelper.h" />

@@ -59,6 +59,9 @@
     <ClCompile Include="ParticleManager.cpp">
       <Filter>Particle\ParticleModule</Filter>
     </ClCompile>
+    <ClCompile Include="ParticleRenderer.cpp">
+      <Filter>Particle\ParticleModule</Filter>
+    </ClCompile>
     <ClCompile Include="MeshRenderer.cpp">
       <Filter>MeshRenderer</Filter>
     </ClCompile>
@@ -258,6 +261,9 @@
       <Filter>GraphicsCommon</Filter>
     </ClInclude>
     <ClInclude Include="ParticleManager.h">
+      <Filter>Particle\ParticleModule</Filter>
+    </ClInclude>
+    <ClInclude Include="ParticleRenderer.h">
       <Filter>Particle\ParticleModule</Filter>
     </ClInclude>
     <ClInclude Include="MeshRenderer.h">

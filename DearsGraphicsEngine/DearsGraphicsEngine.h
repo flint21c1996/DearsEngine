@@ -10,15 +10,16 @@
 #include "GraphicsResourceManager.h"
 #include "DearsImGui.h"
 #include "AnimationHelper.h"
+#include "BufferData.h"
 #include "LightHelper.h"
 #include "ModelBuffer.h"
-#include "ParticleManager.h"
 using DirectX::SimpleMath::Vector3;
 using DirectX::SimpleMath::Vector4;
 using DirectX::SimpleMath::Quaternion;
 
 class DebugRenderer;
 class MeshRenderer;
+class ParticleRenderer;
 class PostProcessRenderer;
 
 class DearsGraphicsEngine
@@ -48,9 +49,9 @@ private:
 	// 그래픽스 엔진 내부에서 소유하고 관리하는 렌더링 하위 시스템들이다.
 	// 외부 코드가 이 포인터들을 직접 타고 들어가면 DX11 기반 구현에 강하게 묶이므로,
 	// 필요한 기능은 DearsGraphicsEngine의 public 함수로 한 번 감싸서 제공한다.
-	std::unique_ptr<ParticleManager> m_pParticleManager;
 	std::unique_ptr<DebugRenderer> m_pDebugRenderer;
 	std::unique_ptr<MeshRenderer> m_pMeshRenderer;
+	std::unique_ptr<ParticleRenderer> m_pParticleRenderer;
 	std::unique_ptr<PostProcessRenderer> m_pPostProcessRenderer;
 
 public:

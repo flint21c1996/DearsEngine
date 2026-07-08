@@ -5,6 +5,7 @@
 #include "DebugRenderer.h"
 #include "GraphicsCommon.h"
 #include "MeshRenderer.h"
+#include "ParticleRenderer.h"
 #include "PostProcessRenderer.h"
 
 
@@ -65,11 +66,12 @@ void DearsGraphicsEngine::Initialize()
 	MeshData boxMeshData = GeometryGenerator::MakeBox(1);
 	m_pResourceManager->AddModel(boxMeshData, "MyBox");
 
-	m_pParticleManager = std::make_unique<ParticleManager>(m_pDevice, m_pDeviceContext, MAX_PARTICLE);
-	m_pParticleManager->Initialize();
-	m_pParticleManager->SetVertexBufferAndIndexBuffer(m_pResourceManager->Get_VertexBuffer("BillBoardSquare"), 
-														m_pResourceManager->Get_IndexBuffer("BillBoardSquare"),
-														m_pResourceManager->Get_NumIndex("BillBoardSquare"));
+	m_pParticleRenderer = std::make_unique<ParticleRenderer>(
+		m_pDevice,
+		m_pDeviceContext,
+		m_pResourceManager.get(),
+		MAX_PARTICLE);
+	m_pParticleRenderer->Initialize();
 
 	m_pPostProcessRenderer = std::make_unique<PostProcessRenderer>(this);
 	m_pPostProcessRenderer->Initialize();
@@ -77,7 +79,7 @@ void DearsGraphicsEngine::Initialize()
 
 void DearsGraphicsEngine::Update()
 {
-	m_pParticleManager->Update();
+	m_pParticleRenderer->Update();
 }
 
 void DearsGraphicsEngine::BeginRender()
@@ -105,14 +107,14 @@ void DearsGraphicsEngine::Finalize()
 
 void DearsGraphicsEngine::RendParticle()
 {
-	m_pParticleManager->Render();
+	m_pParticleRenderer->Render();
 }
 
 void DearsGraphicsEngine::AddParticle(unsigned int particleNum, CSParticleData& particleData)
 {
 	// 씬은 "파티클을 몇 개 생성할지"와 "어떤 데이터로 생성할지"만 요청한다.
 	// 실제 파티클 풀, StructuredBuffer, UAV/SRV 같은 DX11 세부 구현은 ParticleManager 안에 숨긴다.
-	m_pParticleManager->AddParticle(particleNum, particleData);
+	m_pParticleRenderer->AddParticle(particleNum, particleData);
 }
 
 void DearsGraphicsEngine::RendPostProcessing()
