@@ -146,6 +146,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="GraphicsAssetManager.cpp" />
     <ClCompile Include="GraphicsCommon.cpp" />
     <ClCompile Include="GraphicsResourceContainer.cpp" />
     <ClCompile Include="GraphicsResourceManager.cpp" />
@@ -179,6 +180,7 @@
     <ClInclude Include="FBXLoader.h" />
     <ClInclude Include="FBXLoadHelper.h" />
     <ClInclude Include="GeometryGenerator.h" />
+    <ClInclude Include="GraphicsAssetManager.h" />
     <ClInclude Include="GraphicsCommon.h" />
     <ClInclude Include="GraphicsResourceContainer.h" />
     <ClInclude Include="GraphicsResourceManager.h" />

@@ -8,6 +8,7 @@
 
 #include "AnimationHelper.h"
 #include "BufferData.h"
+#include "GraphicsAssetManager.h"
 #include "GraphicsResourceManager.h"
 #include "LightHelper.h"
 #include "ModelBuffer.h"
@@ -18,6 +19,7 @@ using DirectX::SimpleMath::Vector4;
 using DirectX::SimpleMath::Quaternion;
 
 class DebugRenderer;
+class GraphicsAssetManager;
 class MeshRenderer;
 class ParticleRenderer;
 class PostProcessRenderer;
@@ -41,6 +43,7 @@ private:
 public:
 	// ?뚯쑀?섎뒗 媛앹껜??
 	std::unique_ptr<Renderer> mpRenderer;
+	std::unique_ptr<GraphicsAssetManager> m_pAssetManager;
 	std::unique_ptr<GraphicsResourceManager> m_pResourceManager;
 	std::unique_ptr<AnimationHelper> mpAnimationHelper;
 	std::unique_ptr<LightHelper> mpLightHelper;

@@ -3,6 +3,7 @@
 #endif
 #include "DearsGraphicsEngine.h"
 #include "DebugRenderer.h"
+#include "GraphicsAssetManager.h"
 #include "GraphicsCommon.h"
 #include "MeshRenderer.h"
 #include "ParticleRenderer.h"
@@ -47,6 +48,10 @@ void DearsGraphicsEngine::Initialize()
 		m_screenWidth,
 		m_screenHeight,
 		m_pResourceManager.get());
+
+	m_pAssetManager = std::make_unique<GraphicsAssetManager>(
+		m_pResourceManager.get(),
+		m_pUiRenderer.get());
 
 	mpLightHelper = std::make_unique<LightHelper>();
 
@@ -147,35 +152,35 @@ float DearsGraphicsEngine::GetAspectRatio()
 
 void DearsGraphicsEngine::AddModel(std::string _basePath, std::string _fileName)
 {
-	m_pResourceManager->AddModel(_basePath, _fileName);
+	m_pAssetManager->LoadModel(_basePath, _fileName);
 }
 
 void DearsGraphicsEngine::AddAnimation(std::string _basePath, std::string _fileName)
 {
-	m_pResourceManager->AddAnimation(_basePath, _fileName);
+	m_pAssetManager->LoadAnimation(_basePath, _fileName);
 
 }
 
 void DearsGraphicsEngine::Add3DTexture(std::string _basePath, std::string _fileName)
 {
-	m_pResourceManager->Add3DTexture(_basePath, _fileName);
+	m_pAssetManager->Load3DTexture(_basePath, _fileName);
 
 }
 
 void DearsGraphicsEngine::Add2DTexture(std::string _basePath, std::string _fileName)
 {
-	m_pResourceManager->Add2DTexture(_basePath, _fileName);
+	m_pAssetManager->Load2DTexture(_basePath, _fileName);
 
 }
 void DearsGraphicsEngine::AddDDSTexture(std::string _basePath, std::string _fileName, bool isCubeMap)
 {
-	m_pResourceManager->AddDDSTexture(_basePath, _fileName, isCubeMap);
+	m_pAssetManager->LoadDDSTexture(_basePath, _fileName, isCubeMap);
 
 }
 
 void DearsGraphicsEngine::Add2DMipMapTexture(std::string _basePath, std::string _fileName)
 {
-	m_pResourceManager->Add2DMipMapTexture(_basePath, _fileName);
+	m_pAssetManager->Load2DMipMapTexture(_basePath, _fileName);
 }
 
 ComPtr<ID3D11Buffer> DearsGraphicsEngine::Get_VertexBuffer(std::string _modelName)
@@ -563,7 +568,7 @@ void DearsGraphicsEngine::SetCamera(Camera* _pTargetCamera)
 
 void DearsGraphicsEngine::AddFont(std::string _basePath, std::string _fileName, float _size, bool _isKorean)
 {
-	m_pUiRenderer->AddFont(_basePath, _fileName, _size, _isKorean);
+	m_pAssetManager->LoadFont(_basePath, _fileName, _size, _isKorean);
 }
 
 void DearsGraphicsEngine::FontSetFinish()
