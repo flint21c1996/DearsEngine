@@ -18,6 +18,7 @@ using DirectX::SimpleMath::Vector4;
 using DirectX::SimpleMath::Quaternion;
 
 class DebugRenderer;
+class MeshRenderer;
 
 class DearsGraphicsEngine
 {
@@ -43,6 +44,7 @@ public:
 	std::unique_ptr<LightHelper> mpLightHelper;
 	std::unique_ptr<ParticleManager> m_pParticleManager;
 	std::unique_ptr<DebugRenderer> m_pDebugRenderer;
+	std::unique_ptr<MeshRenderer> m_pMeshRenderer;
 
 	// 鍮꾩냼??- ?몃??먯꽌 SetCamera()濡?二쇱엯諛쏆쓬
 	Camera* m_pTargetCamera;

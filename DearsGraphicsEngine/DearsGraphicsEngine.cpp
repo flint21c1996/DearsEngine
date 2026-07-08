@@ -4,6 +4,7 @@
 #include "DearsGraphicsEngine.h"
 #include "DebugRenderer.h"
 #include "GraphicsCommon.h"
+#include "MeshRenderer.h"
 
 
 DearsGraphicsEngine::DearsGraphicsEngine(HWND _hWnd, int screenWidth, int screenHeight)
@@ -42,6 +43,8 @@ void DearsGraphicsEngine::Initialize()
 
 	m_pDebugRenderer = std::make_unique<DebugRenderer>(this);
 	m_pDebugRenderer->Initialize();
+
+	m_pMeshRenderer = std::make_unique<MeshRenderer>(this);
 
 	Dears::Graphics::InitCommonStates(m_pDevice);
 
@@ -440,91 +443,73 @@ void DearsGraphicsEngine::SetPipelineState(PipelineStateObject& _pso)
 
 void DearsGraphicsEngine::Rend_AnimateModel(ModelBuffer* _modelBuffer)
 {
-	SetPipelineState(Dears::Graphics::AnimeGeometryPSO);
-	mpRenderer->Render(_modelBuffer);
+	m_pMeshRenderer->RenderAnimatedModel(_modelBuffer);
 }
 
 void DearsGraphicsEngine::Rend_Model(ModelBuffer* _modelBuffer)
 {
-	SetPipelineState(Dears::Graphics::BasicGeometryPSO);
-	mpRenderer->Render(_modelBuffer);
+	m_pMeshRenderer->RenderStaticModel(_modelBuffer);
 }
 
 void DearsGraphicsEngine::Rend_PBR(ModelBuffer* _modelBuffer)
 {
-	SetPipelineState(Dears::Graphics::PBRPSO);
-	mpRenderer->Render(_modelBuffer);
+	m_pMeshRenderer->RenderPbrModel(_modelBuffer);
 }
 
 
 void DearsGraphicsEngine::Rend_ThinFilm(ModelBuffer* _modelBuffer)
 {
-	SetPipelineState(Dears::Graphics::ThinFilmPSO);
-	mpRenderer->Render(_modelBuffer);
+	m_pMeshRenderer->RenderThinFilmModel(_modelBuffer);
 }
 
 void DearsGraphicsEngine::Rend_EquipmentModel(ModelBuffer* _modelBuffer)
 {
-	SetPipelineState(Dears::Graphics::EquipmentGeometryPSO);
-	mpRenderer->Render(_modelBuffer);
+	m_pMeshRenderer->RenderEquipmentModel(_modelBuffer);
 }
 
 void DearsGraphicsEngine::SetOpacityFactor(float blendFactor[4])
 {
-	for (int i = 0; i < 4; i++)
-	{
-	Dears::Graphics::OpacityPSO.m_blendFactor[i] = blendFactor[i];
-	}
+	m_pMeshRenderer->SetOpacityFactor(blendFactor);
 }
 
 void DearsGraphicsEngine::Rend_OpacitiyModel(ModelBuffer* _modelBuffer)
 {
-	SetPipelineState(Dears::Graphics::OpacityPSO);
-	mpRenderer->Render(_modelBuffer);
+	m_pMeshRenderer->RenderOpacityModel(_modelBuffer);
 }
 
 void DearsGraphicsEngine::Rend_EdgeModel(ModelBuffer* _modelBuffer)
 {
-	SetPipelineState(Dears::Graphics::PunchingPSO);
-	mpRenderer->Render(_modelBuffer);
-	SetPipelineState(Dears::Graphics::EdgePSO);
-	mpRenderer->RenderEdge(_modelBuffer);
-
+	m_pMeshRenderer->RenderEdgeModel(_modelBuffer);
 }
 
 void DearsGraphicsEngine::Rend_Water(ModelBuffer* _modelBuffer)
 {
-	SetPipelineState(Dears::Graphics::WaterPSO);
-	mpRenderer->Render(_modelBuffer);
+	m_pMeshRenderer->RenderWater(_modelBuffer);
 }
 
 void DearsGraphicsEngine::RenderDepthMap(ModelBuffer* _modelbuffer)
 {
-	mpRenderer->RenderDepthMap(_modelbuffer);
+	m_pMeshRenderer->RenderDepthMap(_modelbuffer);
 }
 
 void DearsGraphicsEngine::RenderAniDepthMap(ModelBuffer* _modelbuffer)
 {
-	mpRenderer->RenderAniDepthMap(_modelbuffer);
+	m_pMeshRenderer->RenderAnimatedDepthMap(_modelbuffer);
 }
 
 void DearsGraphicsEngine::RenderEquipDepthMap(ModelBuffer* _modelbuffer)
 {
-	mpRenderer->RenderEquipDepthMap(_modelbuffer);
+	m_pMeshRenderer->RenderEquipmentDepthMap(_modelbuffer);
 }
 
 void DearsGraphicsEngine::Rend_InstancedModels(ModelBuffer* _modelbuffers)
 {
-	SetPipelineState(Dears::Graphics::BasicInstancingPSO);
-	///占쏙옙占썩서 占쏙옙占쏙옙占쏙옙占쏙옙 占쏙옙占쏙옙 占쏙옙占쏙옙占쏙옙占쏙옙 占쏙옙占쏙옙占싹듸옙占쏙옙
-	mpRenderer->Rend_InstancedModels(_modelbuffers);
+	m_pMeshRenderer->RenderInstancedModels(_modelbuffers);
 }
 
 void DearsGraphicsEngine::Rend_BillBoard(ModelBuffer* _modelbuffers)
 {
-	SetPipelineState(Dears::Graphics::TestPSO);
-	mpRenderer->Render(_modelbuffers);
-
+	m_pMeshRenderer->RenderBillboard(_modelbuffers);
 }
 
 void DearsGraphicsEngine::Rend_DebugBox(Vector3 _size, Vector3 _rotation, Vector3 _transpose)
@@ -559,8 +544,7 @@ void DearsGraphicsEngine::Rend_DebugCapsule(Vector3 _size, Vector3 _rotation, Ve
 
 void DearsGraphicsEngine::Rend_CubeMap(ModelBuffer* _modelBuffer)
 {
-	SetPipelineState(Dears::Graphics::CubeMapGeometryPSO);
-	mpRenderer->Render_CubeMap(_modelBuffer);
+	m_pMeshRenderer->RenderCubeMap(_modelBuffer);
 }
 
 void DearsGraphicsEngine::SetCamera(Camera* _pTargetCamera)
