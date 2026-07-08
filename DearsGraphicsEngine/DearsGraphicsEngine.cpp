@@ -108,6 +108,13 @@ void DearsGraphicsEngine::RendParticle()
 	m_pParticleManager->Render();
 }
 
+void DearsGraphicsEngine::AddParticle(unsigned int particleNum, CSParticleData& particleData)
+{
+	// 씬은 "파티클을 몇 개 생성할지"와 "어떤 데이터로 생성할지"만 요청한다.
+	// 실제 파티클 풀, StructuredBuffer, UAV/SRV 같은 DX11 세부 구현은 ParticleManager 안에 숨긴다.
+	m_pParticleManager->AddParticle(particleNum, particleData);
+}
+
 void DearsGraphicsEngine::RendPostProcessing()
 {
 	m_pPostProcessRenderer->Render();

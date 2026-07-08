@@ -269,7 +269,7 @@ void DemoScene::SpawnDemoParticle()
 	particle.gravity = 0;
 	particle.colorRandomFactor = { 0, 0, 0 };
 
-	m_pGraphicsEngine->m_pParticleManager->AddParticle(1, particle);
+	m_pGraphicsEngine->AddParticle(1, particle);
 }
 
 RenderObject* DemoScene::GetObject(size_t index) const

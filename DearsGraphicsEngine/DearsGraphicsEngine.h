@@ -43,11 +43,17 @@ public:
 	std::unique_ptr<GraphicsResourceManager> m_pResourceManager;
 	std::unique_ptr<AnimationHelper> mpAnimationHelper;
 	std::unique_ptr<LightHelper> mpLightHelper;
+
+private:
+	// 그래픽스 엔진 내부에서 소유하고 관리하는 렌더링 하위 시스템들이다.
+	// 외부 코드가 이 포인터들을 직접 타고 들어가면 DX11 기반 구현에 강하게 묶이므로,
+	// 필요한 기능은 DearsGraphicsEngine의 public 함수로 한 번 감싸서 제공한다.
 	std::unique_ptr<ParticleManager> m_pParticleManager;
 	std::unique_ptr<DebugRenderer> m_pDebugRenderer;
 	std::unique_ptr<MeshRenderer> m_pMeshRenderer;
 	std::unique_ptr<PostProcessRenderer> m_pPostProcessRenderer;
 
+public:
 	// 鍮꾩냼??- ?몃??먯꽌 SetCamera()濡?二쇱엯諛쏆쓬
 	Camera* m_pTargetCamera;
 public:
@@ -62,6 +68,7 @@ public:
 	void Finalize();
 
 	void RendParticle();
+	void AddParticle(unsigned int particleNum, CSParticleData& particleData);
 
 	void RendPostProcessing();
 
