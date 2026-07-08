@@ -162,6 +162,7 @@
     <ClCompile Include="PostProcessRenderer.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="RendererHelper.cpp" />
+    <ClCompile Include="UiRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="그래픽스 관련.txt" />
@@ -195,6 +196,7 @@
     <ClInclude Include="PostProcessRenderer.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RendererHelper.h" />
+    <ClInclude Include="UiRenderer.h" />
     <ClInclude Include="UIEnum.h" />
   </ItemGroup>
   <ItemGroup>

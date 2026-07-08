@@ -6,13 +6,13 @@
 #include <memory>
 #include <string>
 
-#include "Renderer.h"
-#include "GraphicsResourceManager.h"
-#include "DearsImGui.h"
 #include "AnimationHelper.h"
 #include "BufferData.h"
+#include "GraphicsResourceManager.h"
 #include "LightHelper.h"
 #include "ModelBuffer.h"
+#include "Renderer.h"
+#include "UiRenderer.h"
 using DirectX::SimpleMath::Vector3;
 using DirectX::SimpleMath::Vector4;
 using DirectX::SimpleMath::Quaternion;
@@ -21,6 +21,7 @@ class DebugRenderer;
 class MeshRenderer;
 class ParticleRenderer;
 class PostProcessRenderer;
+class UiRenderer;
 
 class DearsGraphicsEngine
 {
@@ -40,7 +41,6 @@ private:
 public:
 	// ?뚯쑀?섎뒗 媛앹껜??
 	std::unique_ptr<Renderer> mpRenderer;
-	std::unique_ptr<DearsImGui> m_pDearsImGui;
 	std::unique_ptr<GraphicsResourceManager> m_pResourceManager;
 	std::unique_ptr<AnimationHelper> mpAnimationHelper;
 	std::unique_ptr<LightHelper> mpLightHelper;
@@ -53,6 +53,7 @@ private:
 	std::unique_ptr<MeshRenderer> m_pMeshRenderer;
 	std::unique_ptr<ParticleRenderer> m_pParticleRenderer;
 	std::unique_ptr<PostProcessRenderer> m_pPostProcessRenderer;
+	std::unique_ptr<UiRenderer> m_pUiRenderer;
 
 public:
 	// 鍮꾩냼??- ?몃??먯꽌 SetCamera()濡?二쇱엯諛쏆쓬
@@ -289,6 +290,6 @@ public:
 template<typename ...Args>
 void DearsGraphicsEngine::UIDrawTextWithNum(Vector2 _posXY, const std::u8string _formatText, Vector4 _rgba, Args&& ...args)
 {
-	m_pDearsImGui->UIDrawTextWithNum(_posXY, m_pDearsImGui->ConvertUTF8String(_formatText), _rgba, std::forward<Args>(args)...);
+	m_pUiRenderer->DrawTextWithNum(_posXY, _formatText, _rgba, std::forward<Args>(args)...);
 }
 

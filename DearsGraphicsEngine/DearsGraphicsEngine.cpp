@@ -7,6 +7,7 @@
 #include "MeshRenderer.h"
 #include "ParticleRenderer.h"
 #include "PostProcessRenderer.h"
+#include "UiRenderer.h"
 
 
 DearsGraphicsEngine::DearsGraphicsEngine(HWND _hWnd, int screenWidth, int screenHeight)
@@ -39,7 +40,13 @@ void DearsGraphicsEngine::Initialize()
 
 	mpAnimationHelper = std::make_unique<AnimationHelper>();
 
-	m_pDearsImGui = std::make_unique<DearsImGui>(m_hWnd, m_pDevice, m_pDeviceContext, m_screenWidth, m_screenHeight, m_pResourceManager.get());
+	m_pUiRenderer = std::make_unique<UiRenderer>(
+		m_hWnd,
+		m_pDevice,
+		m_pDeviceContext,
+		m_screenWidth,
+		m_screenHeight,
+		m_pResourceManager.get());
 
 	mpLightHelper = std::make_unique<LightHelper>();
 
@@ -86,7 +93,7 @@ void DearsGraphicsEngine::BeginRender()
 {
 	mpRenderer->BeginRender();
 	UIBegineRender();
-	m_pDearsImGui->UISetting();
+	m_pUiRenderer->DrawRegisteredPanels();
 	UICanvasSet(Vector2(0, 0), Vector2(static_cast<float>(m_screenWidth), static_cast<float>(m_screenHeight)));
 	SetUICurrentWindow();
 }
@@ -556,114 +563,112 @@ void DearsGraphicsEngine::SetCamera(Camera* _pTargetCamera)
 
 void DearsGraphicsEngine::AddFont(std::string _basePath, std::string _fileName, float _size, bool _isKorean)
 {
-	m_pDearsImGui->UILoadFonts(_basePath, _fileName, _size, _isKorean);
+	m_pUiRenderer->AddFont(_basePath, _fileName, _size, _isKorean);
 }
 
 void DearsGraphicsEngine::FontSetFinish()
 {
-	m_pDearsImGui->UIBuildFonts();
+	m_pUiRenderer->BuildFonts();
 }
 
 void DearsGraphicsEngine::UIBegineRender()
 {
-	m_pDearsImGui->UIBeginRender();
+	m_pUiRenderer->BeginFrame();
 }
 
 void DearsGraphicsEngine::UICanvasSet(Vector2 _posXY, Vector2 _sizeWH)
 {
-	m_pDearsImGui->UICanvasSet(_posXY, _sizeWH);
+	m_pUiRenderer->BeginCanvas(_posXY, _sizeWH);
 }
 
 void DearsGraphicsEngine::UIDrawImageStart()
 {
-	m_pDearsImGui->UIDrawImageStart();
+	m_pUiRenderer->DrawImageStart();
 }
 
 void DearsGraphicsEngine::UIDrawImage(Vector2 _posXY, Vector2 _sizeWH, std::string _textureName, Vector4 _rgba /*= Vector4(1.0f, 1.0f, 1.0f, 1.0f)*/)
 {
-	ComPtr<ID3D11ShaderResourceView> tempSRV = m_pResourceManager->Get_Textures(_textureName);
-	m_pDearsImGui->UIDrawImage(_posXY, _sizeWH, tempSRV, _rgba);
+	m_pUiRenderer->DrawImage(_posXY, _sizeWH, _textureName, _rgba);
 }
 
 void DearsGraphicsEngine::UIDrawImageFin()
 {
-	m_pDearsImGui->UIDrawImageFin();
+	m_pUiRenderer->DrawImageEnd();
 }
 
 void DearsGraphicsEngine::UIStartFontID(std::string _fontName)
 {
-	m_pDearsImGui->UIStartFontID(m_pResourceManager->Get_Font(_fontName));
+	m_pUiRenderer->StartFont(_fontName);
 }
 
 void DearsGraphicsEngine::UIDrawText(Vector2 _pos, std::u8string _text, Vector4 _rgba)
 {
-	m_pDearsImGui->UIDrawText(_pos, m_pDearsImGui->ConvertUTF8String(_text), _rgba);
+	m_pUiRenderer->DrawText(_pos, _text, _rgba);
 }
 
 void DearsGraphicsEngine::UIFinFontID()
 {
-	m_pDearsImGui->UIEndFontID();
+	m_pUiRenderer->EndFont();
 }
 
 void DearsGraphicsEngine::SetUICurrentWindow()
 {
-	m_pDearsImGui->SetUICurrentWindow();
+	m_pUiRenderer->CacheCurrentWindow();
 }
 
 void DearsGraphicsEngine::UIDrawRect(Vector2 _posXY, Vector2 _sizeWH, Vector4 _rgba, float _rounding /*= 0.0f*/, float _thickness)
 {
-	m_pDearsImGui->UIDrawRect(_posXY, _sizeWH, _rgba, _rounding, _thickness);
+	m_pUiRenderer->DrawRect(_posXY, _sizeWH, _rgba, _rounding, _thickness);
 }
 
 void DearsGraphicsEngine::UIDrawRectFilled(Vector2 _posXY, Vector2 _sizeWH, Vector4 _rgba, float _rounding /*= 0.0f*/)
 {
-	m_pDearsImGui->UIDrawRectFilled(_posXY, _sizeWH, _rgba, _rounding);
+	m_pUiRenderer->DrawRectFilled(_posXY, _sizeWH, _rgba, _rounding);
 }
 
 void DearsGraphicsEngine::UIDrawRectwithBorder(Vector2 _posXY, Vector2 _sizeWH, Vector4 _rgba, float _rounding /*= 0.0f*/, float _thickness)
 {
-	m_pDearsImGui->UIDrawRectwithBorder(_posXY, _sizeWH, _rgba, _rounding, _thickness);
+	m_pUiRenderer->DrawRectWithBorder(_posXY, _sizeWH, _rgba, _rounding, _thickness);
 }
 
 void DearsGraphicsEngine::UIFreeRect(Vector2 _posXY1, Vector2 _posXY2, Vector2 _posXY3, Vector2 _posXY4, Vector4 _rgba, float _thickness)
 {
-	m_pDearsImGui->UIFreeRect(_posXY1, _posXY2, _posXY3, _posXY4, _rgba, _thickness);
+	m_pUiRenderer->DrawFreeRect(_posXY1, _posXY2, _posXY3, _posXY4, _rgba, _thickness);
 }
 
 void DearsGraphicsEngine::UIFreeRectFilled(Vector2 _posXY1, Vector2 _posXY2, Vector2 _posXY3, Vector2 _posXY4, Vector4 _rgba)
 {
-	m_pDearsImGui->UIFreeRectFilled(_posXY1, _posXY2, _posXY3, _posXY4, _rgba);
+	m_pUiRenderer->DrawFreeRectFilled(_posXY1, _posXY2, _posXY3, _posXY4, _rgba);
 }
 
 void DearsGraphicsEngine::UIFreeRectwithBorder(Vector2 _posXY1, Vector2 _posXY2, Vector2 _posXY3, Vector2 _posXY4, Vector4 _rgba, float _thickness, Vector4 _borderRgba)
 {
-	m_pDearsImGui->UIFreeRectwithBorder(_posXY1, _posXY2, _posXY3, _posXY4, _rgba, _thickness, _borderRgba);
+	m_pUiRenderer->DrawFreeRectWithBorder(_posXY1, _posXY2, _posXY3, _posXY4, _rgba, _thickness, _borderRgba);
 }
 
 void DearsGraphicsEngine::UIDrawLine(Vector2 _sPosXY, Vector2 _ePosXY, Vector4 _rgba)
 {
-	m_pDearsImGui->UIDrawLine(_sPosXY, _ePosXY, _rgba);
+	m_pUiRenderer->DrawLine(_sPosXY, _ePosXY, _rgba);
 }
 
 void DearsGraphicsEngine::UIDrawCir(Vector2 _posXY, float _radius, Vector4 _rgba)
 {
-	m_pDearsImGui->UIDrawCircle(_posXY, _radius, _rgba);
+	m_pUiRenderer->DrawCircle(_posXY, _radius, _rgba);
 }
 
 void DearsGraphicsEngine::RenderImGui()
 {
-	m_pDearsImGui->UICanvasSetFin();
-	m_pDearsImGui->UIRender();
+	m_pUiRenderer->Render();
 }
 
 void DearsGraphicsEngine::EndRenderImGui()
 {
-	m_pDearsImGui->UIEndRender();
+	m_pUiRenderer->EndFrame();
 }
 
 void DearsGraphicsEngine::AddEditorPanel(IEditorPanel* panel)
 {
-	m_pDearsImGui->AddPanel(panel);
+	m_pUiRenderer->AddEditorPanel(panel);
 }
 
 void DearsGraphicsEngine::SetRenderViewportWidth(int viewportWidth)

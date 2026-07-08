@@ -68,6 +68,9 @@
     <ClCompile Include="PostProcessRenderer.cpp">
       <Filter>PostProcessRenderer</Filter>
     </ClCompile>
+    <ClCompile Include="UiRenderer.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="LayerEnum">
@@ -271,6 +274,9 @@
     </ClInclude>
     <ClInclude Include="PostProcessRenderer.h">
       <Filter>PostProcessRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="UiRenderer.h">
+      <Filter>ImGui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
