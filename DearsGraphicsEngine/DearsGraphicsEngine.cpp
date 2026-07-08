@@ -5,6 +5,7 @@
 #include "DebugRenderer.h"
 #include "GraphicsCommon.h"
 #include "MeshRenderer.h"
+#include "PostProcessRenderer.h"
 
 
 DearsGraphicsEngine::DearsGraphicsEngine(HWND _hWnd, int screenWidth, int screenHeight)
@@ -69,10 +70,9 @@ void DearsGraphicsEngine::Initialize()
 	m_pParticleManager->SetVertexBufferAndIndexBuffer(m_pResourceManager->Get_VertexBuffer("BillBoardSquare"), 
 														m_pResourceManager->Get_IndexBuffer("BillBoardSquare"),
 														m_pResourceManager->Get_NumIndex("BillBoardSquare"));
-	PostProcessingBuffer = std::make_unique<ModelBuffer>();
-	PostProcessingBuffer->m_pVertexBuffer = Get_VertexBuffer("BillBoardSquare");
-	PostProcessingBuffer->m_pIndexBuffer = Get_IndexBuffer("BillBoardSquare");
-	PostProcessingBuffer->mNumIndices = Get_NumIndex("BillBoardSquare");
+
+	m_pPostProcessRenderer = std::make_unique<PostProcessRenderer>(this);
+	m_pPostProcessRenderer->Initialize();
 }
 
 void DearsGraphicsEngine::Update()
@@ -110,14 +110,7 @@ void DearsGraphicsEngine::RendParticle()
 
 void DearsGraphicsEngine::RendPostProcessing()
 {
-	mpRenderer->SetPipelineState(Dears::Graphics::samplerPSO);
-	for (int i = 0; i < 10; i++)
-	{
-	mpRenderer->RenderSampler(PostProcessingBuffer.get());
-
-	mpRenderer->SetPipelineState(Dears::Graphics::postEffectPSO);
-	mpRenderer->RenderPostProcessing(PostProcessingBuffer.get());
-	}
+	m_pPostProcessRenderer->Render();
 }
 
 int DearsGraphicsEngine::GetScreenWidth() const

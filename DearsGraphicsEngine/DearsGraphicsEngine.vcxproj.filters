@@ -62,6 +62,9 @@
     <ClCompile Include="MeshRenderer.cpp">
       <Filter>MeshRenderer</Filter>
     </ClCompile>
+    <ClCompile Include="PostProcessRenderer.cpp">
+      <Filter>PostProcessRenderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="LayerEnum">
@@ -178,6 +181,9 @@
     <Filter Include="MeshRenderer">
       <UniqueIdentifier>{167416e2-f940-43e7-a961-f1a922d1c546}</UniqueIdentifier>
     </Filter>
+    <Filter Include="PostProcessRenderer">
+      <UniqueIdentifier>{d9396c83-0374-4d43-b1c8-49afa6d31d53}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="그래픽스 관련.txt" />
@@ -256,6 +262,9 @@
     </ClInclude>
     <ClInclude Include="MeshRenderer.h">
       <Filter>MeshRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="PostProcessRenderer.h">
+      <Filter>PostProcessRenderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

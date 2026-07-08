@@ -19,6 +19,7 @@ using DirectX::SimpleMath::Quaternion;
 
 class DebugRenderer;
 class MeshRenderer;
+class PostProcessRenderer;
 
 class DearsGraphicsEngine
 {
@@ -45,6 +46,7 @@ public:
 	std::unique_ptr<ParticleManager> m_pParticleManager;
 	std::unique_ptr<DebugRenderer> m_pDebugRenderer;
 	std::unique_ptr<MeshRenderer> m_pMeshRenderer;
+	std::unique_ptr<PostProcessRenderer> m_pPostProcessRenderer;
 
 	// 鍮꾩냼??- ?몃??먯꽌 SetCamera()濡?二쇱엯諛쏆쓬
 	Camera* m_pTargetCamera;
@@ -177,9 +179,6 @@ public:
 	void Rend_CubeMap(ModelBuffer* _modelBuffer);
 	//占쏙옙占쏙옙占쏙옙占쏙옙 占십울옙占쏙옙 카占쌨띰옙 占쏙옙占쏙옙占싼댐옙.
 	void SetCamera(Camera* _pTargetCamera);
-
-	std::unique_ptr<ModelBuffer> PostProcessingBuffer;
-
 
 	VSConstantBufferData m_VSConstantBufferData;
 	PSConstantBufferData m_PSConstantBufferData;
