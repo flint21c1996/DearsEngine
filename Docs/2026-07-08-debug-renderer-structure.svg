@@ -1,0 +1,87 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#334155" />
+    </marker>
+    <style>
+      .title { font: 700 34px "Malgun Gothic", "Segoe UI", sans-serif; fill: #111827; }
+      .subtitle { font: 400 17px "Malgun Gothic", "Segoe UI", sans-serif; fill: #475569; }
+      .box-title { font: 700 22px "Malgun Gothic", "Segoe UI", sans-serif; fill: #111827; }
+      .box-body { font: 400 15px "Malgun Gothic", "Segoe UI", sans-serif; fill: #334155; }
+      .note-title { font: 700 18px "Malgun Gothic", "Segoe UI", sans-serif; fill: #0f172a; }
+      .note-body { font: 400 15px "Malgun Gothic", "Segoe UI", sans-serif; fill: #334155; }
+      .line { stroke: #334155; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+      .thin-line { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .outer { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 2; rx: 12; }
+      .game { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; rx: 10; }
+      .engine { fill: #dcfce7; stroke: #16a34a; stroke-width: 2; rx: 10; }
+      .debug { fill: #fef3c7; stroke: #d97706; stroke-width: 2; rx: 10; }
+      .backend { fill: #f3e8ff; stroke: #9333ea; stroke-width: 2; rx: 10; }
+      .resource { fill: #e0f2fe; stroke: #0284c7; stroke-width: 2; rx: 10; }
+      .note { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; rx: 10; }
+      .label { font: 600 14px "Malgun Gothic", "Segoe UI", sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="760" fill="#ffffff" />
+  <text x="64" y="64" class="title">DebugRenderer 분리 후 현재 렌더 구조</text>
+  <text x="64" y="96" class="subtitle">외부 호출 이름은 유지하고, 디버그 도형 렌더링 책임만 별도 클래스로 이동한 상태</text>
+
+  <rect x="56" y="132" width="1168" height="390" class="outer" />
+
+  <rect x="104" y="206" width="210" height="112" class="game" />
+  <text x="134" y="248" class="box-title">GameEngine</text>
+  <text x="134" y="278" class="box-body">디버그 도형을 요청</text>
+  <text x="134" y="302" class="box-body">기존 호출부 유지</text>
+
+  <rect x="404" y="206" width="250" height="112" class="engine" />
+  <text x="434" y="248" class="box-title">DearsGraphicsEngine</text>
+  <text x="434" y="278" class="box-body">Rend_Debug... API 유지</text>
+  <text x="434" y="302" class="box-body">실제 처리는 위임</text>
+
+  <rect x="744" y="186" width="250" height="152" class="debug" />
+  <text x="774" y="228" class="box-title">DebugRenderer</text>
+  <text x="774" y="258" class="box-body">디버그 모델 등록</text>
+  <text x="774" y="282" class="box-body">ModelBuffer 소유</text>
+  <text x="774" y="306" class="box-body">world matrix 계산</text>
+  <text x="774" y="330" class="box-body">DebugGeometryPSO 선택</text>
+
+  <rect x="836" y="402" width="230" height="76" class="resource" />
+  <text x="862" y="446" class="box-title">ResourceManager</text>
+  <text x="862" y="470" class="box-body">Vertex / Index Buffer 제공</text>
+
+  <rect x="1052" y="206" width="134" height="112" class="backend" />
+  <text x="1082" y="248" class="box-title">Renderer</text>
+  <text x="1082" y="278" class="box-body">DX11 draw call</text>
+  <text x="1082" y="302" class="box-body">실제 렌더링</text>
+
+  <path d="M314 262 L404 262" class="line" />
+  <text x="328" y="242" class="label">Rend_DebugSphere()</text>
+
+  <path d="M654 262 L744 262" class="line" />
+  <text x="664" y="242" class="label">RenderSphere()</text>
+
+  <path d="M869 338 L930 402" class="thin-line" />
+  <text x="898" y="370" class="label">버퍼 조회</text>
+
+  <path d="M994 262 L1052 262" class="line" />
+  <text x="994" y="242" class="label">Render()</text>
+
+  <rect x="104" y="564" width="334" height="124" class="note" />
+  <text x="132" y="602" class="note-title">초기화</text>
+  <text x="132" y="632" class="note-body">DearsGraphicsEngine::Initialize()</text>
+  <text x="132" y="656" class="note-body">→ DebugRenderer 생성</text>
+  <text x="132" y="680" class="note-body">→ Debug_Box / Sphere / Capsule 등록</text>
+
+  <rect x="474" y="564" width="334" height="124" class="note" />
+  <text x="502" y="602" class="note-title">렌더 호출</text>
+  <text x="502" y="632" class="note-body">GameEngine은 예전처럼 호출</text>
+  <text x="502" y="656" class="note-body">DearsGraphicsEngine은 DebugRenderer로 위임</text>
+  <text x="502" y="680" class="note-body">DebugRenderer가 버퍼와 행렬을 준비</text>
+
+  <rect x="844" y="564" width="334" height="124" class="note" />
+  <text x="872" y="602" class="note-title">RHI 준비 의미</text>
+  <text x="872" y="632" class="note-body">아직은 DX11 기반 Renderer를 사용</text>
+  <text x="872" y="656" class="note-body">하지만 디버그 렌더 책임이 작아짐</text>
+  <text x="872" y="680" class="note-body">나중에 IRHI로 교체하기 쉬워짐</text>
+</svg>

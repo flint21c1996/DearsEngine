@@ -2,6 +2,7 @@
 #incldue<iostream>
 #endif
 #include "DearsGraphicsEngine.h"
+#include "DebugRenderer.h"
 #include "GraphicsCommon.h"
 
 
@@ -39,13 +40,8 @@ void DearsGraphicsEngine::Initialize()
 
 	mpLightHelper = std::make_unique<LightHelper>();
 
-	Debug_ModelBuffer = std::make_unique<ModelBuffer>();
-	AddModel("../TestAsset/", "Debug_Box.fbx");
-	AddModel("../TestAsset/", "Debug_Capsule.fbx");
-	AddModel("../TestAsset/", "Debug_Sphere.fbx");
-
- 	VSConstantBufferData temp;
- 	Debug_ModelBuffer->m_pVSConstantBuffer = CreateConstantBuffer(temp);
+	m_pDebugRenderer = std::make_unique<DebugRenderer>(this);
+	m_pDebugRenderer->Initialize();
 
 	Dears::Graphics::InitCommonStates(m_pDevice);
 
@@ -533,97 +529,32 @@ void DearsGraphicsEngine::Rend_BillBoard(ModelBuffer* _modelbuffers)
 
 void DearsGraphicsEngine::Rend_DebugBox(Vector3 _size, Vector3 _rotation, Vector3 _transpose)
 {
-	SetPipelineState(Dears::Graphics::DebugGeometryPSO);
-	Debug_ModelBuffer->m_pVertexBuffer = Get_VertexBuffer("Box");
-	Debug_ModelBuffer->m_pIndexBuffer = Get_IndexBuffer("Box");
-	Debug_ModelBuffer->mNumIndices = Get_NumIndex("Box");
-	VSConstantBufferData temp;
-	temp.world = (Matrix::CreateScale(_size) * Matrix::CreateRotationX(_rotation.x) * Matrix::CreateRotationY(_rotation.y) *
-		Matrix::CreateRotationZ(_rotation.z) * Matrix::CreateTranslation(_transpose)).Transpose();
-	UpdateConstantBuffer(Debug_ModelBuffer.get(), temp);
-	mpRenderer->Render(Debug_ModelBuffer.get());
-
+	m_pDebugRenderer->RenderBox(_size, _rotation, _transpose);
 }
 
 void DearsGraphicsEngine::Rend_DebugBox(Matrix _size, Matrix _rotation, Matrix _transpose)
 {
-	SetPipelineState(Dears::Graphics::DebugGeometryPSO);
-	Debug_ModelBuffer->m_pVertexBuffer = Get_VertexBuffer("Box");
-	Debug_ModelBuffer->m_pIndexBuffer = Get_IndexBuffer("Box");
-	Debug_ModelBuffer->mNumIndices = Get_NumIndex("Box");
-
-	VSConstantBufferData temp;
- 	temp.world = (_size * _rotation * _transpose).Transpose();
-
-	UpdateConstantBuffer(Debug_ModelBuffer.get(), temp);
-
-	mpRenderer->Render(Debug_ModelBuffer.get());
+	m_pDebugRenderer->RenderBox(_size, _rotation, _transpose);
 }
 
 void DearsGraphicsEngine::Rend_DebugBox(Matrix _size, Matrix _rotation, Matrix _transpose, Matrix _tempMatrix = Matrix())
 {
-	SetPipelineState(Dears::Graphics::DebugGeometryPSO);
-	Debug_ModelBuffer->m_pVertexBuffer = Get_VertexBuffer("Box");
-	Debug_ModelBuffer->m_pIndexBuffer = Get_IndexBuffer("Box");
-	Debug_ModelBuffer->mNumIndices = Get_NumIndex("Box");
-	VSConstantBufferData temp;
-	temp.world = _size * _rotation * _transpose* _tempMatrix;
-	temp.world = temp.world.Transpose();
-	
-	UpdateConstantBuffer(Debug_ModelBuffer.get(), temp);
-
-	mpRenderer->Render(Debug_ModelBuffer.get());
+	m_pDebugRenderer->RenderBox(_size, _rotation, _transpose, _tempMatrix);
 }
 
 void DearsGraphicsEngine::Rend_DebugBox(AABB& _AABB, Matrix Scale, Matrix _rotation, Matrix _tempMatrix )
 {
-	Vector3 _tempSize = { _AABB.mMax.x - _AABB.mMin.x,
-		_AABB.mMax.y - _AABB.mMin.y,
-		_AABB.mMax.z - _AABB.mMin.z,
-	};
-	Matrix tempSizeMatrix = Matrix::CreateScale(_tempSize);
-	tempSizeMatrix *= Scale;
-
- 	Vector3	centerAABB = {
- 	(_AABB.mMax.x + _AABB.mMin.x) / 2.0f,
- 	(_AABB.mMax.y + _AABB.mMin.y) / 2.0f,
- 	(_AABB.mMax.z + _AABB.mMin.z) / 2.0f
- 	};
-	//centerAABB *= Scale;
-	Matrix tempTranslationMatrix = Matrix::CreateTranslation(centerAABB);
-	Rend_DebugBox(tempSizeMatrix, _rotation, tempTranslationMatrix, _tempMatrix);
+	m_pDebugRenderer->RenderBox(_AABB, Scale, _rotation, _tempMatrix);
 }
 
 void DearsGraphicsEngine::Rend_DebugSphere(Vector3 _size, Vector3 _rotation, Vector3 _transpose)
 {
-	SetPipelineState(Dears::Graphics::DebugGeometryPSO);
-	Debug_ModelBuffer->m_pVertexBuffer = Get_VertexBuffer("Sphere");
-	Debug_ModelBuffer->m_pIndexBuffer = Get_IndexBuffer("Sphere");
-	Debug_ModelBuffer->mNumIndices = Get_NumIndex("Sphere");
-
-	VSConstantBufferData temp;
-	temp.world = (Matrix::CreateScale(_size) * Matrix::CreateRotationX(_rotation.x) * Matrix::CreateRotationY(_rotation.y) *
-		Matrix::CreateRotationZ(_rotation.z) * Matrix::CreateTranslation(_transpose)).Transpose();
-
-	UpdateConstantBuffer(Debug_ModelBuffer.get(), temp);
-
-	mpRenderer->Render(Debug_ModelBuffer.get());
+	m_pDebugRenderer->RenderSphere(_size, _rotation, _transpose);
 }
 
 void DearsGraphicsEngine::Rend_DebugCapsule(Vector3 _size, Vector3 _rotation, Vector3 _transpose)
 {
-	SetPipelineState(Dears::Graphics::DebugGeometryPSO);
-	Debug_ModelBuffer->m_pVertexBuffer = Get_VertexBuffer("Capsule");
-	Debug_ModelBuffer->m_pIndexBuffer = Get_IndexBuffer("Capsule");
-	Debug_ModelBuffer->mNumIndices = Get_NumIndex("Capsule");
-
-	VSConstantBufferData temp;
-	temp.world = (Matrix::CreateScale(_size) * Matrix::CreateRotationX(_rotation.x) * Matrix::CreateRotationY(_rotation.y) *
-		Matrix::CreateRotationZ(_rotation.z) * Matrix::CreateTranslation(_transpose)).Transpose();
-
-	UpdateConstantBuffer(Debug_ModelBuffer.get(), temp);
-
-	mpRenderer->Render(Debug_ModelBuffer.get());
+	m_pDebugRenderer->RenderCapsule(_size, _rotation, _transpose);
 }
 
 void DearsGraphicsEngine::Rend_CubeMap(ModelBuffer* _modelBuffer)

@@ -17,6 +17,8 @@ using DirectX::SimpleMath::Vector3;
 using DirectX::SimpleMath::Vector4;
 using DirectX::SimpleMath::Quaternion;
 
+class DebugRenderer;
+
 class DearsGraphicsEngine
 {
 public:
@@ -40,6 +42,7 @@ public:
 	std::unique_ptr<AnimationHelper> mpAnimationHelper;
 	std::unique_ptr<LightHelper> mpLightHelper;
 	std::unique_ptr<ParticleManager> m_pParticleManager;
+	std::unique_ptr<DebugRenderer> m_pDebugRenderer;
 
 	// 鍮꾩냼??- ?몃??먯꽌 SetCamera()濡?二쇱엯諛쏆쓬
 	Camera* m_pTargetCamera;
@@ -173,7 +176,6 @@ public:
 	//占쏙옙占쏙옙占쏙옙占쏙옙 占십울옙占쏙옙 카占쌨띰옙 占쏙옙占쏙옙占싼댐옙.
 	void SetCamera(Camera* _pTargetCamera);
 
-	std::unique_ptr<ModelBuffer> Debug_ModelBuffer;
 	std::unique_ptr<ModelBuffer> PostProcessingBuffer;
 
 

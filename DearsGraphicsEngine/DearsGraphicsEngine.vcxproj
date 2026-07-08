@@ -139,6 +139,7 @@
   <ItemGroup>
     <ClCompile Include="AnimationHelper.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="DebugRenderer.cpp" />
     <ClCompile Include="DearsGraphicsEngine.cpp" />
     <ClCompile Include="FBXLoader.cpp" />
     <ClCompile Include="FBXLoadHelper.cpp">
@@ -169,6 +170,7 @@
     <ClInclude Include="BufferEnum.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CubeMapInfo.h" />
+    <ClInclude Include="DebugRenderer.h" />
     <ClInclude Include="DearsGraphicsEngine.h" />
     <ClInclude Include="FBXLoader.h" />
     <ClInclude Include="FBXLoadHelper.h" />

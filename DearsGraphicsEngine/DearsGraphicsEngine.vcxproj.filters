@@ -5,6 +5,9 @@
       <Filter>GraphicsModule\PipelineStateModule</Filter>
     </ClCompile>
     <ClCompile Include="DearsGraphicsEngine.cpp" />
+    <ClCompile Include="DebugRenderer.cpp">
+      <Filter>DebugRenderer</Filter>
+    </ClCompile>
     <ClCompile Include="Renderer.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
@@ -166,6 +169,9 @@
     <Filter Include="shader\ThinFilmShader">
       <UniqueIdentifier>{aebe6c6b-1c2c-42ee-a245-7c94c3fa7316}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DebugRenderer">
+      <UniqueIdentifier>{b16aa197-749a-4e21-9c6d-f0a848b14a6e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="그래픽스 관련.txt" />
@@ -173,6 +179,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearsGraphicsEngine.h" />
+    <ClInclude Include="DebugRenderer.h">
+      <Filter>DebugRenderer</Filter>
+    </ClInclude>
     <ClInclude Include="LayerEnum.h">
       <Filter>LayerEnum</Filter>
     </ClInclude>
