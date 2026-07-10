@@ -95,31 +95,17 @@ float4 main(PixelShaderInput input) : SV_TARGET0
     
     
     
-   float4 diffuse = g_diffuseCube.Sample(linearWrapSampler, input.normal);
-   float4 specular = g_specularCube.Sample(linearClampSampler, reflect(-toEye, input.normal));
-   //float4 specular = g_specularCube.Sample(linearWrapSampler, reflect(-toEye, input.normal));
-    
-   diffuse *= float4(material.diffuse, 1.0); //RGB채널끼리 다르게 할 수도 있다.
- 
-   //다양한 재질의 반사 특성을 더 현실적으로 표현하기위해
-   specular *= pow((specular.x + specular.y + specular.z) / 3.0, material.shininess);
-   specular *= float4(material.specular, 1.0);
-    
-   float3 f = SchlickFresnel(material.fresnel, input.normal, toEye);
-   specular.xyz *= f;
+   // 기본 PixelShader는 StaticMesh/SkinnedMesh 같은 일반 렌더 경로에서 사용한다.
+   // 예전 코드에서는 여기서도 g_diffuseCube/g_specularCube를 샘플링했기 때문에,
+   // 1/2/3으로 IBL 큐브맵을 바꾸면 PBR이 아닌 오브젝트 색감까지 같이 바뀌었다.
+   //
+   // IBL은 PBRPixelShader/ThinFilmPixelShader처럼 환경광을 의도한 셰이더에서만 처리하고,
+   // 일반 렌더는 직접광 + diffuse texture 기준으로 둔다.
+   float4 baseTexture = g_texture0.Sample(linearWrapSampler, input.texcoord);
+   float3 directLight = color * baseTexture.rgb;
+   float3 ambient = material.ambient * material.diffuse * baseTexture.rgb;
 
-
-   //if (useTexture) /후에 추가할 것.
-   diffuse *= g_texture0.Sample(linearWrapSampler, input.texcoord);
-   //specular *= float4(1.0,1.0,1.0,1.0);  /후에 specular texture가 있을경우
-    
-   //고전 IBL - 조명 연산은 안들어가 있다.
-   //return (diffuse + specular) * shadowFactor;
-   //return (input.normal, 1);
-    
-   ///이쁘게 보이게 하기위해 노력한 값.
-   //float4 finalcolor = diffuse+ specular;
-   float4 finalcolor = (color, 0) + (diffuse + specular);
+   float4 finalcolor = float4(ambient + directLight, baseTexture.a);
    finalcolor.xyz *= shadowFactor;
    return finalcolor;
 
@@ -159,3 +145,4 @@ float4 main(PixelShaderInput input) : SV_TARGET0
 //     // 깊이 값을 그레이스케일로 변환 (0.0 ~ 1.0)
 //     return float4(depthValue, depthValue, depthValue, 1.0f); // RGB에 동일한 값을 넣어 그레이스케일로 출력
 // }
+

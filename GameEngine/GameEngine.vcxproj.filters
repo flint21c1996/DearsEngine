@@ -56,6 +56,9 @@
     <ClInclude Include="PickingPanel.h">
       <Filter>GameEngine</Filter>
     </ClInclude>
+    <ClInclude Include="EditorResourceCatalog.h">
+      <Filter>GameEngine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameEngine.cpp">

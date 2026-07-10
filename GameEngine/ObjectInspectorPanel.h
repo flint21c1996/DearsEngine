@@ -1,8 +1,11 @@
 ﻿#pragma once
 #include <imgui.h>
+#include <functional>
 #include <vector>
 #include <memory>
 #include <string>
+#include "DearsGraphicsEngine.h"
+#include "EditorResourceCatalog.h"
 #include "IEditorPanel.h"
 #include "RenderObject.h"
 #include "SceneHierarchyPanel.h"
@@ -13,10 +16,14 @@ class ObjectInspectorPanel : public IEditorPanel
 {
 public:
 	ObjectInspectorPanel(
+		DearsGraphicsEngine* graphicsEngine,
 		std::vector<std::unique_ptr<RenderObject>>& objects,
-		int& selectedIndex)
-		: m_objects(objects)
+		int& selectedIndex,
+		std::function<void()> objectEditedCallback = nullptr)
+		: m_pGraphicsEngine(graphicsEngine)
+		, m_objects(objects)
 		, m_selectedIndex(selectedIndex)
+		, m_objectEditedCallback(objectEditedCallback)
 	{}
 
 	const char* GetName() const override { return "Inspector"; }
@@ -56,11 +63,36 @@ public:
 		{
 			float pos[3] = { obj->ObjectPos._41, obj->ObjectPos._42, obj->ObjectPos._43 };
 			if (ImGui::DragFloat3("Position", pos, 0.1f))
+			{
 				obj->ObjectPos = Matrix::CreateTranslation(pos[0], pos[1], pos[2]);
+				NotifyObjectEdited();
+			}
 
 			float scl[3] = { obj->ObjectScl._11, obj->ObjectScl._22, obj->ObjectScl._33 };
 			if (ImGui::DragFloat3("Scale", scl, 0.01f, 0.001f, 1000.0f))
+			{
 				obj->ObjectScl = Matrix::CreateScale(scl[0], scl[1], scl[2]);
+				NotifyObjectEdited();
+			}
+		}
+
+		ImGui::Spacing();
+
+		// --- Resources ---
+		if (ImGui::CollapsingHeader("Resources", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			DrawTextRow("Vertex Buffer", obj->mEditorVertexBufferName);
+			DrawTextRow("Picking FBX", obj->mEditorModelName.empty() ? obj->mEditorVertexBufferName : obj->mEditorModelName);
+
+			if (!obj->mEditorDiffuseTextureName.empty())
+			{
+				DrawTextureRow("Diffuse", obj->mEditorDiffuseTextureName);
+			}
+
+			if (!obj->mEditorAnimationName.empty())
+			{
+				DrawTextRow("Animation", obj->mEditorAnimationName);
+			}
 		}
 
 		ImGui::Spacing();
@@ -68,8 +100,15 @@ public:
 		// --- PBR Material ---
 		if (obj->mIs_VSPBRConstant || obj->mIs_PSPBRConstant)
 		{
-			if (ImGui::CollapsingHeader("PBR Material"))
+			if (ImGui::CollapsingHeader("PBR Material", ImGuiTreeNodeFlags_DefaultOpen))
 			{
+				DrawTextureRow("Albedo", obj->mEditorPbrAlbedoTextureName);
+				DrawTextureRow("Normal", obj->mEditorPbrNormalTextureName);
+				DrawTextureRow("AO", obj->mEditorPbrAOTextureName);
+				DrawTextureRow("Metallic", obj->mEditorPbrMetallicTextureName);
+				DrawTextureRow("Roughness", obj->mEditorPbrRoughnessTextureName);
+				DrawTextureRow("Height", obj->mEditorPbrHeightTextureName);
+				ImGui::Separator();
 				ImGui::SliderFloat("Metallic",    &obj->mPSPBRConstantBufferData.material.metallic,  0.0f, 1.0f);
 				ImGui::SliderFloat("Roughness",   &obj->mPSPBRConstantBufferData.material.roughness, 0.0f, 1.0f);
 				ImGui::SliderFloat("Height Scale",&obj->mVSPBRConstantBufferData.heightScale, 0.0f, 0.1f);
@@ -99,6 +138,46 @@ public:
 	}
 
 private:
+	void DrawTextRow(const char* label, const std::string& value)
+	{
+		ImGui::TextDisabled("%s", label);
+		ImGui::SameLine(90.0f);
+		ImGui::TextUnformatted(value.empty() ? "None" : value.c_str());
+	}
+
+	void DrawTextureRow(const char* label, const std::string& textureName)
+	{
+		ImGui::TextDisabled("%s", label);
+		ImGui::SameLine(90.0f);
+
+		if (!m_pGraphicsEngine || textureName.empty())
+		{
+			ImGui::TextDisabled("None");
+			return;
+		}
+
+		auto srv = m_pGraphicsEngine->Get_Textures(textureName);
+		if (!srv)
+		{
+			ImGui::TextDisabled("%s (missing)", textureName.c_str());
+			return;
+		}
+
+		ImGui::Image(static_cast<ImTextureID>(srv.Get()), ImVec2(28.0f, 28.0f));
+		ImGui::SameLine();
+		ImGui::TextUnformatted(textureName.c_str());
+	}
+
+	void NotifyObjectEdited()
+	{
+		if (m_objectEditedCallback)
+		{
+			m_objectEditedCallback();
+		}
+	}
+
+	DearsGraphicsEngine* m_pGraphicsEngine = nullptr;
 	std::vector<std::unique_ptr<RenderObject>>& m_objects;
 	int& m_selectedIndex;
+	std::function<void()> m_objectEditedCallback;
 };

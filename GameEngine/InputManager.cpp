@@ -49,7 +49,8 @@ void InputManager::Initialize()
 		'Z','X','C','V','B', 'N', 'M',
 		'1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
 		VK_MENU, VK_CONTROL, VK_SPACE, VK_RETURN, VK_ESCAPE,
-		VK_LSHIFT, VK_RSHIFT, VK_LBUTTON, VK_RBUTTON, VK_TAB
+		VK_LSHIFT, VK_RSHIFT, VK_LBUTTON, VK_RBUTTON, VK_TAB,
+		VK_DELETE
 	};
 
 	for (int i = 0; i < static_cast<int>(KEY::LAST); ++i)
@@ -161,3 +162,4 @@ Vector2 InputManager::GetMousePos()
 {
 	return m_currentMousePos;
 }
+

@@ -148,6 +148,7 @@
   <ItemGroup>
     <ClInclude Include="AStar.h" />
     <ClInclude Include="DemoScene.h" />
+    <ClInclude Include="EditorResourceCatalog.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="EntityManager.h" />
     <ClInclude Include="GameEngine.h" />

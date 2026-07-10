@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <memory>
+#include <string>
 #include "DearsGraphicsEngine.h"
 struct ModelBuffer;
 struct VSConstantBufferData;
@@ -86,6 +87,20 @@ public:
 	Matrix ObjectPos;
 	Matrix ObjectRot;
 	Matrix ObjectScl;
+
+	// 에디터에서 어떤 리소스를 골라 이 오브젝트를 만들었는지 기록한다.
+	// 렌더링에는 ModelBuffer의 실제 포인터/SRV가 쓰이지만,
+	// Inspector는 사람이 읽을 수 있는 리소스 이름도 필요하다.
+	std::string mEditorVertexBufferName;
+	std::string mEditorModelName;
+	std::string mEditorDiffuseTextureName;
+	std::string mEditorAnimationName;
+	std::string mEditorPbrAlbedoTextureName;
+	std::string mEditorPbrNormalTextureName;
+	std::string mEditorPbrAOTextureName;
+	std::string mEditorPbrMetallicTextureName;
+	std::string mEditorPbrRoughnessTextureName;
+	std::string mEditorPbrHeightTextureName;
 
 public:
 	

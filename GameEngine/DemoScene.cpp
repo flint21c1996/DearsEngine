@@ -6,6 +6,9 @@
 
 #include <imgui.h>
 #include <algorithm>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 
 namespace
 {
@@ -17,6 +20,60 @@ constexpr size_t FloorIndex = 4;
 constexpr size_t WaterIndex = 5;
 constexpr size_t TerrainIndex = 6;
 constexpr size_t CubeMapIndex = 7;
+constexpr const char* SavedScenePath = "../SavedScene.txt";
+
+std::string ToString(SceneRenderType renderType)
+{
+	switch (renderType)
+	{
+	case SceneRenderType::SkinnedMesh:
+		return "SkinnedMesh";
+	case SceneRenderType::EquipmentMesh:
+		return "EquipmentMesh";
+	case SceneRenderType::CubeMap:
+		return "CubeMap";
+	case SceneRenderType::Billboard:
+		return "Billboard";
+	case SceneRenderType::PbrMesh:
+		return "PbrMesh";
+	case SceneRenderType::StaticMesh:
+	default:
+		return "StaticMesh";
+	}
+}
+
+SceneRenderType ParseSceneRenderType(const std::string& value)
+{
+	if (value == "SkinnedMesh") return SceneRenderType::SkinnedMesh;
+	if (value == "EquipmentMesh") return SceneRenderType::EquipmentMesh;
+	if (value == "CubeMap") return SceneRenderType::CubeMap;
+	if (value == "Billboard") return SceneRenderType::Billboard;
+	if (value == "PbrMesh") return SceneRenderType::PbrMesh;
+	return SceneRenderType::StaticMesh;
+}
+
+void WriteMatrix(std::ostream& stream, const Matrix& matrix)
+{
+	const float* values = &matrix._11;
+	for (int index = 0; index < 16; ++index)
+	{
+		stream << values[index] << ' ';
+	}
+}
+
+bool ReadMatrix(std::istream& stream, Matrix& matrix)
+{
+	float* values = &matrix._11;
+	for (int index = 0; index < 16; ++index)
+	{
+		if (!(stream >> values[index]))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
 
 std::string MakeUniqueObjectName(const std::vector<std::string>& objectNames, const std::string& requestedName)
 {
@@ -57,6 +114,7 @@ void DemoScene::Initialize()
 	// Engine-wide systems such as the renderer or cameras stay in GameEngine.
 	CreateSceneObjects();
 	CreateRenderItems();
+	LoadSceneFromFile();
 }
 
 void DemoScene::RegisterEditorPanels(int screenWidth)
@@ -67,6 +125,7 @@ void DemoScene::RegisterEditorPanels(int screenWidth)
 	// a stable 5:1 proportion against the editor lane.
 	m_selectedObjectIndex = -1;
 	m_pScenePanel = std::make_unique<SceneHierarchyPanel>(
+		m_pGraphicsEngine,
 		m_objects,
 		m_objectNames,
 		m_selectedObjectIndex,
@@ -75,7 +134,14 @@ void DemoScene::RegisterEditorPanels(int screenWidth)
 			CreateObjectFromDesc(desc);
 		});
 
-	m_pInspectorPanel = std::make_unique<ObjectInspectorPanel>(m_objects, m_selectedObjectIndex);
+	m_pInspectorPanel = std::make_unique<ObjectInspectorPanel>(
+		m_pGraphicsEngine,
+		m_objects,
+		m_selectedObjectIndex,
+		[this]()
+		{
+			HandleSceneObjectEdited();
+		});
 	m_pPickingPanel = std::make_unique<PickingPanel>(m_pickingManager);
 	m_pGraphicsEngine->AddEditorPanel(m_pScenePanel.get());
 	m_pGraphicsEngine->AddEditorPanel(m_pPickingPanel.get());
@@ -155,6 +221,15 @@ void DemoScene::HandlePickingInput(InputManager& inputManager, Camera* camera)
 	// ImGui가 마우스를 사용 중일 때는 피킹하지 않는다.
 	// 예를 들어 Inspector의 DragFloat를 누른 상태에서 씬 선택이 같이 바뀌면
 	// 에디터 조작이 굉장히 불편해지기 때문이다.
+	// Delete는 현재 선택된 씬 오브젝트를 제거하는 에디터 명령이다.
+	// ImGui 텍스트 입력/콤보 조작 중에는 키보드를 UI가 사용하므로 삭제하지 않는다.
+	if (!ImGui::GetIO().WantCaptureKeyboard &&
+		inputManager.GetKeyState(KEY::DELETE_KEY) == KEY_STATE::TAP)
+	{
+		DeleteSelectedObject();
+		return;
+	}
+
 	if (ImGui::GetIO().WantCaptureMouse)
 	{
 		return;
@@ -341,6 +416,9 @@ void DemoScene::CreateSceneObjects()
 	// - 오브젝트가 추가될 때 main/shadow render item도 함께 등록한다.
 	m_objects.clear();
 	m_objectNames.clear();
+	m_objectCreateDescs.clear();
+	m_shadowRenderItems.clear();
+	m_mainRenderItems.clear();
 
 #if 0
 	m_objects.push_back(std::make_unique<RenderObject>(m_pGraphicsEngine));
@@ -444,6 +522,16 @@ void DemoScene::CreateSceneObjects()
 
 void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc)
 {
+	CreateObjectFromDesc(
+		desc,
+		Matrix::CreateTranslation({ 0.0f, 0.0f, 0.0f }),
+		Matrix(),
+		Matrix::CreateScale(1.0f),
+		true);
+}
+
+void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix position, Matrix rotation, Matrix scale, bool saveScene)
+{
 	// Add Object에서 입력한 설정을 실제 RenderObject 초기화로 바꾸는 지점이다.
 	//
 	// 예전 DemoScene은 C++ 코드에 "캐릭터는 0번, 무기는 1번"처럼 고정되어 있었다.
@@ -469,7 +557,7 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc)
 	{
 		// 피킹은 GPU vertex buffer가 아니라 CPU에 남아있는 ModelInfo의 AABB/triangle을 사용한다.
 		// FBX를 선택한 경우에는 파일명으로 ModelInfo를 찾고,
-		// 기본 도형처럼 Model FBX가 None인 경우에는 Vertex Buffer 이름으로 만들어 둔 ModelInfo를 사용한다.
+		// 기본 도형처럼 Picking FBX가 None인 경우에는 Vertex Buffer 이름으로 만들어 둔 ModelInfo를 사용한다.
 		object->SetModelInfo(modelInfoName);
 	}
 
@@ -494,12 +582,12 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc)
 		object->CreateVSPBRConstantBuffer();
 		object->CreatePSPBRConstantBuffer();
 		object->SetPBRTextures(
-			"albedo.png",
-			"normal.png",
-			"ao.png",
-			"metallic.png",
-			"roughness.png",
-			"height.png");
+			desc.pbrAlbedoTextureName,
+			desc.pbrNormalTextureName,
+			desc.pbrAOTextureName,
+			desc.pbrMetallicTextureName,
+			desc.pbrRoughnessTextureName,
+			desc.pbrHeightTextureName);
 		break;
 	case SceneRenderType::EquipmentMesh:
 		object->CreateVSConstantBuffer();
@@ -515,12 +603,17 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc)
 		break;
 	}
 
-	object->SetObjectScl(Matrix::CreateScale(1.0f));
-	object->SetObjectPos(Matrix::CreateTranslation({ 0.0f, 0.0f, 0.0f }));
+	object->SetObjectScl(scale);
+	object->SetObjectRot(rotation);
+	object->SetObjectPos(position);
 
 	RenderObject* rawObject = object.get();
 	m_objects.push_back(std::move(object));
-	m_objectNames.push_back(MakeUniqueObjectName(m_objectNames, desc.name));
+
+	SceneObjectCreateDesc storedDesc = desc;
+	storedDesc.name = MakeUniqueObjectName(m_objectNames, desc.name);
+	m_objectNames.push_back(storedDesc.name);
+	m_objectCreateDescs.push_back(storedDesc);
 
 	m_mainRenderItems.push_back({ rawObject, desc.renderType });
 
@@ -529,6 +622,11 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc)
 		desc.renderType != SceneRenderType::Billboard)
 	{
 		m_shadowRenderItems.push_back({ rawObject, desc.renderType });
+	}
+
+	if (saveScene)
+	{
+		SaveSceneToFile();
 	}
 }
 
@@ -557,4 +655,164 @@ void DemoScene::CreateRenderItems()
 	m_mainRenderItems.push_back({ GetBillboard(), SceneRenderType::Billboard });
 	m_mainRenderItems.push_back({ GetPbrSphere(), SceneRenderType::PbrMesh });
 #endif
+}
+
+void DemoScene::SaveSceneToFile() const
+{
+	std::ofstream file(SavedScenePath, std::ios::trunc);
+	if (!file.is_open())
+	{
+		return;
+	}
+
+	file << "DearsScene 1\n";
+	file << m_objects.size() << '\n';
+
+	for (size_t index = 0; index < m_objects.size(); ++index)
+	{
+		const RenderObject* object = m_objects[index].get();
+		if (!object || index >= m_objectCreateDescs.size())
+		{
+			continue;
+		}
+
+		const SceneObjectCreateDesc& desc = m_objectCreateDescs[index];
+		file << std::quoted(desc.name) << ' '
+			<< std::quoted(desc.vertexBufferName) << ' '
+			<< std::quoted(desc.modelName) << ' '
+			<< std::quoted(desc.textureName) << ' '
+			<< std::quoted(desc.animationName) << ' '
+			<< std::quoted(desc.pbrAlbedoTextureName) << ' '
+			<< std::quoted(desc.pbrNormalTextureName) << ' '
+			<< std::quoted(desc.pbrAOTextureName) << ' '
+			<< std::quoted(desc.pbrMetallicTextureName) << ' '
+			<< std::quoted(desc.pbrRoughnessTextureName) << ' '
+			<< std::quoted(desc.pbrHeightTextureName) << ' '
+			<< ToString(desc.renderType) << ' '
+			<< desc.castShadow << ' ';
+
+		WriteMatrix(file, object->ObjectPos);
+		WriteMatrix(file, object->ObjectRot);
+		WriteMatrix(file, object->ObjectScl);
+		file << '\n';
+	}
+}
+
+void DemoScene::LoadSceneFromFile()
+{
+	std::ifstream file(SavedScenePath);
+	if (!file.is_open())
+	{
+		return;
+	}
+
+	std::string magic;
+	int version = 0;
+	file >> magic >> version;
+	if (magic != "DearsScene" || version != 1)
+	{
+		return;
+	}
+
+	size_t objectCount = 0;
+	file >> objectCount;
+
+	for (size_t index = 0; index < objectCount; ++index)
+	{
+		SceneObjectCreateDesc desc;
+		std::string renderTypeName;
+		Matrix position;
+		Matrix rotation;
+		Matrix scale;
+
+		if (!(file >> std::quoted(desc.name)
+			>> std::quoted(desc.vertexBufferName)
+			>> std::quoted(desc.modelName)
+			>> std::quoted(desc.textureName)
+			>> std::quoted(desc.animationName)
+			>> std::quoted(desc.pbrAlbedoTextureName)
+			>> std::quoted(desc.pbrNormalTextureName)
+			>> std::quoted(desc.pbrAOTextureName)
+			>> std::quoted(desc.pbrMetallicTextureName)
+			>> std::quoted(desc.pbrRoughnessTextureName)
+			>> std::quoted(desc.pbrHeightTextureName)
+			>> renderTypeName
+			>> desc.castShadow))
+		{
+			return;
+		}
+
+		if (!ReadMatrix(file, position) || !ReadMatrix(file, rotation) || !ReadMatrix(file, scale))
+		{
+			return;
+		}
+
+		desc.renderType = ParseSceneRenderType(renderTypeName);
+		CreateObjectFromDesc(desc, position, rotation, scale, false);
+	}
+}
+
+void DemoScene::HandleSceneObjectEdited()
+{
+	SaveSceneToFile();
+}
+
+void DemoScene::DeleteSelectedObject()
+{
+	if (m_selectedObjectIndex < 0 ||
+		m_selectedObjectIndex >= static_cast<int>(m_objects.size()))
+	{
+		return;
+	}
+
+	const size_t eraseIndex = static_cast<size_t>(m_selectedObjectIndex);
+	RenderObject* eraseObject = m_objects[eraseIndex].get();
+
+	// 렌더 아이템은 RenderObject 포인터를 들고 있으므로,
+	// 실제 unique_ptr을 지우기 전에 같은 포인터를 가리키는 항목을 먼저 제거한다.
+	const auto removeRenderItem = [eraseObject](std::vector<SceneRenderItem>& items)
+		{
+			items.erase(
+				std::remove_if(
+					items.begin(),
+					items.end(),
+					[eraseObject](const SceneRenderItem& item)
+					{
+						return item.object == eraseObject;
+					}),
+				items.end());
+		};
+
+	removeRenderItem(m_mainRenderItems);
+	removeRenderItem(m_shadowRenderItems);
+
+	m_objects.erase(m_objects.begin() + eraseIndex);
+
+	if (eraseIndex < m_objectNames.size())
+	{
+		m_objectNames.erase(m_objectNames.begin() + eraseIndex);
+	}
+
+	if (eraseIndex < m_objectCreateDescs.size())
+	{
+		m_objectCreateDescs.erase(m_objectCreateDescs.begin() + eraseIndex);
+	}
+
+	// 삭제 뒤에는 같은 위치에 밀려온 다음 오브젝트를 선택한다.
+	// 마지막 오브젝트를 지운 경우에는 새 마지막 오브젝트를 선택하고,
+	// 씬이 비었다면 선택을 해제한다.
+	if (m_objects.empty())
+	{
+		m_selectedObjectIndex = -1;
+	}
+	else if (eraseIndex >= m_objects.size())
+	{
+		m_selectedObjectIndex = static_cast<int>(m_objects.size()) - 1;
+	}
+	else
+	{
+		m_selectedObjectIndex = static_cast<int>(eraseIndex);
+	}
+
+	SaveSceneToFile();
 }

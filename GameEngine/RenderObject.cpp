@@ -146,6 +146,7 @@ void RenderObject::Update()
 
 void RenderObject::SetVIBuffer(std::string _bufferName)
 {
+	mEditorVertexBufferName = _bufferName;
 	mpModelBuffer->m_pVertexBuffer = mpGraphicsEngine->Get_VertexBuffer(_bufferName);
 	mpModelBuffer->m_pIndexBuffer = mpGraphicsEngine->Get_IndexBuffer(_bufferName);
 	mpModelBuffer->mNumIndices = mpGraphicsEngine->Get_NumIndex(_bufferName);
@@ -153,6 +154,7 @@ void RenderObject::SetVIBuffer(std::string _bufferName)
 
 void RenderObject::SetDiffuseTexture(std::string _TextureName)
 {
+	mEditorDiffuseTextureName = _TextureName;
 	mpModelBuffer->m_diffusetexture = mpGraphicsEngine->Get_Textures(_TextureName);
 
 }
@@ -171,6 +173,13 @@ void RenderObject::SetCubeMapTexture(std::string _DiffuseTextureName, std::strin
 void RenderObject::SetPBRTextures(std::string albedoTex, std::string normalTex, std::string aoTex, 
 								std::string metallicTex, std::string roughnessTex, std::string heightTex)
 {
+	mEditorPbrAlbedoTextureName = albedoTex;
+	mEditorPbrNormalTextureName = normalTex;
+	mEditorPbrAOTextureName = aoTex;
+	mEditorPbrMetallicTextureName = metallicTex;
+	mEditorPbrRoughnessTextureName = roughnessTex;
+	mEditorPbrHeightTextureName = heightTex;
+
 	if (albedoTex != "")
 	{
 		mpModelBuffer->albedoTex = mpGraphicsEngine->Get_Textures(albedoTex);
@@ -230,6 +239,7 @@ void RenderObject::SetPBRTextures(std::string albedoTex, std::string normalTex, 
 
 void RenderObject::SetAnimation(std::string _Aname)
 {
+	mEditorAnimationName = _Aname;
 	mpModelBuffer->mpTargetAnimation = mpGraphicsEngine->Get_Animation(_Aname);
 }
 
@@ -245,6 +255,7 @@ void RenderObject::SetNextAnimation(std::string _Aname)
 
 void RenderObject::SetModelInfo(std::string _ModelName)
 {
+	mEditorModelName = _ModelName;
 	mpModelBuffer->mpTargetModel = mpGraphicsEngine->Get_ModelInfo(_ModelName);
 }
 

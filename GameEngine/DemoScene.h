@@ -44,8 +44,13 @@ private:
 	void SpawnDemoParticle();
 	RenderObject* GetObject(size_t index) const;
 	void CreateObjectFromDesc(const SceneObjectCreateDesc& desc);
+	void CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix position, Matrix rotation, Matrix scale, bool saveScene);
 	void CreateSceneObjects();
 	void CreateRenderItems();
+	void SaveSceneToFile() const;
+	void LoadSceneFromFile();
+	void HandleSceneObjectEdited();
+	void DeleteSelectedObject();
 
 	RenderObject* GetCharacter() const;
 	RenderObject* GetWeapon() const;
@@ -60,6 +65,7 @@ private:
 	DearsGraphicsEngine* m_pGraphicsEngine = nullptr;
 	std::vector<std::unique_ptr<RenderObject>> m_objects;
 	std::vector<std::string> m_objectNames;
+	std::vector<SceneObjectCreateDesc> m_objectCreateDescs;
 	std::vector<SceneRenderItem> m_shadowRenderItems;
 	std::vector<SceneRenderItem> m_mainRenderItems;
 	int m_selectedObjectIndex = -1;
