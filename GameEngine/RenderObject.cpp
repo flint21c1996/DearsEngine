@@ -291,9 +291,45 @@ void RenderObject::SetObjectScl(Matrix _Scl)
 	ObjectScl = _Scl;
 }
 
+void RenderObject::EnsureEdgeConstantBuffers()
+{
+	// 외곽선 렌더링은 일반 world constant buffer와 별도로
+	// "얼마나 크게 부풀릴지"와 "무슨 색으로 그릴지"를 담는 edge constant buffer가 필요하다.
+	//
+	// 이전에는 Floor처럼 특정 오브젝트가 생성 시점에 직접 edge buffer를 만들었다.
+	// 피킹 선택 외곽선은 어떤 오브젝트든 선택될 수 있으므로,
+	// 필요한 순간에 없으면 만들어두는 지연 초기화 방식으로 둔다.
+	if (!mIs_VSEdgeConstant || !mpModelBuffer->m_pVSEdgeConstantBuffer)
+	{
+		CreateVSEdgeConstantBuffer();
+	}
+
+	if (!mIs_PSEdgeConstant || !mpModelBuffer->m_pPSEdgeConstantBuffer)
+	{
+		CreatePSEdgeConstantBuffer();
+	}
+}
+
+void RenderObject::ConfigureOutline(float scale, Vector3 color)
+{
+	EnsureEdgeConstantBuffers();
+
+	mVSEdgeConstantBufferData.EdgeScaleMatrix = Matrix::CreateScale(scale);
+	mPSEdgeConstantBufferData.color = color;
+
+	// 선택 상태는 Update() 타이밍과 별개로 렌더 직전에 바뀔 수 있다.
+	// 그래서 edge constant buffer는 여기서 즉시 GPU 버퍼에 반영한다.
+	mpGraphicsEngine->UpdateVSEdgeConstantBuffer(mpModelBuffer.get(), mVSEdgeConstantBufferData);
+	mpGraphicsEngine->UpdatePSEdgeConstantBuffer(mpModelBuffer.get(), mPSEdgeConstantBufferData);
+}
+
 void RenderObject::GetObjectTargetBoneMatrix(std::string _targetModel, std::string _targetBoneName)
 {
-	mpTargetBoneConstantBufferData.targrtBoneMatrix = mpGraphicsEngine->m_pResourceManager->Get_TargetBoneMatrix(_targetModel, _targetBoneName).Transpose();
+	// RenderObject는 그래픽스 리소스 매니저의 내부 구조를 직접 알 필요가 없다.
+	// DearsGraphicsEngine의 public 함수로 한 번 감싸서 접근하면,
+	// 나중에 리소스 저장 방식이 DX11 전용 ResourceManager에서 RHI 리소스 테이블로 바뀌어도
+	// 게임 오브젝트 쪽 코드는 같은 함수를 계속 호출할 수 있다.
+	mpTargetBoneConstantBufferData.targrtBoneMatrix = mpGraphicsEngine->GetTargetBoneMatrix(_targetModel, _targetBoneName).Transpose();
 }
 
 void RenderObject::GetObjectTargetBoneMatrix(VSBoneConstantBufferData _targetModelBoneConstantBuffer)

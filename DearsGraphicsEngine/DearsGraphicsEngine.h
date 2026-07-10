@@ -13,6 +13,7 @@
 #include "LightHelper.h"
 #include "ModelBuffer.h"
 #include "Renderer.h"
+#include "RenderContext.h"
 #include "UiRenderer.h"
 using DirectX::SimpleMath::Vector3;
 using DirectX::SimpleMath::Vector4;
@@ -23,6 +24,7 @@ class GraphicsAssetManager;
 class MeshRenderer;
 class ParticleRenderer;
 class PostProcessRenderer;
+struct RenderContext;
 class UiRenderer;
 
 class DearsGraphicsEngine
@@ -40,15 +42,22 @@ private:
 	ComPtr<ID3D11Device> m_pDevice;										
 	ComPtr<ID3D11DeviceContext> m_pDeviceContext;						
 
-public:
-	// ?뚯쑀?섎뒗 媛앹껜??
+private:
+	// DearsGraphicsEngine이 소유하는 그래픽스 구현 객체들이다.
+	//
+	// 예전에는 public으로 열려 있어서 GameEngine/Scene/Object가
+	// m_pResourceManager나 mpRenderer를 직접 타고 들어갈 수 있었다.
+	// 그렇게 되면 외부 코드가 DX11 구현 클래스에 묶이기 때문에,
+	// DX12/Vulkan 백엔드로 교체할 때 바깥 코드까지 같이 흔들린다.
+	//
+	// 그래서 외부 계층은 DearsGraphicsEngine의 public 함수만 사용하고,
+	// 실제 DX11 구현 포인터는 그래픽스 엔진 내부에서만 다룬다.
 	std::unique_ptr<Renderer> mpRenderer;
 	std::unique_ptr<GraphicsAssetManager> m_pAssetManager;
 	std::unique_ptr<GraphicsResourceManager> m_pResourceManager;
 	std::unique_ptr<AnimationHelper> mpAnimationHelper;
 	std::unique_ptr<LightHelper> mpLightHelper;
 
-private:
 	// 그래픽스 엔진 내부에서 소유하고 관리하는 렌더링 하위 시스템들이다.
 	// 외부 코드가 이 포인터들을 직접 타고 들어가면 DX11 기반 구현에 강하게 묶이므로,
 	// 필요한 기능은 DearsGraphicsEngine의 public 함수로 한 번 감싸서 제공한다.
@@ -58,9 +67,24 @@ private:
 	std::unique_ptr<PostProcessRenderer> m_pPostProcessRenderer;
 	std::unique_ptr<UiRenderer> m_pUiRenderer;
 
-public:
-	// 鍮꾩냼??- ?몃??먯꽌 SetCamera()濡?二쇱엯諛쏆쓬
+	// 현재 적용된 렌더 패스 종류이다.
+	// 지금은 디버깅용 상태에 가깝지만, 나중에 RHI를 붙이면
+	// BeginRenderPass/EndRenderPass, resource transition, profiler marker가
+	// 이 값을 기준으로 동작할 수 있다.
+	RenderPassType m_currentRenderPassType = RenderPassType::Unknown;
+
+	// 현재 공통 상수버퍼 계산에 사용할 카메라이다.
+	// Camera의 소유권은 GameEngine/Scene 쪽에 있고, 그래픽스 엔진은 포인터만 빌려 쓴다.
+	// 그래서 delete하지 않으며, 반드시 SetCamera() 또는 ApplyRenderContext()를 통해 갱신한다.
 	Camera* m_pTargetCamera;
+
+	// 하위 렌더러들은 아직 DX11 Renderer를 직접 호출한다.
+	// 이 접근은 그래픽스 모듈 내부 구현으로만 허용하고, GameEngine/Scene 쪽에는 열지 않는다.
+	// 다음 RHI 단계에서는 이 friend 접근도 IRenderDevice/IRenderCommandList 같은 인터페이스로 줄여간다.
+	friend class DebugRenderer;
+	friend class MeshRenderer;
+	friend class PostProcessRenderer;
+
 public:
 	void Initialize();
 
@@ -134,6 +158,9 @@ public:
 	}
 
 	void UpdateCommonConstantBuffer(CommonConstantBufferData& _CommonBufferData);
+	void ApplyRenderContext(const RenderContext& renderContext);
+	RenderPassType GetCurrentRenderPassType() const { return m_currentRenderPassType; }
+	const char* GetCurrentRenderPassName() const { return ToRenderPassName(m_currentRenderPassType); }
 
 	void UpdateConstantBuffer(ModelBuffer* _pModelBuffer, VSConstantBufferData& _VsConstantBufferData);
 	void UpdateBoneConstantBuffer(ModelBuffer* _pModelBuffer, VSBoneConstantBufferData& _VsBoneConstantBufferData);

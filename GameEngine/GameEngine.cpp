@@ -6,6 +6,7 @@
 #include "DemoScene.h"
 #include "IScene.h"
 #include "RenderDispatcher.h"
+#include <imgui.h>
 #include <math.h>
 #include "Pool.h"
 
@@ -194,57 +195,102 @@ void GameEngine::Update()
 	const float deltaTime = m_pTimeManager->DeltaTime();
 
 	UpdateInputState();
-	UpdateCameraControls(deltaTime);
-	UpdateDemoControls();
+
+	// ImGui가 텍스트 입력이나 콤보/팝업 조작 때문에 키보드를 잡고 있을 때는
+	// 엔진 단축키를 처리하지 않는다.
+	//
+	// 예를 들어 Add Object의 Name 입력창에서 W/A/S/D를 누르는 동안
+	// 파티클 위치나 카메라 이동이 같이 처리되면 에디터 입력과 게임 입력이 섞인다.
+	const bool blockEngineKeyboardInput = ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
+	const bool viewportNavigationActive = IsViewportNavigationActive();
+	if (!blockEngineKeyboardInput)
+	{
+		UpdateCameraControls(deltaTime);
+		if (!viewportNavigationActive && m_pActiveScene)
+		{
+			m_pActiveScene->HandlePickingInput(*m_pInputManager, tempCamera.get());
+		}
+		if (!viewportNavigationActive)
+		{
+			UpdateDemoControls();
+		}
+	}
+
 	UpdateLightingState();
 	UpdateSceneObjects(deltaTime);
-	UpdatePresentationControls();
+	if (!blockEngineKeyboardInput)
+	{
+		UpdatePresentationControls();
+	}
 	m_pDearsGraphicsEngine->Update();
 }
 
 void GameEngine::UpdateInputState()
 {
 	m_pInputManager->Update();
-	tempCamera->OnMouseMove(static_cast<int>(m_pInputManager->GetMousePos().x), static_cast<int>(m_pInputManager->GetMousePos().y));
-	lightCamera->OnMouseMove(static_cast<int>(m_pInputManager->GetMousePos().x), static_cast<int>(m_pInputManager->GetMousePos().y));
+
+	// 언리얼 에디터처럼 RMB를 누르고 있는 동안만 viewport navigation 모드로 둔다.
+	// 예전 T 토글 방식은 한 번 켜면 계속 마우스 look 상태로 남아서,
+	// 에디터 선택/피킹 입력과 카메라 입력이 서로 섞이기 쉬웠다.
+	tempCamera->mIsFirstPersonMode = IsViewportNavigationActive();
+
+	if (!ImGui::GetIO().WantCaptureMouse)
+	{
+		tempCamera->OnMouseMove(static_cast<int>(m_pInputManager->GetMousePos().x), static_cast<int>(m_pInputManager->GetMousePos().y));
+		lightCamera->OnMouseMove(static_cast<int>(m_pInputManager->GetMousePos().x), static_cast<int>(m_pInputManager->GetMousePos().y));
+	}
 }
 
 void GameEngine::UpdateCameraControls(float deltaTime)
 {
-	if (m_pInputManager->GetKeyState(KEY::T) == KEY_STATE::TAP)
+	if (!IsViewportNavigationActive())
 	{
-		tempCamera->mIsFirstPersonMode = !tempCamera->mIsFirstPersonMode;
+		return;
 	}
 
-	if (m_pInputManager->GetKeyState(KEY::Y) == KEY_STATE::TAP)
-	{
-		lightCamera->mIsFirstPersonMode = !lightCamera->mIsFirstPersonMode;
-	}
-
-	if (m_pInputManager->GetKeyState(KEY::UP) == KEY_STATE::HOLD)
+	// Viewport navigation은 Unreal Editor에 가깝게 RMB + WASD/QE로 이동한다.
+	// RMB를 떼면 즉시 선택/피킹 모드로 돌아가므로 LMB 피킹과 충돌하지 않는다.
+	if (m_pInputManager->GetKeyState(KEY::W) == KEY_STATE::HOLD ||
+		m_pInputManager->GetKeyState(KEY::UP) == KEY_STATE::HOLD)
 	{
 		tempCamera->MoveForward(deltaTime);
 	}
-	if (m_pInputManager->GetKeyState(KEY::DOWN) == KEY_STATE::HOLD)
+	if (m_pInputManager->GetKeyState(KEY::S) == KEY_STATE::HOLD ||
+		m_pInputManager->GetKeyState(KEY::DOWN) == KEY_STATE::HOLD)
 	{
 		tempCamera->MoveForward(-deltaTime);
 	}
-	if (m_pInputManager->GetKeyState(KEY::LEFT) == KEY_STATE::HOLD)
+	if (m_pInputManager->GetKeyState(KEY::A) == KEY_STATE::HOLD ||
+		m_pInputManager->GetKeyState(KEY::LEFT) == KEY_STATE::HOLD)
 	{
 		tempCamera->MoveRight(-deltaTime);
 	}
-	if (m_pInputManager->GetKeyState(KEY::RIGHT) == KEY_STATE::HOLD)
+	if (m_pInputManager->GetKeyState(KEY::D) == KEY_STATE::HOLD ||
+		m_pInputManager->GetKeyState(KEY::RIGHT) == KEY_STATE::HOLD)
 	{
 		tempCamera->MoveRight(deltaTime);
 	}
-	if (m_pInputManager->GetKeyState(KEY::N) == KEY_STATE::HOLD)
+	if (m_pInputManager->GetKeyState(KEY::E) == KEY_STATE::HOLD ||
+		m_pInputManager->GetKeyState(KEY::N) == KEY_STATE::HOLD)
 	{
 		tempCamera->MoveUp(deltaTime);
 	}
-	if (m_pInputManager->GetKeyState(KEY::M) == KEY_STATE::HOLD)
+	if (m_pInputManager->GetKeyState(KEY::Q) == KEY_STATE::HOLD ||
+		m_pInputManager->GetKeyState(KEY::M) == KEY_STATE::HOLD)
 	{
 		tempCamera->MoveUp(-deltaTime);
 	}
+}
+
+bool GameEngine::IsViewportNavigationActive() const
+{
+	if (!m_pInputManager || ImGui::GetIO().WantCaptureMouse)
+	{
+		return false;
+	}
+
+	const KEY_STATE rightMouseState = m_pInputManager->GetKeyState(KEY::RBUTTON);
+	return rightMouseState == KEY_STATE::TAP || rightMouseState == KEY_STATE::HOLD;
 }
 
 void GameEngine::UpdateDemoControls()
@@ -305,13 +351,21 @@ void GameEngine::Render()
 	RenderDemoOverlay();
 	RenderShadowPass();
 	RenderScenePass();
-	RenderParticleAndPostProcessPass();
+	RenderSelectedOutlinePass();
+	RenderParticlePass();
+	RenderPostProcessPass();
 	RenderDebugPass();
 	m_pDearsGraphicsEngine->EndRender();
 }
 
 void GameEngine::HandleRenderControls()
 {
+	const bool blockEngineKeyboardInput = ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
+	if (blockEngineKeyboardInput)
+	{
+		return;
+	}
+
 	// 씬 전용 렌더 테스트 입력은 아직 ActiveScene이 처리한다.
 	// 예를 들어 현재 DemoScene은 여기서 PBR 구를 회전시키거나
 	// height scale 값을 조절한다.
@@ -342,6 +396,9 @@ void GameEngine::RenderDemoOverlay()
 	// - 사용자가 직접 조작하는 에디터 패널은 editor layer로 이동
 	// - 임시 디버그 숫자는 DebugOverlay 같은 클래스로 이동
 	// - DX11/DX12/Vulkan 백엔드는 이런 UI 내용 자체를 몰라도 되게 만들기
+	RenderContext uiContext;
+	uiContext.passType = RenderPassType::Ui;
+	m_pDearsGraphicsEngine->ApplyRenderContext(uiContext);
 
 	// 현재 샘플 화면을 보여주기 위한 데모 이미지들이다.
 	m_pDearsGraphicsEngine->UIDrawImageStart();
@@ -417,8 +474,11 @@ void GameEngine::RenderShadowPass()
 	// DX12/Vulkan에서는 "depth write -> shader read" 같은 상태 전환을
 	// 명시적으로 해줘야 한다.
 	// 그래서 이 함수 경계는 나중에 실제 command list / render pass 경계가 된다.
-	m_pDearsGraphicsEngine->SetCamera(lightCamera.get());
-	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempLightCConstantBuffer);
+	RenderContext shadowContext;
+	shadowContext.passType = RenderPassType::Shadow;
+	shadowContext.camera = lightCamera.get();
+	shadowContext.commonBuffer = &tempLightCConstantBuffer;
+	m_pDearsGraphicsEngine->ApplyRenderContext(shadowContext);
 
 	m_pRenderDispatcher->RenderShadowItems(m_pActiveScene->GetShadowRenderItems());
 }
@@ -433,24 +493,58 @@ void GameEngine::RenderScenePass()
 	// 직접 묻지 않고, 씬이 넘겨준 render item 목록만 순서대로 처리한다.
 	// 아직은 renderType을 현재 DX11 렌더 함수로 매핑하지만,
 	// 그 매핑도 나중에는 RHI 계층으로 내려가는 것이 목표다.
-	m_pDearsGraphicsEngine->SetCamera(tempCamera.get());
-	m_pDearsGraphicsEngine->UpdateCommonConstantBuffer(tempCCConstantBuffer);
+	RenderContext sceneContext;
+	sceneContext.passType = RenderPassType::Scene;
+	sceneContext.camera = tempCamera.get();
+	sceneContext.commonBuffer = &tempCCConstantBuffer;
+	m_pDearsGraphicsEngine->ApplyRenderContext(sceneContext);
 
 	m_pRenderDispatcher->RenderMainItems(m_pActiveScene->GetMainRenderItems());
 }
 
-void GameEngine::RenderParticleAndPostProcessPass()
+void GameEngine::RenderSelectedOutlinePass()
+{
+	// Selection outline pass:
+	// 피킹이나 Hierarchy 패널을 통해 선택된 오브젝트를 기존 외곽선 셰이더로 강조한다.
+	// 선택 자체는 Scene이 관리하고, 실제 외곽선 렌더 경로 선택은 RenderDispatcher가 맡는다.
+	//
+	// 지금은 DX11 stencil 기반 외곽선 렌더를 직접 호출하지만,
+	// 나중에 에디터 전용 overlay pass나 post-process outline으로 바꾸더라도
+	// GameEngine은 "선택 강조 패스를 실행한다"는 순서만 유지하면 된다.
+	RenderContext outlineContext;
+	outlineContext.passType = RenderPassType::SelectionOutline;
+	outlineContext.camera = tempCamera.get();
+	outlineContext.commonBuffer = &tempCCConstantBuffer;
+	m_pDearsGraphicsEngine->ApplyRenderContext(outlineContext);
+
+	m_pRenderDispatcher->RenderSelectedOutline(m_pActiveScene->GetSelectedObject(), tempCamera.get());
+}
+
+void GameEngine::RenderParticlePass()
 {
 	// Particle pass:
 	// 파티클은 DearsGraphicsEngine::Update()에서 갱신되고 여기서 렌더링된다.
 	// 파티클은 보통 blending, depth write/read 규칙이 일반 mesh와 다르기 때문에
 	// 현대 렌더러에서는 별도 패스로 분리되는 경우가 많다.
-	m_pDearsGraphicsEngine->RendParticle();
+	RenderContext particleContext;
+	particleContext.passType = RenderPassType::Particle;
+	particleContext.camera = tempCamera.get();
+	particleContext.commonBuffer = &tempCCConstantBuffer;
+	m_pDearsGraphicsEngine->ApplyRenderContext(particleContext);
 
+	m_pDearsGraphicsEngine->RendParticle();
+}
+
+void GameEngine::RenderPostProcessPass()
+{
 	// 포스트 프로세싱은 현재 꺼져 있지만, 기존 테스트 키 동작을 보존하려고
 	// 토글 구조는 남겨둔다.
 	// 나중에 bloom, tone mapping, SSAO 같은 후처리 효과를 다시 붙이면
 	// 이 함수에서 관련 패스를 호출하면 된다.
+	RenderContext postProcessContext;
+	postProcessContext.passType = RenderPassType::PostProcess;
+	m_pDearsGraphicsEngine->ApplyRenderContext(postProcessContext);
+
 	static bool a = true;
 	if (m_pInputManager->GetKeyState(KEY::_7) == KEY_STATE::HOLD)
 	{
@@ -473,6 +567,12 @@ void GameEngine::RenderDebugPass()
 	// 현재는 첫 번째 라이트 위치만 구체로 표시한다.
 	// 나중에는 DebugRenderer로 분리해서 bounding box, skeleton, physics shape,
 	// nav path, picking ray 같은 디버그 표시를 토글할 수 있게 만들면 좋다.
+	RenderContext debugContext;
+	debugContext.passType = RenderPassType::Debug;
+	debugContext.camera = tempCamera.get();
+	debugContext.commonBuffer = &tempCCConstantBuffer;
+	m_pDearsGraphicsEngine->ApplyRenderContext(debugContext);
+
 	m_pDearsGraphicsEngine->Rend_DebugSphere({ 1.f,1.f,1.f }, { 0,0,0 }, tempCCConstantBuffer.light[0].position);
 }
 

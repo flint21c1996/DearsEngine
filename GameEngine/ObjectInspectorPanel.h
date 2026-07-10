@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <imgui.h>
 #include <vector>
 #include <memory>
@@ -25,7 +25,7 @@ public:
 	{
 		ImVec2 screenSize = ImGui::GetIO().DisplaySize;
 		float panelW = static_cast<float>(GetEditorPanelWidth(screenSize.x));
-		float topH    = screenSize.y * 0.45f;
+		float topH    = screenSize.y * 0.45f + 110.0f;
 
 		ImGui::SetNextWindowPos(ImVec2(screenSize.x - panelW, topH), ImGuiCond_Always);
 		ImGui::SetNextWindowSize(ImVec2(panelW, screenSize.y - topH), ImGuiCond_Always);
@@ -79,6 +79,10 @@ public:
 		// --- Render Flags ---
 		if (ImGui::CollapsingHeader("Render Flags"))
 		{
+			// 이 값들은 단순한 UI 옵션이 아니라 실제 GPU constant buffer가 생성되었는지와 연결된다.
+			// 체크박스로 bool만 바꾸면 버퍼가 없는 상태에서 UpdateBuffer()가 호출되어 프로그램이 터진다.
+			// 그래서 지금은 읽기 전용 상태 표시로 두고, 렌더 경로 변경은 Add Object/전용 설정 UI에서 처리한다.
+			ImGui::BeginDisabled();
 			ImGui::Checkbox("VS Constant",   &obj->mIs_VSconstant);
 			ImGui::Checkbox("VS Bone",       &obj->mIs_VSBoneConstant);
 			ImGui::Checkbox("PS Constant",   &obj->mIs_PSconstant);
@@ -88,6 +92,7 @@ public:
 			ImGui::Checkbox("PBR VS",        &obj->mIs_VSPBRConstant);
 			ImGui::Checkbox("PBR PS",        &obj->mIs_PSPBRConstant);
 			ImGui::Checkbox("Thin Film",     &obj->mIs_PSThinFilmConstant);
+			ImGui::EndDisabled();
 		}
 
 		ImGui::End();

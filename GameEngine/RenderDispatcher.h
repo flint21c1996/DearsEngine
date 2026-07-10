@@ -3,6 +3,8 @@
 #include "IScene.h"
 
 class DearsGraphicsEngine;
+class Camera;
+class RenderObject;
 
 // SceneRenderItem 목록을 받아서 현재 그래픽스 엔진의 실제 렌더 함수로 보내는 중간 계층이다.
 //
@@ -21,6 +23,7 @@ public:
 	void RenderMainItems(const std::vector<SceneRenderItem>& items);
 	void RenderShadowItem(const SceneRenderItem& item);
 	void RenderMainItem(const SceneRenderItem& item);
+	void RenderSelectedOutline(RenderObject* object, Camera* camera);
 
 private:
 	DearsGraphicsEngine* m_pGraphicsEngine = nullptr;

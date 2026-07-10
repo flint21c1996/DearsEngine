@@ -281,6 +281,9 @@
     <ClInclude Include="PostProcessRenderer.h">
       <Filter>PostProcessRenderer</Filter>
     </ClInclude>
+    <ClInclude Include="RenderContext.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="UiRenderer.h">
       <Filter>ImGui</Filter>
     </ClInclude>

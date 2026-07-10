@@ -6,6 +6,7 @@
 class InputManager;
 class EasingFunc;
 class RenderObject;
+class Camera;
 
 using DirectX::SimpleMath::Vector2;
 
@@ -38,11 +39,13 @@ public:
 	virtual void Update(float deltaTime) = 0;
 
 	virtual void HandleDemoInput(InputManager& inputManager) = 0;
+	virtual void HandlePickingInput(InputManager& inputManager, Camera* camera) = 0;
 	virtual void HandlePresentationInput(InputManager& inputManager, EasingFunc& easingFunc, float deltaTime) = 0;
 	virtual void HandleRenderInput(InputManager& inputManager) = 0;
 
 	virtual const std::vector<SceneRenderItem>& GetShadowRenderItems() const = 0;
 	virtual const std::vector<SceneRenderItem>& GetMainRenderItems() const = 0;
+	virtual RenderObject* GetSelectedObject() const = 0;
 
 	virtual const Vector2& GetPrimaryUiPoint() const = 0;
 	virtual const Vector2& GetSecondaryUiPoint() const = 0;

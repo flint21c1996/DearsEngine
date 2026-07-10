@@ -140,7 +140,7 @@ public:
 
 	void CreateVSEdgeConstantBuffer()
 	{
-		mpModelBuffer->m_pVSEdgeConstantBuffer = mpGraphicsEngine->CreateConstantBuffer(mpVSConstantBufferData);
+		mpModelBuffer->m_pVSEdgeConstantBuffer = mpGraphicsEngine->CreateConstantBuffer(mVSEdgeConstantBufferData);
 		mIs_VSEdgeConstant = true;
 	}
 	
@@ -188,6 +188,8 @@ public:
 	void SetObjectPos(Matrix _pos);
 	void SetObjectRot(Matrix _Rot);
 	void SetObjectScl(Matrix _Scl);
+	void EnsureEdgeConstantBuffers();
+	void ConfigureOutline(float scale, Vector3 color);
 
 	void GetObjectTargetBoneMatrix(std::string _targetModel, std::string _targetBoneName);
 	void GetObjectTargetBoneMatrix(VSBoneConstantBufferData _targetModelBoneConstantBuffer);

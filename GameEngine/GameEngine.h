@@ -70,6 +70,7 @@ private:
 	void InitializeLighting();
 	void UpdateInputState();
 	void UpdateCameraControls(float deltaTime);
+	bool IsViewportNavigationActive() const;
 	void UpdateDemoControls();
 	void UpdateLightingState();
 	void UpdateSceneObjects(float deltaTime);
@@ -83,6 +84,8 @@ private:
 	void RenderDemoOverlay();
 	void RenderShadowPass();
 	void RenderScenePass();
-	void RenderParticleAndPostProcessPass();
+	void RenderSelectedOutlinePass();
+	void RenderParticlePass();
+	void RenderPostProcessPass();
 	void RenderDebugPass();
 };

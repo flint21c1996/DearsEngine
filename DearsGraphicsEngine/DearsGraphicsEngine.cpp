@@ -391,6 +391,31 @@ void DearsGraphicsEngine::UpdateCommonConstantBuffer(CommonConstantBufferData& _
 	
 }
 
+void DearsGraphicsEngine::ApplyRenderContext(const RenderContext& renderContext)
+{
+	// 지금은 RenderContext가 SetCamera()와 UpdateCommonConstantBuffer()를 묶는 얇은 계층이다.
+	// 하지만 이 함수 경계가 생기면 이후에는 viewport, render target, resource transition 같은
+	// 패스별 상태도 같은 입구에서 적용할 수 있다.
+	//
+	// renderContext.passType은 현재 패스가 어떤 종류인지 코드가 알 수 있게 해준다.
+	// 예를 들어 나중에 ShadowPass에서는 depth target만 바인딩하고,
+	// ScenePass에서는 color/depth target과 shadow map shader resource를 바인딩하는 식으로
+	// 이 함수 안에서 RHI별 준비 작업을 분기할 수 있다.
+	m_currentRenderPassType = renderContext.passType;
+	const char* passName = GetCurrentRenderPassName();
+	(void)passName;
+
+	if (renderContext.camera)
+	{
+		SetCamera(renderContext.camera);
+	}
+
+	if (renderContext.commonBuffer)
+	{
+		UpdateCommonConstantBuffer(*renderContext.commonBuffer);
+	}
+}
+
 void DearsGraphicsEngine::UpdateShadowConstantBuffer(ModelBuffer* _pModelBuffer, VSShadowConstantBufferData& _VsShadowConstantBufferData)
 {
 //	m_pResourceManager->UpdateBuffer(_VsShadowConstantBufferData, _pModelBuffer->m_pShadowConstantBuffer);

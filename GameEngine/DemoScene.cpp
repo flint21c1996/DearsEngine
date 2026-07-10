@@ -4,6 +4,9 @@
 #include "EasingFunc.h"
 #include "InputManager.h"
 
+#include <imgui.h>
+#include <algorithm>
+
 namespace
 {
 constexpr size_t CharacterIndex = 0;
@@ -14,6 +17,33 @@ constexpr size_t FloorIndex = 4;
 constexpr size_t WaterIndex = 5;
 constexpr size_t TerrainIndex = 6;
 constexpr size_t CubeMapIndex = 7;
+
+std::string MakeUniqueObjectName(const std::vector<std::string>& objectNames, const std::string& requestedName)
+{
+	// UI에서 같은 이름을 여러 번 입력해도 씬 계층 창에서는 각각의 오브젝트를
+	// 구분할 수 있어야 한다. 그래서 실제 등록 직전에 "Name", "Name (1)",
+	// "Name (2)" 형태로 빈 이름을 찾는다.
+	const std::string baseName = requestedName.empty() ? "New Object" : requestedName;
+	const auto nameExists = [&objectNames](const std::string& name)
+		{
+			return std::find(objectNames.begin(), objectNames.end(), name) != objectNames.end();
+		};
+
+	if (!nameExists(baseName))
+	{
+		return baseName;
+	}
+
+	int duplicateIndex = 1;
+	std::string uniqueName;
+	do
+	{
+		uniqueName = baseName + " (" + std::to_string(duplicateIndex) + ")";
+		++duplicateIndex;
+	} while (nameExists(uniqueName));
+
+	return uniqueName;
+}
 }
 
 DemoScene::DemoScene(DearsGraphicsEngine* graphicsEngine)
@@ -35,45 +65,45 @@ void DemoScene::RegisterEditorPanels(int screenWidth)
 	// so they are registered from the scene instead of the engine core.
 	// Panel width is derived from the window width so the render area keeps
 	// a stable 5:1 proportion against the editor lane.
-	m_selectedObjectIndex = 0;
-	m_pScenePanel = std::make_unique<SceneHierarchyPanel>(m_objects, m_selectedObjectIndex, m_pGraphicsEngine);
-	m_pScenePanel->RegisterName("Character");
-	m_pScenePanel->RegisterName("Weapon");
-	m_pScenePanel->RegisterName("Billboard");
-	m_pScenePanel->RegisterName("PBR Sphere");
-	m_pScenePanel->RegisterName("Floor");
-	m_pScenePanel->RegisterName("Water");
-	m_pScenePanel->RegisterName("Terrain");
-	m_pScenePanel->RegisterName("CubeMap");
+	m_selectedObjectIndex = -1;
+	m_pScenePanel = std::make_unique<SceneHierarchyPanel>(
+		m_objects,
+		m_objectNames,
+		m_selectedObjectIndex,
+		[this](const SceneObjectCreateDesc& desc)
+		{
+			CreateObjectFromDesc(desc);
+		});
 
 	m_pInspectorPanel = std::make_unique<ObjectInspectorPanel>(m_objects, m_selectedObjectIndex);
+	m_pPickingPanel = std::make_unique<PickingPanel>(m_pickingManager);
 	m_pGraphicsEngine->AddEditorPanel(m_pScenePanel.get());
+	m_pGraphicsEngine->AddEditorPanel(m_pPickingPanel.get());
 	m_pGraphicsEngine->AddEditorPanel(m_pInspectorPanel.get());
 
 	const int editorPanelWidth = GetEditorPanelWidth(static_cast<float>(screenWidth));
-	m_pGraphicsEngine->SetRenderViewportWidth(screenWidth - editorPanelWidth);
+	m_renderViewportWidth = screenWidth - editorPanelWidth;
+	m_pGraphicsEngine->SetRenderViewportWidth(m_renderViewportWidth);
 }
 
 void DemoScene::Update(float deltaTime)
 {
-	// Character and attached equipment are updated together so the weapon
-	// follows the animated character pose inside the scene.
-	GetCharacter()->UpdateAnimationTime(deltaTime);
-	GetCharacter()->Update();
+	// 예전 DemoScene은 "0번은 캐릭터, 1번은 무기, 2번은 빌보드..."처럼
+	// 고정된 인덱스에 특정 오브젝트가 반드시 있다고 가정했다.
+	//
+	// 지금은 시작 씬을 비워두고 ImGui에서 오브젝트를 하나씩 추가하는 방향으로 바꾸는 중이므로,
+	// Update도 더 이상 GetCharacter()/GetWeapon() 같은 데모 전용 helper에 의존하면 안 된다.
+	// 현재 씬에 들어있는 RenderObject 목록을 순회하면서 존재하는 오브젝트만 갱신한다.
+	for (const std::unique_ptr<RenderObject>& object : m_objects)
+	{
+		if (!object)
+		{
+			continue;
+		}
 
-	GetWeapon()->SetObjectPos(
-		m_pGraphicsEngine->GetTargetBoneAboveMatrix("Character 01.FBX", GetWeapon()->mTargetBoneIndex, 0.1f));
-	GetWeapon()->Update();
-
-	GetBillboard()->Update();
-	GetPbrSphere()->Update();
-	GetFloor()->Update();
-
-	GetWater()->mVSWaterConstantBufferData.time += deltaTime;
-	GetWater()->Update();
-
-	GetTerrain()->Update();
-	GetCubeMap()->Update();
+		object->UpdateAnimationTime(deltaTime);
+		object->Update();
+	}
 }
 
 void DemoScene::HandleDemoInput(InputManager& inputManager)
@@ -116,19 +146,52 @@ void DemoScene::HandleDemoInput(InputManager& inputManager)
 	}
 }
 
-void DemoScene::HandlePresentationInput(InputManager& inputManager, EasingFunc& easingFunc, float deltaTime)
+void DemoScene::HandlePickingInput(InputManager& inputManager, Camera* camera)
 {
-	// Presentation controls tweak rendering values for the sample scene.
-	// They are intentionally separate from the engine-level camera controls.
-	if (inputManager.GetKeyState(KEY::I) == KEY_STATE::HOLD)
+	// 피킹은 "마우스로 씬 오브젝트를 선택하는 입력"이다.
+	// 선택된 인덱스는 SceneHierarchyPanel/ObjectInspectorPanel이 이미 공유하고 있으므로,
+	// 여기서는 ray 검사 결과를 m_selectedObjectIndex에 반영하기만 하면 된다.
+	//
+	// ImGui가 마우스를 사용 중일 때는 피킹하지 않는다.
+	// 예를 들어 Inspector의 DragFloat를 누른 상태에서 씬 선택이 같이 바뀌면
+	// 에디터 조작이 굉장히 불편해지기 때문이다.
+	if (ImGui::GetIO().WantCaptureMouse)
 	{
-		GetBillboard()->mPSConstantBuffer.mipmapLevel += 0.1f;
-	}
-	if (inputManager.GetKeyState(KEY::O) == KEY_STATE::HOLD)
-	{
-		GetBillboard()->mPSConstantBuffer.mipmapLevel -= 0.1f;
+		return;
 	}
 
+	if (inputManager.GetKeyState(KEY::LBUTTON) != KEY_STATE::TAP)
+	{
+		return;
+	}
+
+	const PickingResult result = m_pickingManager.Pick(
+		m_objects,
+		inputManager.GetMousePos(),
+		m_renderViewportWidth,
+		m_pGraphicsEngine->GetScreenHeight(),
+		camera);
+
+	if (result.hit)
+	{
+		m_selectedObjectIndex = result.objectIndex;
+		return;
+	}
+
+	// 빈 공간을 클릭했을 때는 선택을 해제한다.
+	// 선택이 남아 있으면 피킹이 실패했는데도 마지막 선택 오브젝트의 외곽선이 계속 그려져서,
+	// 사용자는 "아무것도 안 맞았는데 무언가 선택된 상태"처럼 느끼게 된다.
+	m_selectedObjectIndex = -1;
+}
+
+void DemoScene::HandlePresentationInput(InputManager& inputManager, EasingFunc& easingFunc, float deltaTime)
+{
+	if (m_objects.empty())
+	{
+		return;
+	}
+
+	// 아래 easing UI 테스트는 특정 오브젝트가 없어도 동작하는 순수 프레젠테이션 값이다.
 	if (inputManager.GetKeyState(KEY::_4) == KEY_STATE::HOLD)
 	{
 		m_uiTweenTime += deltaTime;
@@ -141,46 +204,22 @@ void DemoScene::HandlePresentationInput(InputManager& inputManager, EasingFunc& 
 		m_uiPoint.x = 1600.f;
 		m_uiPoint2.x = 1600.f;
 	}
-
-	if (inputManager.GetKeyState(KEY::_9) == KEY_STATE::HOLD)
-	{
-		for (float& value : m_opacityValue)
-		{
-			value -= 0.01f;
-		}
-		m_pGraphicsEngine->SetOpacityFactor(m_opacityValue.data());
-		GetPbrSphere()->mPSThinFilmConstantBufferData.time += 0.001f;
-	}
-
-	if (inputManager.GetKeyState(KEY::_0) == KEY_STATE::HOLD)
-	{
-		for (float& value : m_opacityValue)
-		{
-			value += 0.01f;
-		}
-		m_pGraphicsEngine->SetOpacityFactor(m_opacityValue.data());
-		GetPbrSphere()->mPSThinFilmConstantBufferData.time -= 0.001f;
-	}
 }
 
 void DemoScene::HandleRenderInput(InputManager& inputManager)
 {
-	// These keys directly manipulate the sample PBR object during rendering tests.
+	RenderObject* selectedObject = GetSelectedObject();
+	if (!selectedObject)
+	{
+		return;
+	}
+
+	// 이제 렌더 테스트 입력은 고정된 PBR 구가 아니라 현재 선택된 오브젝트에 적용한다.
+	// Add Object 기반 편집 흐름에서는 "특정 인덱스의 특정 데모 오브젝트"가 항상 있다는 보장이 없기 때문이다.
 	if (inputManager.GetKeyState(KEY::U) == KEY_STATE::HOLD)
 	{
 		m_pbrSphereRotationY += 0.01f;
-		GetPbrSphere()->SetObjectRot(Matrix::CreateRotationY(m_pbrSphereRotationY));
-	}
-
-	if (inputManager.GetKeyState(KEY::K) == KEY_STATE::HOLD)
-	{
-		m_pbrHeightScale += 0.01f;
-		GetPbrSphere()->mVSPBRConstantBufferData.heightScale = m_pbrHeightScale;
-	}
-	if (inputManager.GetKeyState(KEY::L) == KEY_STATE::HOLD)
-	{
-		m_pbrHeightScale -= 0.01f;
-		GetPbrSphere()->mVSPBRConstantBufferData.heightScale = m_pbrHeightScale;
+		selectedObject->SetObjectRot(Matrix::CreateRotationY(m_pbrSphereRotationY));
 	}
 }
 
@@ -234,6 +273,16 @@ const std::vector<SceneRenderItem>& DemoScene::GetMainRenderItems() const
 	return m_mainRenderItems;
 }
 
+RenderObject* DemoScene::GetSelectedObject() const
+{
+	if (m_selectedObjectIndex < 0)
+	{
+		return nullptr;
+	}
+
+	return GetObject(static_cast<size_t>(m_selectedObjectIndex));
+}
+
 const Vector2& DemoScene::GetPrimaryUiPoint() const
 {
 	return m_uiPoint;
@@ -284,10 +333,16 @@ RenderObject* DemoScene::GetObject(size_t index) const
 
 void DemoScene::CreateSceneObjects()
 {
-	// This method defines the sample scene layout.
-	// The order is fixed because the rest of the scene refers to these objects by role.
+	// 지금은 화면에 기본으로 생성되는 데모 오브젝트를 모두 비활성화한다.
+	//
+	// 다음 목표:
+	// - 시작 시에는 빈 씬으로 둔다.
+	// - ImGui의 Add Object에서 모델/렌더 타입을 고른 뒤에만 m_objects에 추가한다.
+	// - 오브젝트가 추가될 때 main/shadow render item도 함께 등록한다.
 	m_objects.clear();
+	m_objectNames.clear();
 
+#if 0
 	m_objects.push_back(std::make_unique<RenderObject>(m_pGraphicsEngine));
 	GetCharacter()->Initialize();
 	GetCharacter()->CreateVSConstantBuffer();
@@ -384,17 +439,108 @@ void DemoScene::CreateSceneObjects()
 	GetCubeMap()->SetVIBuffer("CubeMap");
 	GetCubeMap()->SetObjectScl(Matrix::CreateScale(1));
 	GetCubeMap()->SetObjectPos(Matrix::CreateTranslation({ 0,0,0 }));
+#endif
+}
+
+void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc)
+{
+	// Add Object에서 입력한 설정을 실제 RenderObject 초기화로 바꾸는 지점이다.
+	//
+	// 예전 DemoScene은 C++ 코드에 "캐릭터는 0번, 무기는 1번"처럼 고정되어 있었다.
+	// 이제는 UI가 넘긴 desc를 기준으로 필요한 constant buffer와 렌더 목록을 구성한다.
+	// 즉, 화면에 보이는 오브젝트는 반드시 이 생성 경로를 지나가게 된다.
+	auto object = std::make_unique<RenderObject>(m_pGraphicsEngine);
+	object->Initialize();
+
+	const bool hasVertexBuffer = !desc.vertexBufferName.empty();
+	const std::string modelInfoName = desc.modelName.empty()
+		? desc.vertexBufferName
+		: desc.modelName;
+	const bool hasModel = !modelInfoName.empty();
+	const bool hasTexture = !desc.textureName.empty();
+	const bool hasAnimation = !desc.animationName.empty();
+
+	if (hasVertexBuffer)
+	{
+		object->SetVIBuffer(desc.vertexBufferName);
+	}
+
+	if (hasModel)
+	{
+		// 피킹은 GPU vertex buffer가 아니라 CPU에 남아있는 ModelInfo의 AABB/triangle을 사용한다.
+		// FBX를 선택한 경우에는 파일명으로 ModelInfo를 찾고,
+		// 기본 도형처럼 Model FBX가 None인 경우에는 Vertex Buffer 이름으로 만들어 둔 ModelInfo를 사용한다.
+		object->SetModelInfo(modelInfoName);
+	}
+
+	if (hasTexture)
+	{
+		object->SetDiffuseTexture(desc.textureName);
+	}
+
+	switch (desc.renderType)
+	{
+	case SceneRenderType::SkinnedMesh:
+		object->CreateVSConstantBuffer();
+		object->CreateVSBoneConstantBuffer();
+		object->CreatePSConstantBuffer();
+		if (hasAnimation)
+		{
+			object->SetAnimation(desc.animationName);
+		}
+		break;
+	case SceneRenderType::PbrMesh:
+		object->CreateVSConstantBuffer();
+		object->CreateVSPBRConstantBuffer();
+		object->CreatePSPBRConstantBuffer();
+		object->SetPBRTextures(
+			"albedo.png",
+			"normal.png",
+			"ao.png",
+			"metallic.png",
+			"roughness.png",
+			"height.png");
+		break;
+	case SceneRenderType::EquipmentMesh:
+		object->CreateVSConstantBuffer();
+		object->CreateVSTargetBoneConstantBuffer();
+		object->CreatePSConstantBuffer();
+		break;
+	case SceneRenderType::CubeMap:
+	case SceneRenderType::Billboard:
+	case SceneRenderType::StaticMesh:
+	default:
+		object->CreateVSConstantBuffer();
+		object->CreatePSConstantBuffer();
+		break;
+	}
+
+	object->SetObjectScl(Matrix::CreateScale(1.0f));
+	object->SetObjectPos(Matrix::CreateTranslation({ 0.0f, 0.0f, 0.0f }));
+
+	RenderObject* rawObject = object.get();
+	m_objects.push_back(std::move(object));
+	m_objectNames.push_back(MakeUniqueObjectName(m_objectNames, desc.name));
+
+	m_mainRenderItems.push_back({ rawObject, desc.renderType });
+
+	if (desc.castShadow &&
+		desc.renderType != SceneRenderType::CubeMap &&
+		desc.renderType != SceneRenderType::Billboard)
+	{
+		m_shadowRenderItems.push_back({ rawObject, desc.renderType });
+	}
 }
 
 void DemoScene::CreateRenderItems()
 {
-	// 렌더 아이템 목록은 "이 씬의 어떤 오브젝트를 어떤 방식으로 그릴지"를
-	// GameEngine에 알려주는 얇은 명세다.
-	// GameEngine은 이제 Terrain, Floor 같은 데모 전용 이름을 몰라도 되고,
-	// 각 패스에 들어갈 RenderObject와 렌더 타입만 보고 처리한다.
+	// 기본 데모 오브젝트 생성을 꺼둔 동안에는 렌더 아이템도 자동 등록하지 않는다.
+	// 앞으로는 Add Object UI가 RenderObject를 만들 때 선택한 SceneRenderType에 맞춰
+	// m_mainRenderItems / m_shadowRenderItems에 직접 등록하게 만들 예정이다.
 	m_shadowRenderItems.clear();
 	m_mainRenderItems.clear();
 
+#if 0
 	// 기존 shadow pass 순서를 그대로 보존한다.
 	// Terrain은 이름만 지형이고 실제로는 크게 키운 MySquare지만,
 	// GameEngine 입장에서는 그냥 StaticMesh shadow caster일 뿐이다.
@@ -410,4 +556,5 @@ void DemoScene::CreateRenderItems()
 	m_mainRenderItems.push_back({ GetCubeMap(), SceneRenderType::CubeMap });
 	m_mainRenderItems.push_back({ GetBillboard(), SceneRenderType::Billboard });
 	m_mainRenderItems.push_back({ GetPbrSphere(), SceneRenderType::PbrMesh });
+#endif
 }

@@ -50,6 +50,12 @@
     <ClInclude Include="RenderDispatcher.h">
       <Filter>GameEngine</Filter>
     </ClInclude>
+    <ClInclude Include="PickingManager.h">
+      <Filter>GameEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="PickingPanel.h">
+      <Filter>GameEngine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameEngine.cpp">
@@ -76,6 +82,9 @@
       <Filter>Manager\EntityManager</Filter>
     </ClCompile>
     <ClCompile Include="RenderDispatcher.cpp">
+      <Filter>GameEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="PickingManager.cpp">
       <Filter>GameEngine</Filter>
     </ClCompile>
   </ItemGroup>

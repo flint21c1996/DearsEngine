@@ -197,6 +197,7 @@
     <ClInclude Include="ParticleRenderer.h" />
     <ClInclude Include="PostProcessRenderer.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="RenderContext.h" />
     <ClInclude Include="RendererHelper.h" />
     <ClInclude Include="UiRenderer.h" />
     <ClInclude Include="UIEnum.h" />

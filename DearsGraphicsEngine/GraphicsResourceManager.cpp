@@ -11,6 +11,53 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+namespace
+{
+Model* CreateModelFromMeshData(const MeshData& meshData, const std::string& meshName)
+{
+    // GeometryGenerator가 만든 MyBox/MySphere 같은 기본 도형은 FBX 파일이 아니다.
+    // 그래도 피킹은 CPU에 남아있는 정점/AABB 정보가 필요하므로,
+    // GPU 버퍼를 만들 때 같은 데이터로 간단한 ModelInfo도 함께 만들어 둔다.
+    Model* model = new Model();
+    model->mNumMesh = 1;
+    model->mMeshData = new Mesh[1];
+
+    Mesh& mesh = model->mMeshData[0];
+    mesh.mMeshName = meshName;
+    mesh.mNumVertices = static_cast<unsigned int>(meshData.vertices.size());
+    mesh.mNumIndices = static_cast<unsigned int>(meshData.indices.size());
+
+    if (mesh.mNumVertices > 0)
+    {
+        mesh.mVertices = new Vertex[mesh.mNumVertices];
+        for (unsigned int i = 0; i < mesh.mNumVertices; ++i)
+        {
+            mesh.mVertices[i] = meshData.vertices[i];
+
+            const Vector3& position = mesh.mVertices[i].mPosition;
+            mesh.mAABB.mMin.x = (std::min)(mesh.mAABB.mMin.x, position.x);
+            mesh.mAABB.mMin.y = (std::min)(mesh.mAABB.mMin.y, position.y);
+            mesh.mAABB.mMin.z = (std::min)(mesh.mAABB.mMin.z, position.z);
+
+            mesh.mAABB.mMax.x = (std::max)(mesh.mAABB.mMax.x, position.x);
+            mesh.mAABB.mMax.y = (std::max)(mesh.mAABB.mMax.y, position.y);
+            mesh.mAABB.mMax.z = (std::max)(mesh.mAABB.mMax.z, position.z);
+        }
+    }
+
+    if (mesh.mNumIndices > 0)
+    {
+        mesh.mIndices = new unsigned int[mesh.mNumIndices];
+        for (unsigned int i = 0; i < mesh.mNumIndices; ++i)
+        {
+            mesh.mIndices[i] = meshData.indices[i];
+        }
+    }
+
+    return model;
+}
+}
+
 GraphicsResourceManager::GraphicsResourceManager(ComPtr<ID3D11Device> _pDevice, ComPtr<ID3D11DeviceContext> _pDeviceContext)
     : mpDevice(_pDevice)
     , mpDeviceContext(_pDeviceContext)
@@ -64,14 +111,20 @@ void GraphicsResourceManager::AddModel(std::string _basePath, std::string _fileN
 
 void GraphicsResourceManager::AddModel(MeshData _meshData, std::string _meshName)
 {
+    const unsigned int vertexCount = static_cast<unsigned int>(_meshData.vertices.size());
+    const unsigned int indexCount = static_cast<unsigned int>(_meshData.indices.size());
+
     if (!CheckResource(_meshName, mVertexBuffers))
-        mVertexBuffers[_meshName] = RendererHelper::CreateVertexBuffer(mpDevice, _meshData.vertices.size(), _meshData.vertices.data());
+        mVertexBuffers[_meshName] = RendererHelper::CreateVertexBuffer(mpDevice, vertexCount, _meshData.vertices.data());
 
     if (!CheckResource(_meshName, mIndexBuffers))
     {
-        mIndexBuffers[_meshName] = RendererHelper::CreateIndexBuffer(mpDevice, _meshData.indices.size(), _meshData.indices.data());
-        mNumIndex[_meshName]     = static_cast<unsigned int>(_meshData.indices.size());
+        mIndexBuffers[_meshName] = RendererHelper::CreateIndexBuffer(mpDevice, indexCount, _meshData.indices.data());
+        mNumIndex[_meshName] = indexCount;
     }
+
+    if (!CheckResource(_meshName, mModels))
+        mModels[_meshName] = CreateModelFromMeshData(_meshData, _meshName);
 }
 
 void GraphicsResourceManager::AddAnimation(std::string _basePath, std::string _fileName)

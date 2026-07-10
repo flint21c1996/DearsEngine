@@ -6,12 +6,15 @@
 
 #include "IScene.h"
 #include "ObjectInspectorPanel.h"
+#include "PickingManager.h"
+#include "PickingPanel.h"
 #include "RenderObject.h"
 #include "SceneHierarchyPanel.h"
 
 class DearsGraphicsEngine;
 class InputManager;
 class EasingFunc;
+class Camera;
 
 class DemoScene final : public IScene
 {
@@ -25,6 +28,7 @@ public:
 
 	// These handlers keep sample-scene controls out of GameEngine.
 	void HandleDemoInput(InputManager& inputManager) override;
+	void HandlePickingInput(InputManager& inputManager, Camera* camera) override;
 	void HandlePresentationInput(InputManager& inputManager, EasingFunc& easingFunc, float deltaTime) override;
 	void HandleRenderInput(InputManager& inputManager) override;
 
@@ -32,12 +36,14 @@ public:
 	// 각 렌더 패스에 필요한 목록만 받아간다.
 	const std::vector<SceneRenderItem>& GetShadowRenderItems() const override;
 	const std::vector<SceneRenderItem>& GetMainRenderItems() const override;
+	RenderObject* GetSelectedObject() const override;
 	const Vector2& GetPrimaryUiPoint() const override;
 	const Vector2& GetSecondaryUiPoint() const override;
 
 private:
 	void SpawnDemoParticle();
 	RenderObject* GetObject(size_t index) const;
+	void CreateObjectFromDesc(const SceneObjectCreateDesc& desc);
 	void CreateSceneObjects();
 	void CreateRenderItems();
 
@@ -53,10 +59,14 @@ private:
 private:
 	DearsGraphicsEngine* m_pGraphicsEngine = nullptr;
 	std::vector<std::unique_ptr<RenderObject>> m_objects;
+	std::vector<std::string> m_objectNames;
 	std::vector<SceneRenderItem> m_shadowRenderItems;
 	std::vector<SceneRenderItem> m_mainRenderItems;
 	int m_selectedObjectIndex = -1;
+	int m_renderViewportWidth = 0;
+	PickingManager m_pickingManager;
 	std::unique_ptr<SceneHierarchyPanel> m_pScenePanel;
+	std::unique_ptr<PickingPanel> m_pPickingPanel;
 	std::unique_ptr<ObjectInspectorPanel> m_pInspectorPanel;
 
 	// These values only exist to drive the sample scene presentation and tests,
