@@ -350,7 +350,9 @@ void GameEngine::Render()
 	m_pDearsGraphicsEngine->BeginRender();
 	RenderDemoOverlay();
 	RenderShadowPass();
-	RenderScenePass();
+	RenderGeometryPass();
+	RenderLightingPass();
+	RenderForwardPass();
 	RenderSelectedOutlinePass();
 	RenderParticlePass();
 	RenderPostProcessPass();
@@ -373,7 +375,7 @@ void GameEngine::HandleRenderControls()
 	m_pActiveScene->HandleRenderInput(*m_pInputManager);
 
 	// Z/X 키는 메인 카메라의 투영 방식을 바꾼다.
-	// 이 처리를 RenderScenePass()와 분리해두면,
+	// 이 처리를 RenderForwardPass()와 분리해두면,
 	// 카메라 모드 변경은 draw call이 아니라 입력에 따른 상태 변경이라는 점이
 	// 코드 흐름에서 분명해진다.
 	if (m_pInputManager->GetKeyState(KEY::Z) == KEY_STATE::TAP)
@@ -483,23 +485,54 @@ void GameEngine::RenderShadowPass()
 	m_pRenderDispatcher->RenderShadowItems(m_pActiveScene->GetShadowRenderItems());
 }
 
-void GameEngine::RenderScenePass()
+void GameEngine::RenderGeometryPass()
 {
-	// Main scene pass:
-	// 라이트 카메라에서 다시 플레이어/에디터 카메라로 돌아온 뒤,
-	// 공통 view/projection constant buffer를 갱신하고 실제 씬 오브젝트를 그린다.
+	// Deferred Geometry pass:
+	// 디퍼드 렌더링에서는 씬의 모든 불투명 오브젝트를 먼저 순회하면서
+	// 최종 조명 색상이 아니라 Albedo, Normal, Material, Depth 같은 표면 정보를
+	// 화면 크기의 여러 렌더 타깃(G-Buffer)에 기록한다.
 	//
-	// 이제 GameEngine은 Terrain, PBR Sphere 같은 DemoScene 전용 이름을
-	// 직접 묻지 않고, 씬이 넘겨준 render item 목록만 순서대로 처리한다.
-	// 아직은 renderType을 현재 DX11 렌더 함수로 매핑하지만,
-	// 그 매핑도 나중에는 RHI 계층으로 내려가는 것이 목표다.
-	RenderContext sceneContext;
-	sceneContext.passType = RenderPassType::Scene;
-	sceneContext.camera = tempCamera.get();
-	sceneContext.commonBuffer = &tempCCConstantBuffer;
-	m_pDearsGraphicsEngine->ApplyRenderContext(sceneContext);
+	// 현재는 패스의 실행 위치와 카메라/공통 버퍼 경계만 먼저 확정한 상태다.
+	// 아직 G-Buffer와 Geometry 전용 셰이더가 없으므로 여기서 오브젝트를 그리면
+	// 기존 포워드 결과와 중복 렌더링된다. 따라서 의도적으로 draw call은 실행하지 않는다.
+	// 다음 단계에서 G-Buffer 생성과 RenderGeometryItems()를 이 위치에 연결한다.
+	RenderContext geometryContext;
+	geometryContext.passType = RenderPassType::Geometry;
+	geometryContext.camera = tempCamera.get();
+	geometryContext.commonBuffer = &tempCCConstantBuffer;
+	m_pDearsGraphicsEngine->ApplyRenderContext(geometryContext);
+}
 
-	m_pRenderDispatcher->RenderMainItems(m_pActiveScene->GetMainRenderItems());
+void GameEngine::RenderLightingPass()
+{
+	// Deferred Lighting pass:
+	// Geometry pass가 모든 오브젝트의 G-Buffer 기록을 끝낸 뒤 딱 한 번 실행된다.
+	// 이 단계에서는 개별 모델을 다시 그리지 않고 화면 전체 삼각형을 그리며,
+	// G-Buffer와 shadow map을 읽어 각 화면 픽셀의 최종 조명 색상을 계산한다.
+	//
+	// 현재는 읽을 G-Buffer와 Lighting 셰이더가 아직 없으므로 패스 경계만 적용한다.
+	// 다음 단계에서 G-Buffer SRV 바인딩과 fullscreen triangle draw를 연결한다.
+	RenderContext lightingContext;
+	lightingContext.passType = RenderPassType::Lighting;
+	lightingContext.camera = tempCamera.get();
+	lightingContext.commonBuffer = &tempCCConstantBuffer;
+	m_pDearsGraphicsEngine->ApplyRenderContext(lightingContext);
+}
+
+void GameEngine::RenderForwardPass()
+{
+	// Forward pass:
+	// 현재 엔진의 메시 셰이더는 오브젝트를 그리는 순간 조명 계산까지 끝내므로,
+	// 기존 화면을 보존하기 위해 모든 씬 오브젝트는 아직 이 패스에서 렌더링한다.
+	// G-Buffer가 완성되면 불투명 PBR 메시는 Geometry pass로 이동하고,
+	// 투명 오브젝트, 물, 파티클과 일부 특수 셰이더만 Forward 경로에 남는다.
+	RenderContext forwardContext;
+	forwardContext.passType = RenderPassType::Forward;
+	forwardContext.camera = tempCamera.get();
+	forwardContext.commonBuffer = &tempCCConstantBuffer;
+	m_pDearsGraphicsEngine->ApplyRenderContext(forwardContext);
+
+	m_pRenderDispatcher->RenderForwardItems(m_pActiveScene->GetMainRenderItems());
 }
 
 void GameEngine::RenderSelectedOutlinePass()

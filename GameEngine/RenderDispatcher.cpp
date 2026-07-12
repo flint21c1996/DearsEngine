@@ -58,14 +58,17 @@ void RenderDispatcher::RenderShadowItems(const std::vector<SceneRenderItem>& ite
 	}
 }
 
-void RenderDispatcher::RenderMainItems(const std::vector<SceneRenderItem>& items)
+void RenderDispatcher::RenderForwardItems(const std::vector<SceneRenderItem>& items)
 {
-	// Main pass도 같은 방식으로 처리한다.
+	// 현재 메시 셰이더는 픽셀 셰이더 안에서 조명까지 계산한 뒤
+	// 결과 색상을 백 버퍼에 곧바로 기록하므로 모두 Forward pass에 속한다.
+	// 이후 G-Buffer 셰이더가 준비되면 불투명 PBR 항목은 Geometry pass 목록으로
+	// 옮기고, 투명/물/특수 효과만 이 목록에 남길 예정이다.
 	// 이 함수가 있으면 나중에 sorting, batching, render queue 최적화를
 	// GameEngine을 건드리지 않고 이쪽에서 시작할 수 있다.
 	for (const SceneRenderItem& item : items)
 	{
-		RenderMainItem(item);
+		RenderForwardItem(item);
 	}
 }
 
@@ -104,7 +107,7 @@ void RenderDispatcher::RenderShadowItem(const SceneRenderItem& item)
 	}
 }
 
-void RenderDispatcher::RenderMainItem(const SceneRenderItem& item)
+void RenderDispatcher::RenderForwardItem(const SceneRenderItem& item)
 {
 	if (!m_pGraphicsEngine || !item.object)
 	{
@@ -117,7 +120,7 @@ void RenderDispatcher::RenderMainItem(const SceneRenderItem& item)
 		return;
 	}
 
-	// Main pass에서는 씬이 넘긴 renderType에 따라 현재 DX11 렌더 함수를 고른다.
+	// Forward pass에서는 씬이 넘긴 renderType에 따라 현재 DX11 렌더 함수를 고른다.
 	// 이 switch는 지금 당장은 "렌더 타입 -> DX11 렌더 함수" 매핑이지만,
 	// 나중에는 "렌더 타입 -> RHI pipeline / draw command" 매핑으로 옮겨갈 부분이다.
 	switch (item.renderType)

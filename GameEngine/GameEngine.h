@@ -83,7 +83,9 @@ private:
 	void HandleRenderControls();
 	void RenderDemoOverlay();
 	void RenderShadowPass();
-	void RenderScenePass();
+	void RenderGeometryPass();
+	void RenderLightingPass();
+	void RenderForwardPass();
 	void RenderSelectedOutlinePass();
 	void RenderParticlePass();
 	void RenderPostProcessPass();
