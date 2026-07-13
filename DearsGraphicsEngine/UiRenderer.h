@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <wrl.h>
+#include <vector>
 
 #include "DearsImGui.h"
 #include "GraphicsResourceManager.h"
@@ -70,6 +71,11 @@ public:
 private:
 	std::unique_ptr<DearsImGui> m_pDearsImGui;
 	GraphicsResourceManager* m_pResourceManager = nullptr;
+
+	// UiRenderer가 등록된 모든 에디터 창과 표시 여부를 함께 관리한다.
+	// 패널 클래스마다 별도의 단축키나 토글 코드를 만들지 않아도 Window 메뉴에서 제어할 수 있다.
+	std::vector<IEditorPanel*> m_editorPanels;
+	std::vector<bool> m_editorPanelVisibility;
 };
 
 template<typename ...Args>

@@ -5,6 +5,9 @@
 #include "DebugRenderer.h"
 #include "GraphicsAssetManager.h"
 #include "GraphicsCommon.h"
+#include "GBuffer.h"
+#include "GBufferDebugPanel.h"
+#include "GBufferDebugRenderer.h"
 #include "MeshRenderer.h"
 #include "ParticleRenderer.h"
 #include "PostProcessRenderer.h"
@@ -39,6 +42,11 @@ void DearsGraphicsEngine::Initialize()
 	mpRenderer = std::make_unique<Renderer>(m_hWnd, 0, 0, m_screenWidth, m_screenHeight, m_pDevice, m_pDeviceContext);
 	mpRenderer->Initialize(m_pResourceManager.get());
 
+	// 최초에는 전체 렌더 크기로 만들고, 에디터 패널 너비가 결정되면
+	// SetRenderViewportWidth()에서 실제 3D 뷰포트 크기로 다시 생성한다.
+	m_pGBuffer = std::make_unique<GBuffer>();
+	m_pGBuffer->Initialize(m_pDevice.Get(), m_pDeviceContext.Get(), m_screenWidth, m_screenHeight);
+
 	mpAnimationHelper = std::make_unique<AnimationHelper>();
 
 	m_pUiRenderer = std::make_unique<UiRenderer>(
@@ -48,6 +56,13 @@ void DearsGraphicsEngine::Initialize()
 		m_screenWidth,
 		m_screenHeight,
 		m_pResourceManager.get());
+
+	// 디퍼드 구현 중에는 각 G-Buffer를 최종 화면과 함께 즉시 확인할 수 있어야 한다.
+	// 패널은 GBuffer의 소유권을 갖지 않고 엔진이 소유한 객체를 읽기만 한다.
+	m_pGBufferDebugRenderer = std::make_unique<GBufferDebugRenderer>();
+	m_pGBufferDebugRenderer->Initialize(m_pDevice.Get(), m_pDeviceContext.Get(), m_pGBuffer.get());
+	m_pGBufferDebugPanel = std::make_unique<GBufferDebugPanel>(*m_pGBuffer, *m_pGBufferDebugRenderer);
+	m_pUiRenderer->AddEditorPanel(m_pGBufferDebugPanel.get());
 
 	m_pAssetManager = std::make_unique<GraphicsAssetManager>(
 		m_pResourceManager.get(),
@@ -383,7 +398,9 @@ void DearsGraphicsEngine::UpdateCommonConstantBuffer(CommonConstantBufferData& _
 	_CommonBufferData.invView = _CommonBufferData.view.Invert();
  	_CommonBufferData.invProj = _CommonBufferData.proj.Invert();
 	
-	//占쌓몌옙占쏙옙 占쏙옙占쏙옙占쏙옙占쏙옙 占쏙옙占? 	_CommonBufferData.invViewProj = _CommonBufferData.viewProj.Invert();
+	// Depth에서 World Position을 복원할 때 사용할 역 View-Projection 행렬이다.
+	// 과거에는 깨진 주석 뒤에 코드가 붙어 있어 실제 대입문 전체가 주석 처리되어 있었다.
+	_CommonBufferData.invViewProj = _CommonBufferData.viewProj.Invert();
 
 	_CommonBufferData.eyeWorld = m_pTargetCamera->GetmViewPos();
 
@@ -413,6 +430,41 @@ void DearsGraphicsEngine::ApplyRenderContext(const RenderContext& renderContext)
 	if (renderContext.commonBuffer)
 	{
 		UpdateCommonConstantBuffer(*renderContext.commonBuffer);
+	}
+
+	// 패스 타입에 따라 출력/입력 리소스를 한 곳에서 바꾼다.
+	// GameEngine은 순서만 결정하고 DX11의 RTV/SRV 바인딩 규칙은 몰라도 된다.
+	if (!m_pGBuffer)
+	{
+		return;
+	}
+
+	switch (renderContext.passType)
+	{
+	case RenderPassType::Geometry:
+		m_pGBuffer->BindForGeometryPass();
+		break;
+	case RenderPassType::Lighting:
+		// Geometry Pass의 MRT 쓰기를 먼저 끝내고 G-Buffer를 t20~t23에 연결한다.
+		// GBuffer가 기존 출력 타깃을 해제한 다음 백 버퍼를 묶어야,
+		// Lighting 셰이더가 G-Buffer를 읽으면서 최종 색상을 백 버퍼에 쓸 수 있다.
+		m_pGBuffer->BindForLightingPass(GBuffer::LightingShaderSlot);
+		// Material 채널 분리와 Depth 기반 Position 복원 결과를 디버그용 텍스처에 생성한다.
+		if (m_pGBufferDebugRenderer)
+		{
+			m_pGBufferDebugRenderer->Render();
+		}
+		mpRenderer->BindMainRenderTarget();
+		break;
+	case RenderPassType::Forward:
+		// Lighting 이후의 포워드 물체는 Geometry Pass에서 만든 깊이를 공유해야 한다.
+		// Depth 텍스처가 Lighting용 SRV로 남아 있으면 같은 리소스를 DSV로 묶을 수 없으므로,
+		// G-Buffer SRV를 모두 해제한 다음 Geometry depth를 출력 병합 단계에 연결한다.
+		m_pGBuffer->UnbindShaderResources(GBuffer::LightingShaderSlot);
+		mpRenderer->BindMainRenderTarget(m_pGBuffer->GetDepthStencilView());
+		break;
+	default:
+		break;
 	}
 }
 
@@ -493,6 +545,11 @@ void DearsGraphicsEngine::Rend_Model(ModelBuffer* _modelBuffer)
 void DearsGraphicsEngine::Rend_PBR(ModelBuffer* _modelBuffer)
 {
 	m_pMeshRenderer->RenderPbrModel(_modelBuffer);
+}
+
+void DearsGraphicsEngine::Rend_DeferredGeometry(ModelBuffer* _modelBuffer)
+{
+	m_pMeshRenderer->RenderDeferredGeometry(_modelBuffer);
 }
 
 
@@ -579,6 +636,23 @@ void DearsGraphicsEngine::Rend_DebugSphere(Vector3 _size, Vector3 _rotation, Vec
 void DearsGraphicsEngine::Rend_DebugCapsule(Vector3 _size, Vector3 _rotation, Vector3 _transpose)
 {
 	m_pDebugRenderer->RenderCapsule(_size, _rotation, _transpose);
+}
+
+void DearsGraphicsEngine::Rend_DebugLightGizmo(
+	const Light& light,
+	bool drawShadowFrustum,
+	float shadowFovYDegrees,
+	float shadowAspect,
+	float shadowNear,
+	float shadowFar)
+{
+	m_pDebugRenderer->RenderLightGizmo(
+		light,
+		drawShadowFrustum,
+		shadowFovYDegrees,
+		shadowAspect,
+		shadowNear,
+		shadowFar);
 }
 
 void DearsGraphicsEngine::Rend_CubeMap(ModelBuffer* _modelBuffer)
@@ -704,6 +778,23 @@ void DearsGraphicsEngine::AddEditorPanel(IEditorPanel* panel)
 void DearsGraphicsEngine::SetRenderViewportWidth(int viewportWidth)
 {
 	mpRenderer->SetViewportWidth(viewportWidth);
+
+	// 에디터 오른쪽 패널은 3D 렌더 영역에 포함되지 않는다.
+	// G-Buffer도 실제 렌더 뷰포트와 같은 크기로 만들어야 픽셀 좌표와 UV가 일치한다.
+	if (m_pGBuffer && viewportWidth > 0)
+	{
+		m_pGBuffer->Resize(static_cast<UINT>(viewportWidth), static_cast<UINT>(m_screenHeight));
+
+		// Editor Panel이 ImGui DrawData를 만들기 전에 파생 디버그 텍스처도 같은 크기로 맞춘다.
+		// 이전에는 Lighting Pass 안에서 처음 Resize되면서, 이미 ImGui에 전달된 SRV가
+		// 해제되어 ImGui_ImplDX11_RenderDrawData()에서 접근 위반이 발생했다.
+		if (m_pGBufferDebugRenderer)
+		{
+			m_pGBufferDebugRenderer->Resize(
+				static_cast<UINT>(viewportWidth),
+				static_cast<UINT>(m_screenHeight));
+		}
+	}
 }
 
 void DearsGraphicsEngine::LightInitialize(CommonConstantBufferData* _psBufferData, UINT _num)

@@ -68,9 +68,47 @@ public:
 				NotifyObjectEdited();
 			}
 
-			float scl[3] = { obj->ObjectScl._11, obj->ObjectScl._22, obj->ObjectScl._33 };
+			float rotation[3] = {
+				obj->mEditorRotationDegrees.x,
+				obj->mEditorRotationDegrees.y,
+				obj->mEditorRotationDegrees.z };
+			if (ImGui::DragFloat3("Rotation", rotation, 0.25f))
+			{
+				obj->mEditorRotationDegrees = Vector3(rotation[0], rotation[1], rotation[2]);
+				// UI는 degree를 사용하지만 SimpleMath 회전 함수는 radian을 받는다.
+				obj->ObjectRot = Matrix::CreateFromYawPitchRoll(
+					DirectX::XMConvertToRadians(rotation[1]),
+					DirectX::XMConvertToRadians(rotation[0]),
+					DirectX::XMConvertToRadians(rotation[2]));
+				NotifyObjectEdited();
+			}
+
+			// Unreal의 Scale 자물쇠와 같은 역할이다.
+			// 활성화하면 한 축의 변화 비율을 나머지 두 축에도 적용하므로,
+			// 이미 비균등한 Scale인 오브젝트도 현재 비율을 유지하며 커지고 작아진다.
+			ImGui::Checkbox("Uniform Scale", &m_uniformScale);
+			const float oldScale[3] = { obj->ObjectScl._11, obj->ObjectScl._22, obj->ObjectScl._33 };
+			float scl[3] = { oldScale[0], oldScale[1], oldScale[2] };
 			if (ImGui::DragFloat3("Scale", scl, 0.01f, 0.001f, 1000.0f))
 			{
+				if (m_uniformScale)
+				{
+					for (int axis = 0; axis < 3; ++axis)
+					{
+						if (scl[axis] == oldScale[axis])
+						{
+							continue;
+						}
+
+						const float ratio = oldScale[axis] != 0.0f
+							? scl[axis] / oldScale[axis]
+							: 1.0f;
+						scl[0] = oldScale[0] * ratio;
+						scl[1] = oldScale[1] * ratio;
+						scl[2] = oldScale[2] * ratio;
+						break;
+					}
+				}
 				obj->ObjectScl = Matrix::CreateScale(scl[0], scl[1], scl[2]);
 				NotifyObjectEdited();
 			}
@@ -78,8 +116,32 @@ public:
 
 		ImGui::Spacing();
 
+		if (obj->mIsLight && ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			bool lightEditFinished = false;
+			ImGui::DragFloat("Strength", &obj->mSceneLight.strength, 0.05f, 0.0f, 100.0f);
+			lightEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+			lightEditFinished |= ImGui::ColorEdit3("Color", &obj->mSceneLight.lightColor.x);
+			if (obj->mSceneLight.lightType != static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT))
+			{
+				ImGui::DragFloat("Range", &obj->mSceneLight.fallOffEnd, 0.1f, 0.1f, 10000.0f);
+				lightEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+			}
+			if (obj->mSceneLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT))
+			{
+				ImGui::DragFloat("Spot Power", &obj->mSceneLight.spotPower, 0.5f, 1.0f, 256.0f);
+				lightEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+			}
+			if (lightEditFinished)
+			{
+				NotifyObjectEdited();
+			}
+		}
+
+		ImGui::Spacing();
+
 		// --- Resources ---
-		if (ImGui::CollapsingHeader("Resources", ImGuiTreeNodeFlags_DefaultOpen))
+		if (!obj->mIsLight && ImGui::CollapsingHeader("Resources", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			DrawTextRow("Vertex Buffer", obj->mEditorVertexBufferName);
 			DrawTextRow("Picking FBX", obj->mEditorModelName.empty() ? obj->mEditorVertexBufferName : obj->mEditorModelName);
@@ -109,9 +171,19 @@ public:
 				DrawTextureRow("Roughness", obj->mEditorPbrRoughnessTextureName);
 				DrawTextureRow("Height", obj->mEditorPbrHeightTextureName);
 				ImGui::Separator();
-				ImGui::SliderFloat("Metallic",    &obj->mPSPBRConstantBufferData.material.metallic,  0.0f, 1.0f);
-				ImGui::SliderFloat("Roughness",   &obj->mPSPBRConstantBufferData.material.roughness, 0.0f, 1.0f);
-				ImGui::SliderFloat("Height Scale",&obj->mVSPBRConstantBufferData.heightScale, 0.0f, 0.1f);
+				// 슬라이더 값은 GPU에 전달되는 런타임 설정인 동시에 Scene에 보존해야 하는 에디터 데이터다.
+				// 하나라도 변경되면 Scene 저장 콜백을 호출하여 다음 실행에서도 같은 값이 복원되게 한다.
+				bool materialEditFinished = false;
+				ImGui::SliderFloat("Metallic", &obj->mPSPBRConstantBufferData.material.metallic, 0.0f, 1.0f);
+				materialEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+				ImGui::SliderFloat("Roughness", &obj->mPSPBRConstantBufferData.material.roughness, 0.0f, 1.0f);
+				materialEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+				ImGui::SliderFloat("Height Scale", &obj->mVSPBRConstantBufferData.heightScale, 0.0f, 0.1f);
+				materialEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+				if (materialEditFinished)
+				{
+					NotifyObjectEdited();
+				}
 			}
 		}
 
@@ -180,4 +252,5 @@ private:
 	std::vector<std::unique_ptr<RenderObject>>& m_objects;
 	int& m_selectedIndex;
 	std::function<void()> m_objectEditedCallback;
+	bool m_uniformScale = true;
 };

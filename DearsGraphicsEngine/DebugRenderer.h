@@ -3,14 +3,17 @@
 #include <directxtk/SimpleMath.h>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "ModelBuffer.h"
 #include "ModelInfo.h"
 
 class DearsGraphicsEngine;
+struct Light;
 
 using DirectX::SimpleMath::Matrix;
 using DirectX::SimpleMath::Vector3;
+using DirectX::SimpleMath::Vector4;
 
 // 디버그용 박스, 구, 캡슐 같은 단순 형상을 렌더링하는 클래스이다.
 //
@@ -34,9 +37,29 @@ public:
 
 	void RenderSphere(Vector3 size, Vector3 rotation, Vector3 translation);
 	void RenderCapsule(Vector3 size, Vector3 rotation, Vector3 translation);
+	void RenderLightGizmo(
+		const Light& light,
+		bool drawShadowFrustum,
+		float shadowFovYDegrees,
+		float shadowAspect,
+		float shadowNear,
+		float shadowFar);
 
 private:
 	void PrepareDebugModel(const std::string& modelName);
+	void AddLine(Vector3 start, Vector3 end, Vector4 color);
+	void AddCircle(Vector3 center, Vector3 axisX, Vector3 axisY, float radius, Vector4 color, int segments = 32);
+	void AddPerspectiveFrustum(
+		Vector3 position,
+		Vector3 direction,
+		Vector3 right,
+		Vector3 up,
+		float fovYDegrees,
+		float aspect,
+		float nearDistance,
+		float farDistance,
+		Vector4 color);
+	void FlushLines();
 
 private:
 	// 아직은 기존 DearsGraphicsEngine의 DX11 함수들을 빌려 쓴다.
@@ -46,4 +69,15 @@ private:
 	// 디버그 도형은 매번 같은 ModelBuffer를 재사용한다.
 	// 그릴 때마다 vertex/index buffer와 world matrix만 바꿔 끼우면 된다.
 	std::unique_ptr<ModelBuffer> m_pDebugModelBuffer;
+
+	struct LineVertex
+	{
+		Vector3 position;
+		Vector4 color;
+	};
+	std::vector<LineVertex> m_lineVertices;
+	ComPtr<ID3D11Buffer> m_pLineVertexBuffer;
+	ComPtr<ID3D11VertexShader> m_pLineVertexShader;
+	ComPtr<ID3D11PixelShader> m_pLinePixelShader;
+	ComPtr<ID3D11InputLayout> m_pLineInputLayout;
 };

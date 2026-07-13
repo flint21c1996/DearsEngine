@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "PipelineStateObject.h"
+
 class DearsGraphicsEngine;
 struct ModelBuffer;
 
@@ -19,6 +21,7 @@ public:
 	void RenderAnimatedModel(ModelBuffer* modelBuffer);
 	void RenderStaticModel(ModelBuffer* modelBuffer);
 	void RenderPbrModel(ModelBuffer* modelBuffer);
+	void RenderDeferredGeometry(ModelBuffer* modelBuffer);
 	void RenderThinFilmModel(ModelBuffer* modelBuffer);
 	void RenderEquipmentModel(ModelBuffer* modelBuffer);
 	void RenderOpacityModel(ModelBuffer* modelBuffer);
@@ -39,4 +42,6 @@ private:
 	// 아직은 기존 DearsGraphicsEngine을 통해 PSO와 Renderer에 접근한다.
 	// 다음 단계에서는 이 의존성을 IRHI 또는 RenderCommandList 같은 인터페이스로 줄이는 것이 목표다.
 	DearsGraphicsEngine* m_pGraphicsEngine = nullptr;
+	PipelineStateObject m_deferredGeometryPSO;
+	bool m_isDeferredGeometryPipelineInitialized = false;
 };

@@ -19,7 +19,7 @@ struct EditorResourceOption
 // 이 Catalog는 그 API를 읽어서 동적으로 채우는 쪽으로 바꾸면 된다.
 namespace EditorResourceCatalog
 {
-	inline constexpr std::array<EditorResourceOption, 6> RenderTypes =
+	inline constexpr std::array<EditorResourceOption, 9> RenderTypes =
 	{{
 		{ "Static Mesh", "StaticMesh" },
 		{ "Skinned Mesh", "SkinnedMesh" },
@@ -27,9 +27,12 @@ namespace EditorResourceCatalog
 		{ "Cube Map", "CubeMap" },
 		{ "Billboard", "Billboard" },
 		{ "PBR Mesh", "PbrMesh" },
+		{ "Directional Light", "DirectionalLight" },
+		{ "Point Light", "PointLight" },
+		{ "Spot Light", "SpotLight" },
 	}};
 
-	inline constexpr std::array<SceneRenderType, 6> RenderTypeValues =
+	inline constexpr std::array<SceneRenderType, 9> RenderTypeValues =
 	{{
 		SceneRenderType::StaticMesh,
 		SceneRenderType::SkinnedMesh,
@@ -37,6 +40,9 @@ namespace EditorResourceCatalog
 		SceneRenderType::CubeMap,
 		SceneRenderType::Billboard,
 		SceneRenderType::PbrMesh,
+		SceneRenderType::DirectionalLight,
+		SceneRenderType::PointLight,
+		SceneRenderType::SpotLight,
 	}};
 
 	inline constexpr std::array<EditorResourceOption, 8> VertexBuffers =

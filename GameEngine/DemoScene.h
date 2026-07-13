@@ -37,6 +37,7 @@ public:
 	const std::vector<SceneRenderItem>& GetShadowRenderItems() const override;
 	const std::vector<SceneRenderItem>& GetMainRenderItems() const override;
 	RenderObject* GetSelectedObject() const override;
+	void CollectLights(CommonConstantBufferData& buffer) const override;
 	const Vector2& GetPrimaryUiPoint() const override;
 	const Vector2& GetSecondaryUiPoint() const override;
 

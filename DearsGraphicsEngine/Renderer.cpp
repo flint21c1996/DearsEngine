@@ -81,6 +81,13 @@ void Renderer::BeginRender()
 	SetCommonShaderResourceToGPU();
 }
 
+void Renderer::BindMainRenderTarget(ID3D11DepthStencilView* depthStencilView)
+{
+	ID3D11DepthStencilView* targetDepth = depthStencilView ? depthStencilView : mpDepthStencilView.Get();
+	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), targetDepth);
+	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
+}
+
 void Renderer::SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _environmentTexture, ComPtr<ID3D11ShaderResourceView> _diffuseTexture,
 								ComPtr<ID3D11ShaderResourceView> _specularTexture, ComPtr<ID3D11ShaderResourceView> _BRDFTexture)
 {
@@ -163,8 +170,10 @@ void Renderer::Render(ModelBuffer* _modelbuffer)
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pTempRednerTargetview.GetAddressOf(), NULL);
 	//m_pDeviceContext->DrawIndexed(_modelbuffer->mNumIndices, 0, 0);
 
-	//m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
-	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
+	// 렌더 타깃은 개별 오브젝트가 아니라 현재 Render Pass가 소유한다.
+	// 여기서 매 Draw 뒤 백 버퍼로 복구하면 Geometry Pass의 첫 오브젝트만 G-Buffer에 기록되고,
+	// 두 번째 오브젝트부터는 백 버퍼에 기록되는 문제가 생긴다.
+	// 다음 패스의 ApplyRenderContext()가 필요한 렌더 타깃을 명시적으로 바인딩한다.
 
 }
 

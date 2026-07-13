@@ -42,6 +42,7 @@ private:
 
 	std::unique_ptr<Camera> tempCamera;
 	std::unique_ptr<Camera> lightCamera;
+	bool m_hasShadowLight = false;
 	std::unique_ptr<IScene> m_pActiveScene;
 
 	std::unique_ptr<AStar> tempAStar;

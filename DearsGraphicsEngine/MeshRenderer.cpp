@@ -31,6 +31,26 @@ void MeshRenderer::RenderPbrModel(ModelBuffer* modelBuffer)
 	m_pGraphicsEngine->mpRenderer->Render(modelBuffer);
 }
 
+void MeshRenderer::RenderDeferredGeometry(ModelBuffer* modelBuffer)
+{
+	if (!m_isDeferredGeometryPipelineInitialized)
+	{
+		// 기존 PBR 정점 처리와 렌더 상태는 재사용하고, 조명 대신 MRT를 출력하는 PS만 교체한다.
+		m_deferredGeometryPSO = Dears::Graphics::PBRPSO;
+		RendererHelper::CreatePixelShader(
+			m_pGraphicsEngine->m_pDevice,
+			"../DearsGraphicsEngine/Shader/DeferredGeometryPixelShader.hlsl",
+			m_deferredGeometryPSO.m_pPixelShader);
+
+		// nullptr Blend State는 DX11 기본 상태, 즉 블렌딩 비활성 상태를 뜻한다.
+		m_deferredGeometryPSO.m_pBlendState.Reset();
+		m_isDeferredGeometryPipelineInitialized = true;
+	}
+
+	m_pGraphicsEngine->SetPipelineState(m_deferredGeometryPSO);
+	m_pGraphicsEngine->mpRenderer->Render(modelBuffer);
+}
+
 void MeshRenderer::RenderThinFilmModel(ModelBuffer* modelBuffer)
 {
 	// 얇은 막 간섭 효과용 셰이더를 사용하는 렌더링 경로이다.

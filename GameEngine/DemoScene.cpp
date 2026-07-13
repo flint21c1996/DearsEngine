@@ -36,6 +36,9 @@ std::string ToString(SceneRenderType renderType)
 		return "Billboard";
 	case SceneRenderType::PbrMesh:
 		return "PbrMesh";
+	case SceneRenderType::DirectionalLight: return "DirectionalLight";
+	case SceneRenderType::PointLight: return "PointLight";
+	case SceneRenderType::SpotLight: return "SpotLight";
 	case SceneRenderType::StaticMesh:
 	default:
 		return "StaticMesh";
@@ -49,7 +52,20 @@ SceneRenderType ParseSceneRenderType(const std::string& value)
 	if (value == "CubeMap") return SceneRenderType::CubeMap;
 	if (value == "Billboard") return SceneRenderType::Billboard;
 	if (value == "PbrMesh") return SceneRenderType::PbrMesh;
+	if (value == "DirectionalLight") return SceneRenderType::DirectionalLight;
+	if (value == "PointLight") return SceneRenderType::PointLight;
+	if (value == "SpotLight") return SceneRenderType::SpotLight;
 	return SceneRenderType::StaticMesh;
+}
+
+std::string ToString(SceneRenderPath renderPath)
+{
+	return renderPath == SceneRenderPath::Deferred ? "Deferred" : "Forward";
+}
+
+SceneRenderPath ParseSceneRenderPath(const std::string& value)
+{
+	return value == "Deferred" ? SceneRenderPath::Deferred : SceneRenderPath::Forward;
 }
 
 void WriteMatrix(std::ostream& stream, const Matrix& matrix)
@@ -358,6 +374,33 @@ RenderObject* DemoScene::GetSelectedObject() const
 	return GetObject(static_cast<size_t>(m_selectedObjectIndex));
 }
 
+void DemoScene::CollectLights(CommonConstantBufferData& buffer) const
+{
+	// GPU 상수 버퍼는 고정 크기이므로 매 프레임 먼저 비우고,
+	// Hierarchy 순서대로 활성 라이트를 MAX_LIGHTS개까지만 복사한다.
+	buffer.lightNum = 0;
+	for (UINT index = 0; index < MAX_LIGHTS; ++index)
+	{
+		buffer.light[index] = Light();
+	}
+
+	for (const std::unique_ptr<RenderObject>& object : m_objects)
+	{
+		if (!object || !object->mIsLight || buffer.lightNum >= MAX_LIGHTS)
+		{
+			continue;
+		}
+
+		Light light = object->mSceneLight;
+		light.position = Vector3(object->ObjectPos._41, object->ObjectPos._42, object->ObjectPos._43);
+		// 로컬 +Z를 라이트가 빛을 내보내는 방향으로 정의한다.
+		light.direction = Vector3::TransformNormal(Vector3::UnitZ, object->ObjectRot);
+		light.direction.Normalize();
+		buffer.light[buffer.lightNum] = light;
+		++buffer.lightNum;
+	}
+}
+
 const Vector2& DemoScene::GetPrimaryUiPoint() const
 {
 	return m_uiPoint;
@@ -512,6 +555,8 @@ void DemoScene::CreateSceneObjects()
 
 	m_objects.push_back(std::make_unique<RenderObject>(m_pGraphicsEngine));
 	GetCubeMap()->Initialize();
+	// CubeMap은 장면 전체를 감싸는 배경이므로 마우스로 선택하지 않는다.
+	GetCubeMap()->SetPickable(false);
 	GetCubeMap()->CreateVSConstantBuffer();
 	GetCubeMap()->CreatePSConstantBuffer();
 	GetCubeMap()->SetVIBuffer("CubeMap");
@@ -525,7 +570,10 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc)
 	CreateObjectFromDesc(
 		desc,
 		Matrix::CreateTranslation({ 0.0f, 0.0f, 0.0f }),
-		Matrix(),
+		Matrix::CreateFromYawPitchRoll(
+			DirectX::XMConvertToRadians(desc.rotationDegrees.y),
+			DirectX::XMConvertToRadians(desc.rotationDegrees.x),
+			DirectX::XMConvertToRadians(desc.rotationDegrees.z)),
 		Matrix::CreateScale(1.0f),
 		true);
 }
@@ -568,6 +616,21 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 
 	switch (desc.renderType)
 	{
+	case SceneRenderType::DirectionalLight:
+	case SceneRenderType::PointLight:
+	case SceneRenderType::SpotLight:
+		// 라이트는 월드 Transform과 조명 데이터만 가지며 GPU 메시 버퍼는 만들지 않는다.
+		object->mIsLight = true;
+		object->SetPickable(false);
+		object->mSceneLight.strength = desc.lightStrength;
+		object->mSceneLight.lightColor = desc.lightColor;
+		object->mSceneLight.fallOffStart = 0.0f;
+		object->mSceneLight.fallOffEnd = desc.lightRange;
+		object->mSceneLight.spotPower = desc.spotPower;
+		object->mSceneLight.lightType = static_cast<UINT>(
+			desc.renderType == SceneRenderType::DirectionalLight ? LightEnum::DIRECTIONAL_LIGHT :
+			desc.renderType == SceneRenderType::PointLight ? LightEnum::POINT_LIGHT : LightEnum::SPOT_LIGHT);
+		break;
 	case SceneRenderType::SkinnedMesh:
 		object->CreateVSConstantBuffer();
 		object->CreateVSBoneConstantBuffer();
@@ -578,6 +641,11 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 		}
 		break;
 	case SceneRenderType::PbrMesh:
+		// Constant Buffer를 생성하기 전에 저장된 재질 값을 넣어야
+		// 로드 직후 첫 렌더링부터 저장 당시와 동일한 값이 GPU에 전달된다.
+		object->mPSPBRConstantBufferData.material.metallic = desc.pbrMetallic;
+		object->mPSPBRConstantBufferData.material.roughness = desc.pbrRoughness;
+		object->mVSPBRConstantBufferData.heightScale = desc.pbrHeightScale;
 		object->CreateVSConstantBuffer();
 		object->CreateVSPBRConstantBuffer();
 		object->CreatePSPBRConstantBuffer();
@@ -595,6 +663,11 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 		object->CreatePSConstantBuffer();
 		break;
 	case SceneRenderType::CubeMap:
+		// CubeMap의 메시가 ray와 먼저 충돌해 실제 장면 오브젝트의 선택을 막지 않도록 한다.
+		object->SetPickable(false);
+		object->CreateVSConstantBuffer();
+		object->CreatePSConstantBuffer();
+		break;
 	case SceneRenderType::Billboard:
 	case SceneRenderType::StaticMesh:
 	default:
@@ -606,6 +679,7 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 	object->SetObjectScl(scale);
 	object->SetObjectRot(rotation);
 	object->SetObjectPos(position);
+	object->mEditorRotationDegrees = desc.rotationDegrees;
 
 	RenderObject* rawObject = object.get();
 	m_objects.push_back(std::move(object));
@@ -615,13 +689,16 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 	m_objectNames.push_back(storedDesc.name);
 	m_objectCreateDescs.push_back(storedDesc);
 
-	m_mainRenderItems.push_back({ rawObject, desc.renderType });
+	if (!rawObject->mIsLight)
+	{
+		m_mainRenderItems.push_back({ rawObject, desc.renderType, desc.renderPath });
+	}
 
-	if (desc.castShadow &&
+	if (!rawObject->mIsLight && desc.castShadow &&
 		desc.renderType != SceneRenderType::CubeMap &&
 		desc.renderType != SceneRenderType::Billboard)
 	{
-		m_shadowRenderItems.push_back({ rawObject, desc.renderType });
+		m_shadowRenderItems.push_back({ rawObject, desc.renderType, desc.renderPath });
 	}
 
 	if (saveScene)
@@ -665,7 +742,8 @@ void DemoScene::SaveSceneToFile() const
 		return;
 	}
 
-	file << "DearsScene 1\n";
+	// Version 4부터 Inspector Rotation과 월드 라이트 설정을 저장한다.
+	file << "DearsScene 4\n";
 	file << m_objects.size() << '\n';
 
 	for (size_t index = 0; index < m_objects.size(); ++index)
@@ -689,7 +767,20 @@ void DemoScene::SaveSceneToFile() const
 			<< std::quoted(desc.pbrRoughnessTextureName) << ' '
 			<< std::quoted(desc.pbrHeightTextureName) << ' '
 			<< ToString(desc.renderType) << ' '
-			<< desc.castShadow << ' ';
+			<< ToString(desc.renderPath) << ' '
+			<< desc.castShadow << ' '
+			<< object->mPSPBRConstantBufferData.material.metallic << ' '
+			<< object->mPSPBRConstantBufferData.material.roughness << ' '
+			<< object->mVSPBRConstantBufferData.heightScale << ' '
+			<< object->mEditorRotationDegrees.x << ' '
+			<< object->mEditorRotationDegrees.y << ' '
+			<< object->mEditorRotationDegrees.z << ' '
+			<< object->mSceneLight.strength << ' '
+			<< object->mSceneLight.lightColor.x << ' '
+			<< object->mSceneLight.lightColor.y << ' '
+			<< object->mSceneLight.lightColor.z << ' '
+			<< object->mSceneLight.fallOffEnd << ' '
+			<< object->mSceneLight.spotPower << ' ';
 
 		WriteMatrix(file, object->ObjectPos);
 		WriteMatrix(file, object->ObjectRot);
@@ -709,7 +800,7 @@ void DemoScene::LoadSceneFromFile()
 	std::string magic;
 	int version = 0;
 	file >> magic >> version;
-	if (magic != "DearsScene" || version != 1)
+	if (magic != "DearsScene" || version < 1 || version > 4)
 	{
 		return;
 	}
@@ -721,6 +812,7 @@ void DemoScene::LoadSceneFromFile()
 	{
 		SceneObjectCreateDesc desc;
 		std::string renderTypeName;
+		std::string renderPathName = "Forward";
 		Matrix position;
 		Matrix rotation;
 		Matrix scale;
@@ -736,8 +828,40 @@ void DemoScene::LoadSceneFromFile()
 			>> std::quoted(desc.pbrMetallicTextureName)
 			>> std::quoted(desc.pbrRoughnessTextureName)
 			>> std::quoted(desc.pbrHeightTextureName)
-			>> renderTypeName
-			>> desc.castShadow))
+			>> renderTypeName))
+		{
+			return;
+		}
+
+		if (version >= 2 && !(file >> renderPathName))
+		{
+			return;
+		}
+		if (!(file >> desc.castShadow))
+		{
+			return;
+		}
+
+		// 구버전 Scene에는 PBR 숫자 설정이 없으므로 desc의 기본값을 그대로 사용한다.
+		// Version 3부터는 Inspector에서 마지막으로 조절한 값을 읽어 복원한다.
+		if (version >= 3 && !(file
+			>> desc.pbrMetallic
+			>> desc.pbrRoughness
+			>> desc.pbrHeightScale))
+		{
+			return;
+		}
+
+		if (version >= 4 && !(file
+			>> desc.rotationDegrees.x
+			>> desc.rotationDegrees.y
+			>> desc.rotationDegrees.z
+			>> desc.lightStrength
+			>> desc.lightColor.x
+			>> desc.lightColor.y
+			>> desc.lightColor.z
+			>> desc.lightRange
+			>> desc.spotPower))
 		{
 			return;
 		}
@@ -748,6 +872,7 @@ void DemoScene::LoadSceneFromFile()
 		}
 
 		desc.renderType = ParseSceneRenderType(renderTypeName);
+		desc.renderPath = ParseSceneRenderPath(renderPathName);
 		CreateObjectFromDesc(desc, position, rotation, scale, false);
 	}
 }

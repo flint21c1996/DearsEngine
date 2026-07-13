@@ -7,6 +7,7 @@ class InputManager;
 class EasingFunc;
 class RenderObject;
 class Camera;
+struct CommonConstantBufferData;
 
 using DirectX::SimpleMath::Vector2;
 
@@ -17,13 +18,26 @@ enum class SceneRenderType
 	EquipmentMesh,
 	CubeMap,
 	Billboard,
-	PbrMesh
+	PbrMesh,
+	DirectionalLight,
+	PointLight,
+	SpotLight
+};
+
+// 같은 PBR 재질이라도 어떤 렌더링 경로로 제출할지 선택한다.
+// Forward는 오브젝트를 그릴 때 즉시 조명을 계산하고,
+// Deferred는 Geometry Pass에 표면 정보를 기록한 뒤 Lighting Pass에서 조명을 계산한다.
+enum class SceneRenderPath
+{
+	Forward,
+	Deferred,
 };
 
 struct SceneRenderItem
 {
 	RenderObject* object = nullptr;
 	SceneRenderType renderType = SceneRenderType::StaticMesh;
+	SceneRenderPath renderPath = SceneRenderPath::Forward;
 };
 
 // GameEngine이 씬에 대해 알아야 하는 최소 계약이다.
@@ -46,6 +60,8 @@ public:
 	virtual const std::vector<SceneRenderItem>& GetShadowRenderItems() const = 0;
 	virtual const std::vector<SceneRenderItem>& GetMainRenderItems() const = 0;
 	virtual RenderObject* GetSelectedObject() const = 0;
+	// Scene에 배치된 라이트를 GPU 공통 버퍼 형식으로 수집한다.
+	virtual void CollectLights(CommonConstantBufferData& buffer) const = 0;
 
 	virtual const Vector2& GetPrimaryUiPoint() const = 0;
 	virtual const Vector2& GetSecondaryUiPoint() const = 0;

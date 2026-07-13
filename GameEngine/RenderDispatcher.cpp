@@ -58,6 +58,19 @@ void RenderDispatcher::RenderShadowItems(const std::vector<SceneRenderItem>& ite
 	}
 }
 
+void RenderDispatcher::RenderGeometryItems(const std::vector<SceneRenderItem>& items)
+{
+	// 첫 디퍼드 대상은 표면 데이터가 이미 준비된 PBR 메시로 제한한다.
+	for (const SceneRenderItem& item : items)
+	{
+		if (item.renderPath == SceneRenderPath::Deferred &&
+			item.renderType == SceneRenderType::PbrMesh)
+		{
+			RenderGeometryItem(item);
+		}
+	}
+}
+
 void RenderDispatcher::RenderForwardItems(const std::vector<SceneRenderItem>& items)
 {
 	// 현재 메시 셰이더는 픽셀 셰이더 안에서 조명까지 계산한 뒤
@@ -105,6 +118,24 @@ void RenderDispatcher::RenderShadowItem(const SceneRenderItem& item)
 		m_pGraphicsEngine->RenderDepthMap(modelBuffer);
 		break;
 	}
+}
+
+void RenderDispatcher::RenderGeometryItem(const SceneRenderItem& item)
+{
+	if (!m_pGraphicsEngine || !item.object)
+	{
+		return;
+	}
+
+	ModelBuffer* modelBuffer = item.object->GetModelBuffer();
+	if (!IsDrawableModelBuffer(modelBuffer))
+	{
+		return;
+	}
+
+	// 최종 조명 색상 대신 Albedo/Normal/Material G-Buffer만 기록한다.
+	// Lighting Pass 완성 전까지 같은 항목은 Forward에서도 그려 화면 출력을 유지한다.
+	m_pGraphicsEngine->Rend_DeferredGeometry(modelBuffer);
 }
 
 void RenderDispatcher::RenderForwardItem(const SceneRenderItem& item)

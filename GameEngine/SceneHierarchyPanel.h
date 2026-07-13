@@ -32,7 +32,18 @@ struct SceneObjectCreateDesc
 	std::string pbrMetallicTextureName = "metallic.png";
 	std::string pbrRoughnessTextureName = "roughness.png";
 	std::string pbrHeightTextureName = "height.png";
+	// 텍스처 선택과 별개로 사용자가 Inspector에서 조절하는 PBR 숫자 설정이다.
+	// Scene을 다시 열었을 때도 같은 재질 상태를 복원하기 위해 생성 정보에 함께 보관한다.
+	float pbrMetallic = 0.0f;
+	float pbrRoughness = 0.0f;
+	float pbrHeightScale = 0.0f;
+	Vector3 rotationDegrees = Vector3::Zero;
+	float lightStrength = 1.0f;
+	Vector3 lightColor = Vector3::One;
+	float lightRange = 20.0f;
+	float spotPower = 32.0f;
 	SceneRenderType renderType = SceneRenderType::StaticMesh;
+	SceneRenderPath renderPath = SceneRenderPath::Forward;
 	bool castShadow = true;
 };
 
@@ -103,6 +114,7 @@ public:
 			static int pbrRoughnessIndex = 5;
 			static int pbrHeightIndex = 6;
 			static int renderTypeIndex = static_cast<int>(SceneRenderType::StaticMesh);
+			static int renderPathIndex = static_cast<int>(SceneRenderPath::Forward);
 
 			if (ImGui::IsWindowAppearing())
 			{
@@ -117,7 +129,11 @@ public:
 			DrawResourceCombo("Render Type", renderTypeIndex, EditorResourceCatalog::RenderTypes);
 
 			const SceneRenderType selectedRenderType = EditorResourceCatalog::RenderTypeValues[renderTypeIndex];
-			const bool usesModel = selectedRenderType != SceneRenderType::CubeMap;
+			const bool usesModel =
+				selectedRenderType != SceneRenderType::CubeMap &&
+				selectedRenderType != SceneRenderType::DirectionalLight &&
+				selectedRenderType != SceneRenderType::PointLight &&
+				selectedRenderType != SceneRenderType::SpotLight;
 			const bool usesDiffuseTexture =
 				selectedRenderType == SceneRenderType::StaticMesh ||
 				selectedRenderType == SceneRenderType::SkinnedMesh ||
@@ -125,8 +141,34 @@ public:
 				selectedRenderType == SceneRenderType::Billboard;
 			const bool usesAnimation = selectedRenderType == SceneRenderType::SkinnedMesh;
 			const bool usesPbr = selectedRenderType == SceneRenderType::PbrMesh;
+			const bool isLight =
+				selectedRenderType == SceneRenderType::DirectionalLight ||
+				selectedRenderType == SceneRenderType::PointLight ||
+				selectedRenderType == SceneRenderType::SpotLight;
 
-			DrawResourceCombo("Vertex Buffer", vertexBufferIndex, EditorResourceCatalog::VertexBuffers);
+			// 현재 Geometry 전용 셰이더는 PBR 재질 입력만 지원한다.
+			// 다른 타입을 선택하면 잘못된 Deferred 경로가 저장되지 않도록 Forward로 되돌린다.
+			if (!usesPbr)
+			{
+				renderPathIndex = static_cast<int>(SceneRenderPath::Forward);
+				ImGui::BeginDisabled();
+			}
+			const char* renderPaths[] = { "Forward", "Deferred" };
+			ImGui::SetNextItemWidth(220.0f);
+			ImGui::Combo("Render Path", &renderPathIndex, renderPaths, 2);
+			if (!usesPbr)
+			{
+				ImGui::EndDisabled();
+			}
+			DrawHelpTooltip(
+				"Forward: Pixel Shader에서 즉시 조명을 계산한다.\n"
+				"Deferred: Geometry Pass에서 G-Buffer에 기록한다.\n"
+				"현재 Deferred Geometry는 PBR Mesh만 지원한다.");
+
+			if (!isLight)
+			{
+				DrawResourceCombo("Vertex Buffer", vertexBufferIndex, EditorResourceCatalog::VertexBuffers);
+			}
 			if (usesModel)
 			{
 				DrawResourceCombo("Picking FBX", modelIndex, EditorResourceCatalog::Models);
@@ -198,13 +240,31 @@ public:
 					EditorResourceCatalog::PbrTextures[pbrRoughnessIndex].key);
 			}
 
-			ImGui::Checkbox("Cast Shadow", &desc.castShadow);
+			if (isLight)
+			{
+				ImGui::SeparatorText("Light");
+				ImGui::DragFloat("Strength", &desc.lightStrength, 0.05f, 0.0f, 100.0f);
+				ImGui::ColorEdit3("Color", &desc.lightColor.x);
+				if (selectedRenderType != SceneRenderType::DirectionalLight)
+				{
+					ImGui::DragFloat("Range", &desc.lightRange, 0.1f, 0.1f, 10000.0f);
+				}
+				if (selectedRenderType == SceneRenderType::SpotLight)
+				{
+					ImGui::DragFloat("Spot Power", &desc.spotPower, 0.5f, 1.0f, 256.0f);
+				}
+			}
+
+			if (!isLight)
+			{
+				ImGui::Checkbox("Cast Shadow", &desc.castShadow);
+			}
 			ImGui::Spacing();
 
 			if (ImGui::Button("Create", ImVec2(100, 0)))
 			{
 				desc.name = nameBuf;
-				desc.vertexBufferName = EditorResourceCatalog::VertexBuffers[vertexBufferIndex].key;
+				desc.vertexBufferName = isLight ? "" : EditorResourceCatalog::VertexBuffers[vertexBufferIndex].key;
 				desc.modelName = usesModel ? EditorResourceCatalog::Models[modelIndex].key : "";
 				desc.textureName = usesDiffuseTexture ? EditorResourceCatalog::Textures[textureIndex].key : "";
 				desc.animationName = usesAnimation ? EditorResourceCatalog::Animations[animationIndex].key : "";
@@ -215,6 +275,7 @@ public:
 				desc.pbrRoughnessTextureName = usesPbr ? EditorResourceCatalog::PbrTextures[pbrRoughnessIndex].key : "";
 				desc.pbrHeightTextureName = usesPbr ? EditorResourceCatalog::PbrTextures[pbrHeightIndex].key : "";
 				desc.renderType = selectedRenderType;
+				desc.renderPath = static_cast<SceneRenderPath>(renderPathIndex);
 
 				if (m_createObjectCallback)
 				{

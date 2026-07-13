@@ -12,8 +12,6 @@
 
 ///占쏙옙占쏙옙占?占쌓쏙옙트
  
-Vector3 dir = { 1.f, -1.f, 1.f };
-
 GameEngine::GameEngine(HWND _hWnd, const int _screenWidth, const int _screenHeight)
 {
 	m_hWnd = _hWnd;
@@ -141,8 +139,9 @@ void GameEngine::InitializeCameras()
 
 	lightCamera = std::make_unique<Camera>(m_screenWidth, m_screenHeight);
 	lightCamera->SetSpeed(20.0f);
-	lightCamera->SetEyePos(Vector3(-50.f, 50.0f, -50.f));
-	lightCamera->SetDirection(Vector3(1.0f, -1.0f, 1.0f));
+	// 실제 위치와 방향은 Scene에 배치된 Directional/Spot Light에서 매 프레임 가져온다.
+	lightCamera->SetEyePos(Vector3::Zero);
+	lightCamera->SetDirection(Vector3::UnitZ);
 	lightCamera->ProjectionSettings(70.f, 10.f, 1000.0f);
 	lightCamera->SetAircraftAxes(0, 0, 0);
 }
@@ -172,18 +171,9 @@ void GameEngine::InitializeEditorPanels()
 
 void GameEngine::InitializeLighting()
 {
-	// Lighting stays in GameEngine because it is part of the renderer setup.
-	// Scene-local UI positions now live inside DemoScene instead of here.
-	m_pDearsGraphicsEngine->LightInitialize(&tempCCConstantBuffer, 3);
-
-	Vector3 lightDirection = { 1.f, -1.f, 1.f };
-	lightDirection.Normalize();
-
-	m_pDearsGraphicsEngine->SetDirLight(&tempCCConstantBuffer, 0, 1.f, lightDirection);
-	tempCCConstantBuffer.light[0].position = lightCamera->GetmViewPos();
-	lightCamera->SetDirection(lightDirection);
-	lightCamera->SetEyePos(tempCCConstantBuffer.light[0].position);
-
+	// 라이트는 GameEngine에서 만들지 않는다. Scene의 Add Object로 생성하고
+	// UpdateLightingState()가 매 프레임 Common Buffer에 수집한다.
+	tempCCConstantBuffer.lightNum = 0;
 	m_pDearsGraphicsEngine->Set_CubeMap("MyCube1EnvHDR.dds", "MyCube1DiffuseHDR.dds", "MyCube1SpecularHDR.dds", "MyCube1Brdf.dds");
 }
 
@@ -237,7 +227,6 @@ void GameEngine::UpdateInputState()
 	if (!ImGui::GetIO().WantCaptureMouse)
 	{
 		tempCamera->OnMouseMove(static_cast<int>(m_pInputManager->GetMousePos().x), static_cast<int>(m_pInputManager->GetMousePos().y));
-		lightCamera->OnMouseMove(static_cast<int>(m_pInputManager->GetMousePos().x), static_cast<int>(m_pInputManager->GetMousePos().y));
 	}
 }
 
@@ -305,11 +294,39 @@ void GameEngine::UpdateDemoControls()
 
 void GameEngine::UpdateLightingState()
 {
-	tempCCConstantBuffer.light[0].direction = lightCamera->mViewDir;
-	m_pDearsGraphicsEngine->LightUpdate(&tempCCConstantBuffer);
-	m_pDearsGraphicsEngine->LightUpdate(&tempLightCConstantBuffer);
-	m_pDearsGraphicsEngine->SetCamera(lightCamera.get());
-	tempCCConstantBuffer.light[0].viewProj = (lightCamera->GetViewRow() * lightCamera->GetProjRow()).Transpose();
+	m_hasShadowLight = false;
+	if (!m_pActiveScene)
+	{
+		tempCCConstantBuffer.lightNum = 0;
+		return;
+	}
+
+	m_pActiveScene->CollectLights(tempCCConstantBuffer);
+	for (UINT index = 0; index < tempCCConstantBuffer.lightNum; ++index)
+	{
+		Light& light = tempCCConstantBuffer.light[index];
+		if (light.lightType != static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT) &&
+			light.lightType != static_cast<UINT>(LightEnum::SPOT_LIGHT))
+		{
+			continue;
+		}
+
+		// 현재 엔진은 Shadow Map이 한 장뿐이므로 첫 Directional/Spot Light만 그림자를 만든다.
+		// 기존 셰이더가 shadowMaps[0]과 lights[0].viewProj를 한 쌍으로 사용하므로,
+		// 그림자를 만드는 라이트를 배열의 0번으로 옮겨 두 데이터의 기준을 일치시킨다.
+		if (index != 0)
+		{
+			Light firstLight = tempCCConstantBuffer.light[0];
+			tempCCConstantBuffer.light[0] = light;
+			tempCCConstantBuffer.light[index] = firstLight;
+		}
+		Light& shadowLight = tempCCConstantBuffer.light[0];
+		lightCamera->SetEyePos(shadowLight.position);
+		lightCamera->SetDirection(shadowLight.direction);
+		shadowLight.viewProj = (lightCamera->GetViewRow() * lightCamera->GetProjRow()).Transpose();
+		m_hasShadowLight = true;
+		break;
+	}
 }
 
 void GameEngine::UpdateSceneObjects(float deltaTime)
@@ -466,6 +483,10 @@ void GameEngine::RenderDemoOverlay()
 
 void GameEngine::RenderShadowPass()
 {
+	if (!m_hasShadowLight)
+	{
+		return;
+	}
 	// Shadow pass:
 	// 라이트 카메라 시점에서 씬을 depth-only target에 먼저 그린다.
 	// 이후 메인 씬 패스에서 이 depth texture를 샘플링해서
@@ -492,15 +513,19 @@ void GameEngine::RenderGeometryPass()
 	// 최종 조명 색상이 아니라 Albedo, Normal, Material, Depth 같은 표면 정보를
 	// 화면 크기의 여러 렌더 타깃(G-Buffer)에 기록한다.
 	//
-	// 현재는 패스의 실행 위치와 카메라/공통 버퍼 경계만 먼저 확정한 상태다.
-	// 아직 G-Buffer와 Geometry 전용 셰이더가 없으므로 여기서 오브젝트를 그리면
-	// 기존 포워드 결과와 중복 렌더링된다. 따라서 의도적으로 draw call은 실행하지 않는다.
-	// 다음 단계에서 G-Buffer 생성과 RenderGeometryItems()를 이 위치에 연결한다.
+	// G-Buffer와 Geometry 전용 Pixel Shader가 준비되었으므로 이 패스에서
+	// PBR 불투명 메시의 표면 정보를 실제 MRT에 기록한다.
+	// 다만 Lighting Pass가 아직 최종 색상을 만들지 못하므로, 같은 PBR 메시는
+	// 아래 Forward Pass에서도 임시로 한 번 더 그려 기존 화면 출력을 유지한다.
 	RenderContext geometryContext;
 	geometryContext.passType = RenderPassType::Geometry;
 	geometryContext.camera = tempCamera.get();
 	geometryContext.commonBuffer = &tempCCConstantBuffer;
 	m_pDearsGraphicsEngine->ApplyRenderContext(geometryContext);
+
+	// 우선 PBR 불투명 메시만 Geometry Pass에서 G-Buffer에 기록한다.
+	// Lighting 구현 전에는 Forward Pass에서도 다시 그려 기존 화면을 보존한다.
+	m_pRenderDispatcher->RenderGeometryItems(m_pActiveScene->GetMainRenderItems());
 }
 
 void GameEngine::RenderLightingPass()
@@ -597,16 +622,33 @@ void GameEngine::RenderDebugPass()
 {
 	// Debug pass:
 	// 메인 씬을 그린 뒤에 엔진 시각화용 helper geometry를 추가로 그린다.
-	// 현재는 첫 번째 라이트 위치만 구체로 표시한다.
-	// 나중에는 DebugRenderer로 분리해서 bounding box, skeleton, physics shape,
-	// nav path, picking ray 같은 디버그 표시를 토글할 수 있게 만들면 좋다.
+	// 디버그 기하도 일반 장면 렌더링과 같은 카메라를 사용해야 월드 좌표와 정확히 겹친다.
+	// 아래 RenderContext를 적용한 뒤 라이트 기즈모를 그리면 현재 뷰/투영 행렬이
+	// DebugLineVertexShader에도 전달되므로, 카메라가 움직여도 선이 라이트 위치를 따라간다.
 	RenderContext debugContext;
 	debugContext.passType = RenderPassType::Debug;
 	debugContext.camera = tempCamera.get();
 	debugContext.commonBuffer = &tempCCConstantBuffer;
 	m_pDearsGraphicsEngine->ApplyRenderContext(debugContext);
 
-	m_pDearsGraphicsEngine->Rend_DebugSphere({ 1.f,1.f,1.f }, { 0,0,0 }, tempCCConstantBuffer.light[0].position);
+	// Scene에 실제로 배치된 라이트만 기즈모로 표시한다.
+	// 기즈모는 Debug Pass에서 그리므로 G-Buffer, Shadow Map, Picking 대상에는 포함되지 않는다.
+	for (UINT lightIndex = 0; lightIndex < tempCCConstantBuffer.lightNum; ++lightIndex)
+	{
+		const Light& light = tempCCConstantBuffer.light[lightIndex];
+		const bool drawDirectionalShadowFrustum =
+			m_hasShadowLight &&
+			lightIndex == 0 &&
+			light.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT);
+
+		m_pDearsGraphicsEngine->Rend_DebugLightGizmo(
+			light,
+			drawDirectionalShadowFrustum,
+			lightCamera->mProjFovAngleY,
+			lightCamera->GetAspectRatio(),
+			lightCamera->mNearZ,
+			lightCamera->mFarZ);
+	}
 }
 
 void GameEngine::GameLoop()

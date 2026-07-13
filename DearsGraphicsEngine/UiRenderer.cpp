@@ -20,7 +20,13 @@ UiRenderer::UiRenderer(
 
 void UiRenderer::AddEditorPanel(IEditorPanel* panel)
 {
-	m_pDearsImGui->AddPanel(panel);
+	if (!panel)
+	{
+		return;
+	}
+
+	m_editorPanels.push_back(panel);
+	m_editorPanelVisibility.push_back(true);
 }
 
 void UiRenderer::BeginFrame()
@@ -30,7 +36,32 @@ void UiRenderer::BeginFrame()
 
 void UiRenderer::DrawRegisteredPanels()
 {
-	m_pDearsImGui->UISetting();
+	// 상단 Window 메뉴는 등록된 에디터 패널 목록으로 자동 생성한다.
+	// 메뉴를 통해 숨긴 창도 다시 켤 수 있으므로 각 창 내부에 별도의 복구 버튼이 필요 없다.
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("Window"))
+		{
+			for (size_t index = 0; index < m_editorPanels.size(); ++index)
+			{
+				bool visible = m_editorPanelVisibility[index];
+				if (ImGui::MenuItem(m_editorPanels[index]->GetName(), nullptr, visible))
+				{
+					m_editorPanelVisibility[index] = !visible;
+				}
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
+	}
+
+	for (size_t index = 0; index < m_editorPanels.size(); ++index)
+	{
+		if (m_editorPanelVisibility[index])
+		{
+			m_editorPanels[index]->Draw();
+		}
+	}
 }
 
 void UiRenderer::BeginCanvas(Vector2 position, Vector2 size)

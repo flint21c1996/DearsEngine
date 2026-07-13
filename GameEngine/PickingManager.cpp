@@ -225,7 +225,9 @@ PickingResult PickingManager::Pick(
 	for (int objectIndex = 0; objectIndex < static_cast<int>(objects.size()); ++objectIndex)
 	{
 		RenderObject* object = objects[objectIndex].get();
-		if (!object)
+		// 렌더링 여부와 선택 가능 여부는 서로 다른 개념이다.
+		// CubeMap 같은 배경 오브젝트는 화면에 그리더라도 ray 교차 검사에서는 제외한다.
+		if (!object || !object->IsPickable())
 		{
 			continue;
 		}

@@ -87,6 +87,11 @@ public:
 	Matrix ObjectPos;
 	Matrix ObjectRot;
 	Matrix ObjectScl;
+	// Inspector에서는 사람이 이해하기 쉬운 degree 값을 보관하고,
+	// 렌더링에는 이 값으로 만든 ObjectRot 행렬을 사용한다.
+	Vector3 mEditorRotationDegrees = Vector3::Zero;
+	bool mIsLight = false;
+	Light mSceneLight;
 
 	// 에디터에서 어떤 리소스를 골라 이 오브젝트를 만들었는지 기록한다.
 	// 렌더링에는 ModelBuffer의 실제 포인터/SRV가 쓰이지만,
@@ -101,6 +106,11 @@ public:
 	std::string mEditorPbrMetallicTextureName;
 	std::string mEditorPbrRoughnessTextureName;
 	std::string mEditorPbrHeightTextureName;
+
+	// 배경용 CubeMap처럼 화면에는 렌더링되지만 에디터에서 선택할 필요가 없는
+	// 오브젝트를 피킹 후보에서 제외하기 위한 속성이다.
+	// 일반 오브젝트는 기존 동작을 유지하도록 기본값을 true로 둔다.
+	bool mIsPickable = true;
 
 public:
 	
@@ -205,6 +215,8 @@ public:
 	void SetObjectScl(Matrix _Scl);
 	void EnsureEdgeConstantBuffers();
 	void ConfigureOutline(float scale, Vector3 color);
+	void SetPickable(bool isPickable) { mIsPickable = isPickable; }
+	bool IsPickable() const { return mIsPickable; }
 
 	void GetObjectTargetBoneMatrix(std::string _targetModel, std::string _targetBoneName);
 	void GetObjectTargetBoneMatrix(VSBoneConstantBufferData _targetModelBoneConstantBuffer);

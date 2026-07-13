@@ -56,6 +56,12 @@
     <ClCompile Include="GeometryGenerator.cpp">
       <Filter>GeometryGenerator</Filter>
     </ClCompile>
+	<ClCompile Include="GBuffer.cpp">
+		<Filter>DeferredRenderer</Filter>
+	</ClCompile>
+	<ClCompile Include="GBufferDebugRenderer.cpp">
+		<Filter>DeferredRenderer</Filter>
+	</ClCompile>
     <ClCompile Include="GraphicsCommon.cpp">
       <Filter>GraphicsCommon</Filter>
     </ClCompile>
@@ -184,6 +190,9 @@
     <Filter Include="shader\ThinFilmShader">
       <UniqueIdentifier>{aebe6c6b-1c2c-42ee-a245-7c94c3fa7316}</UniqueIdentifier>
     </Filter>
+	<Filter Include="DeferredRenderer">
+		<UniqueIdentifier>{4ac17ef7-d3e4-4697-a69c-793bd5c40920}</UniqueIdentifier>
+	</Filter>
     <Filter Include="DebugRenderer">
       <UniqueIdentifier>{b16aa197-749a-4e21-9c6d-f0a848b14a6e}</UniqueIdentifier>
     </Filter>
@@ -200,6 +209,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearsGraphicsEngine.h" />
+	<ClInclude Include="GBuffer.h">
+		<Filter>DeferredRenderer</Filter>
+	</ClInclude>
+	<ClInclude Include="GBufferDebugPanel.h">
+		<Filter>DeferredRenderer</Filter>
+	</ClInclude>
+	<ClInclude Include="GBufferDebugRenderer.h">
+		<Filter>DeferredRenderer</Filter>
+	</ClInclude>
     <ClInclude Include="DebugRenderer.h">
       <Filter>DebugRenderer</Filter>
     </ClInclude>
@@ -364,6 +382,15 @@
     <FxCompile Include="Shader\PBRPixelShader.hlsl">
       <Filter>shader\PBR</Filter>
     </FxCompile>
+	<FxCompile Include="Shader\DeferredGeometryPixelShader.hlsl">
+		<Filter>shader\PBR</Filter>
+	</FxCompile>
+	<FxCompile Include="Shader\GBufferDebugVertexShader.hlsl">
+		<Filter>shader\PBR</Filter>
+	</FxCompile>
+	<FxCompile Include="Shader\GBufferDebugPixelShader.hlsl">
+		<Filter>shader\PBR</Filter>
+	</FxCompile>
     <FxCompile Include="Shader\PBRVertexShader.hlsl">
       <Filter>shader\PBR</Filter>
     </FxCompile>

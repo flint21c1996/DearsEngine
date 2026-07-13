@@ -82,6 +82,11 @@ public:
 	void SetViewportWidth(int viewportWidth);
 	void BeginRender();
 
+	// G-Buffer 쓰기가 끝난 뒤 최종 조명/포워드 결과를 다시 백 버퍼에 기록한다.
+	// depthStencilView를 받는 이유는 Geometry Pass의 깊이를 Forward Pass에서도
+	// 이어서 사용해야 불투명 물체 앞뒤 관계가 유지되기 때문이다.
+	void BindMainRenderTarget(ID3D11DepthStencilView* depthStencilView = nullptr);
+
 	void SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _environmentTexture,
 									ComPtr<ID3D11ShaderResourceView> _diffuseTexture,
 									ComPtr<ID3D11ShaderResourceView> _specularTexture,

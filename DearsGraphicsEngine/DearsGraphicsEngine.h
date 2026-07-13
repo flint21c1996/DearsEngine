@@ -21,6 +21,9 @@ using DirectX::SimpleMath::Quaternion;
 
 class DebugRenderer;
 class GraphicsAssetManager;
+class GBuffer;
+class GBufferDebugPanel;
+class GBufferDebugRenderer;
 class MeshRenderer;
 class ParticleRenderer;
 class PostProcessRenderer;
@@ -66,6 +69,12 @@ private:
 	std::unique_ptr<ParticleRenderer> m_pParticleRenderer;
 	std::unique_ptr<PostProcessRenderer> m_pPostProcessRenderer;
 	std::unique_ptr<UiRenderer> m_pUiRenderer;
+
+	// 디퍼드 Geometry/Lighting 패스가 공유하는 화면 공간 표면 데이터이다.
+	// DX11 리소스의 생성과 바인딩은 GBuffer 내부에 숨겨 GameEngine이 알지 못하게 한다.
+	std::unique_ptr<GBuffer> m_pGBuffer;
+	std::unique_ptr<GBufferDebugPanel> m_pGBufferDebugPanel;
+	std::unique_ptr<GBufferDebugRenderer> m_pGBufferDebugRenderer;
 
 	// 현재 적용된 렌더 패스 종류이다.
 	// 지금은 디버깅용 상태에 가깝지만, 나중에 RHI를 붙이면
@@ -190,6 +199,7 @@ public:
 	void Rend_Model(ModelBuffer* _modelBuffer);
 
 	void Rend_PBR(ModelBuffer* _modelBuffer);
+	void Rend_DeferredGeometry(ModelBuffer* _modelBuffer);
 	void Rend_ThinFilm(ModelBuffer* _modelBuffer);
 
 	void Rend_EquipmentModel(ModelBuffer* _modelBuffer);
@@ -214,6 +224,13 @@ public:
 
 	void Rend_DebugSphere(Vector3 _size, Vector3 _rotation, Vector3 _transpose);
 	void Rend_DebugCapsule(Vector3 _size, Vector3 _rotation, Vector3 _transpose);
+	void Rend_DebugLightGizmo(
+		const Light& light,
+		bool drawShadowFrustum = false,
+		float shadowFovYDegrees = 70.0f,
+		float shadowAspect = 1.0f,
+		float shadowNear = 0.1f,
+		float shadowFar = 100.0f);
 
 	void Rend_CubeMap(ModelBuffer* _modelBuffer);
 	//占쏙옙占쏙옙占쏙옙占쏙옙 占십울옙占쏙옙 카占쌨띰옙 占쏙옙占쏙옙占싼댐옙.

@@ -20,8 +20,10 @@ public:
 	explicit RenderDispatcher(DearsGraphicsEngine* graphicsEngine);
 
 	void RenderShadowItems(const std::vector<SceneRenderItem>& items);
+	void RenderGeometryItems(const std::vector<SceneRenderItem>& items);
 	void RenderForwardItems(const std::vector<SceneRenderItem>& items);
 	void RenderShadowItem(const SceneRenderItem& item);
+	void RenderGeometryItem(const SceneRenderItem& item);
 	void RenderForwardItem(const SceneRenderItem& item);
 	void RenderSelectedOutline(RenderObject* object, Camera* camera);
 
