@@ -62,6 +62,9 @@
 	<ClCompile Include="GBufferDebugRenderer.cpp">
 		<Filter>DeferredRenderer</Filter>
 	</ClCompile>
+	<ClCompile Include="ShadowMapDebugRenderer.cpp">
+		<Filter>DeferredRenderer</Filter>
+	</ClCompile>
     <ClCompile Include="GraphicsCommon.cpp">
       <Filter>GraphicsCommon</Filter>
     </ClCompile>
@@ -216,6 +219,9 @@
 		<Filter>DeferredRenderer</Filter>
 	</ClInclude>
 	<ClInclude Include="GBufferDebugRenderer.h">
+		<Filter>DeferredRenderer</Filter>
+	</ClInclude>
+	<ClInclude Include="ShadowMapDebugRenderer.h">
 		<Filter>DeferredRenderer</Filter>
 	</ClInclude>
     <ClInclude Include="DebugRenderer.h">
@@ -389,6 +395,9 @@
 		<Filter>shader\PBR</Filter>
 	</FxCompile>
 	<FxCompile Include="Shader\GBufferDebugPixelShader.hlsl">
+		<Filter>shader\PBR</Filter>
+	</FxCompile>
+	<FxCompile Include="Shader\ShadowMapDebugPixelShader.hlsl">
 		<Filter>shader\PBR</Filter>
 	</FxCompile>
     <FxCompile Include="Shader\PBRVertexShader.hlsl">

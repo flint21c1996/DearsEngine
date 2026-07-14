@@ -125,15 +125,32 @@ float SchlickGGX(float NdotL, float NdotV, float roughness)
 // Shadow Pass에서 만든 depth texture와 현재 픽셀의 light-space depth를 비교한다.
 // 1.0이면 빛을 직접 받고, 0.7이면 다른 물체에 가려진 영역이다.
 // 현재는 기존 일반 메시 셰이더와 결과를 맞추기 위해 동일한 상수와 단일 샘플을 사용한다.
-float CalculateShadowFactor(float3 positionWorld)
+float CalculateShadowFactor(float3 positionWorld, float3 normalWorld)
 {
     float4 lightSpacePosition = mul(float4(positionWorld, 1.0f), lights[0].viewProj);
+    if (lightSpacePosition.w <= 0.0f)
+    {
+        return 1.0f;
+    }
+    float receiverDistance = lightSpacePosition.w;
     lightSpacePosition.xyz /= lightSpacePosition.w;
+
+    // Shadow Camera 절두체 밖은 Shadow Map에 기록된 영역이 아니므로 조명을 그대로 통과시킨다.
+    // 이 검사가 없으면 절두체 크기를 줄였을 때 바깥 픽셀이 테두리 depth와 비교되어
+    // 화면의 엉뚱한 부분까지 그림자로 판정될 수 있다.
+    if (abs(lightSpacePosition.x) > 1.0f ||
+        abs(lightSpacePosition.y) > 1.0f ||
+        lightSpacePosition.z < 0.0f || lightSpacePosition.z > 1.0f)
+    {
+        return 1.0f;
+    }
     lightSpacePosition.y *= -1.0f;
 
     float2 shadowTexCoord = lightSpacePosition.xy * 0.5f + 0.5f;
     float shadowMapDepth = shadowMaps[0].Sample(shadowPointSampler, shadowTexCoord).r;
-    const float shadowBias = 0.003f;
+    // 고정 0.003 bias는 원근 카메라가 멀어질 때 실제 깊이 차이보다 커져 그림자를 지웠다.
+    float shadowBias = ComputeShadowBias(
+        lights[0], receiverDistance, positionWorld, normalWorld);
 
     return lightSpacePosition.z - shadowBias > shadowMapDepth ? 0.7f : 1.0f;
 }
@@ -261,7 +278,9 @@ float4 main(PBRPixelShaderInput input) : SV_TARGET0
             albedo, metallic, roughness);
     }
 
-    float shadowFactor = lightNum > 0 ? CalculateShadowFactor(input.posWorld) : 1.0f;
+    float shadowFactor = lightNum > 0
+        ? CalculateShadowFactor(input.posWorld, normalWorld)
+        : 1.0f;
     float4 finalColor = float4(ambientLighting + directLighting * shadowFactor, 1);
     finalColor = clamp(finalColor, 0.0, 1000.f);
    

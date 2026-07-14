@@ -156,10 +156,7 @@ void DebugRenderer::PrepareDebugModel(const std::string& modelName)
 void DebugRenderer::RenderLightGizmo(
 	const Light& light,
 	bool drawShadowFrustum,
-	float shadowFovYDegrees,
-	float shadowAspect,
-	float shadowNear,
-	float shadowFar)
+	float shadowAspect)
 {
 	m_lineVertices.clear();
 
@@ -171,11 +168,18 @@ void DebugRenderer::RenderLightGizmo(
 	}
 	direction.Normalize();
 
-	// 방향과 거의 평행하지 않은 기준축을 골라 원과 원뿔의 직교 기저를 만든다.
-	const Vector3 referenceAxis = std::abs(direction.Dot(Vector3::UnitY)) > 0.95f
-		? Vector3::UnitX
-		: Vector3::UnitY;
-	Vector3 right = referenceAxis.Cross(direction);
+	// 라이트 오브젝트의 로컬 +Y를 회전한 실제 Up축을 사용한다.
+	// 이전처럼 direction의 기울기에 따라 X/Y 기준축을 교체하면 그 경계에서
+	// 절두체가 갑자기 90도 회전하므로 Shadow Camera와 동일한 기저를 직접 전달받는다.
+	Vector3 lightUp = light.shadowUp;
+	if (lightUp.LengthSquared() < 0.0001f || std::abs(lightUp.Dot(direction)) > 0.999f)
+	{
+		lightUp = std::abs(direction.Dot(Vector3::UnitY)) > 0.95f
+			? Vector3::UnitX
+			: Vector3::UnitY;
+	}
+	lightUp.Normalize();
+	Vector3 right = lightUp.Cross(direction);
 	right.Normalize();
 	Vector3 up = direction.Cross(right);
 	up.Normalize();
@@ -199,13 +203,17 @@ void DebugRenderer::RenderLightGizmo(
 	if (light.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT))
 	{
 		// 사용자가 요청한 dirVec는 라이트 위치에서 실제 Far 평면 중심까지 한 줄로 표시한다.
-		AddLine(position, position + direction * shadowFar, directionalColor);
+		AddLine(position, position + direction * light.shadowFar, directionalColor);
 
 		if (drawShadowFrustum)
 		{
-			AddPerspectiveFrustum(
+			// 실제 Directional Shadow Camera와 같은 직교 투영 범위를 그린다.
+			// Near/Far 사각형의 크기가 같으므로 화면에는 직육면체 형태로 표시된다.
+			const float safeAspect = (std::max)(shadowAspect, 0.001f);
+			AddOrthographicFrustum(
 				position, direction, right, up,
-				shadowFovYDegrees, shadowAspect, shadowNear, shadowFar,
+				light.shadowWidth, light.shadowWidth / safeAspect,
+				light.shadowNear, light.shadowFar,
 				directionalColor);
 		}
 	}
@@ -288,6 +296,48 @@ void DebugRenderer::AddPerspectiveFrustum(
 		farCenter + right * farHalfWidth + up * farHalfHeight,
 		farCenter + right * farHalfWidth - up * farHalfHeight,
 		farCenter - right * farHalfWidth - up * farHalfHeight,
+	};
+
+	for (int corner = 0; corner < 4; ++corner)
+	{
+		const int nextCorner = (corner + 1) % 4;
+		AddLine(nearCorners[corner], nearCorners[nextCorner], color);
+		AddLine(farCorners[corner], farCorners[nextCorner], color);
+		AddLine(nearCorners[corner], farCorners[corner], color);
+	}
+}
+
+void DebugRenderer::AddOrthographicFrustum(
+	Vector3 position,
+	Vector3 direction,
+	Vector3 right,
+	Vector3 up,
+	float width,
+	float height,
+	float nearDistance,
+	float farDistance,
+	Vector4 color)
+{
+	// 직교 투영은 거리에 관계없이 Near/Far 평면의 가로/세로 크기가 같다.
+	// 따라서 두 사각형과 대응하는 네 모서리를 연결하면 Directional Shadow가
+	// 실제로 depth를 기록하는 직육면체 범위를 월드에서 그대로 볼 수 있다.
+	const float halfWidth = width * 0.5f;
+	const float halfHeight = height * 0.5f;
+	const Vector3 nearCenter = position + direction * nearDistance;
+	const Vector3 farCenter = position + direction * farDistance;
+	const Vector3 nearCorners[4] =
+	{
+		nearCenter - right * halfWidth + up * halfHeight,
+		nearCenter + right * halfWidth + up * halfHeight,
+		nearCenter + right * halfWidth - up * halfHeight,
+		nearCenter - right * halfWidth - up * halfHeight,
+	};
+	const Vector3 farCorners[4] =
+	{
+		farCenter - right * halfWidth + up * halfHeight,
+		farCenter + right * halfWidth + up * halfHeight,
+		farCenter + right * halfWidth - up * halfHeight,
+		farCenter - right * halfWidth - up * halfHeight,
 	};
 
 	for (int corner = 0; corner < 4; ++corner)

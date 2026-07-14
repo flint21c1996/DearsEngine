@@ -11,6 +11,7 @@
 #include "MeshRenderer.h"
 #include "ParticleRenderer.h"
 #include "PostProcessRenderer.h"
+#include "ShadowMapDebugRenderer.h"
 #include "UiRenderer.h"
 
 
@@ -63,6 +64,11 @@ void DearsGraphicsEngine::Initialize()
 	m_pGBufferDebugRenderer->Initialize(m_pDevice.Get(), m_pDeviceContext.Get(), m_pGBuffer.get());
 	m_pGBufferDebugPanel = std::make_unique<GBufferDebugPanel>(*m_pGBuffer, *m_pGBufferDebugRenderer);
 	m_pUiRenderer->AddEditorPanel(m_pGBufferDebugPanel.get());
+
+	// Shadow Map 미리보기는 실제 Depth 리소스를 복사하지 않고, 매 프레임 선형 깊이 색상만 만든다.
+	// 패널 자체는 Scene이 선택 상태와 함께 등록하고 그래픽스 엔진은 변환된 SRV만 제공한다.
+	m_pShadowMapDebugRenderer = std::make_unique<ShadowMapDebugRenderer>();
+	m_pShadowMapDebugRenderer->Initialize(m_pDevice.Get(), m_pDeviceContext.Get());
 
 	m_pAssetManager = std::make_unique<GraphicsAssetManager>(
 		m_pResourceManager.get(),
@@ -598,6 +604,41 @@ void DearsGraphicsEngine::RenderEquipDepthMap(ModelBuffer* _modelbuffer)
 	m_pMeshRenderer->RenderEquipmentDepthMap(_modelbuffer);
 }
 
+void DearsGraphicsEngine::RenderShadowMapDebugPreview(
+	float nearPlane,
+	float farPlane,
+	bool isPerspective)
+{
+	if (!m_pShadowMapDebugRenderer || !mpRenderer)
+	{
+		return;
+	}
+
+	m_pShadowMapDebugRenderer->Render(
+		mpRenderer->GetShadowMapShaderResourceView(),
+		nearPlane,
+		farPlane,
+		isPerspective);
+}
+
+bool DearsGraphicsEngine::UIDrawShadowMapDebugPreview(Vector2 size) const
+{
+	ID3D11ShaderResourceView* preview = m_pShadowMapDebugRenderer
+		? m_pShadowMapDebugRenderer->GetShaderResourceView()
+		: nullptr;
+	if (!preview)
+	{
+		return false;
+	}
+
+	// ImTextureID로의 변환은 DX11 ImGui 백엔드를 소유한 그래픽스 계층 안에서만 수행한다.
+	// 나중에 RHI 백엔드가 바뀌면 이 함수 내부의 Texture ID 생성 방식만 교체하면 된다.
+	ImGui::Image(
+		reinterpret_cast<ImTextureID>(preview),
+		ImVec2(size.x, size.y));
+	return true;
+}
+
 void DearsGraphicsEngine::Rend_InstancedModels(ModelBuffer* _modelbuffers)
 {
 	m_pMeshRenderer->RenderInstancedModels(_modelbuffers);
@@ -641,18 +682,12 @@ void DearsGraphicsEngine::Rend_DebugCapsule(Vector3 _size, Vector3 _rotation, Ve
 void DearsGraphicsEngine::Rend_DebugLightGizmo(
 	const Light& light,
 	bool drawShadowFrustum,
-	float shadowFovYDegrees,
-	float shadowAspect,
-	float shadowNear,
-	float shadowFar)
+	float shadowAspect)
 {
 	m_pDebugRenderer->RenderLightGizmo(
 		light,
 		drawShadowFrustum,
-		shadowFovYDegrees,
-		shadowAspect,
-		shadowNear,
-		shadowFar);
+		shadowAspect);
 }
 
 void DearsGraphicsEngine::Rend_CubeMap(ModelBuffer* _modelBuffer)

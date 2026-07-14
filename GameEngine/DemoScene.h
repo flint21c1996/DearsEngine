@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "IScene.h"
+#include "LightShadowMapPanel.h"
 #include "ObjectInspectorPanel.h"
 #include "PickingManager.h"
 #include "PickingPanel.h"
@@ -75,6 +76,7 @@ private:
 	std::unique_ptr<SceneHierarchyPanel> m_pScenePanel;
 	std::unique_ptr<PickingPanel> m_pPickingPanel;
 	std::unique_ptr<ObjectInspectorPanel> m_pInspectorPanel;
+	std::unique_ptr<LightShadowMapPanel> m_pLightShadowMapPanel;
 
 	// These values only exist to drive the sample scene presentation and tests,
 	// so they stay with DemoScene instead of the engine core.

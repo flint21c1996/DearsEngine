@@ -159,9 +159,14 @@ void DemoScene::RegisterEditorPanels(int screenWidth)
 			HandleSceneObjectEdited();
 		});
 	m_pPickingPanel = std::make_unique<PickingPanel>(m_pickingManager);
+	m_pLightShadowMapPanel = std::make_unique<LightShadowMapPanel>(
+		m_pGraphicsEngine,
+		m_objects,
+		m_selectedObjectIndex);
 	m_pGraphicsEngine->AddEditorPanel(m_pScenePanel.get());
 	m_pGraphicsEngine->AddEditorPanel(m_pPickingPanel.get());
 	m_pGraphicsEngine->AddEditorPanel(m_pInspectorPanel.get());
+	m_pGraphicsEngine->AddEditorPanel(m_pLightShadowMapPanel.get());
 
 	const int editorPanelWidth = GetEditorPanelWidth(static_cast<float>(screenWidth));
 	m_renderViewportWidth = screenWidth - editorPanelWidth;
@@ -384,11 +389,14 @@ void DemoScene::CollectLights(CommonConstantBufferData& buffer) const
 		buffer.light[index] = Light();
 	}
 
-	for (const std::unique_ptr<RenderObject>& object : m_objects)
+	// RenderObject의 Transform을 GPU Light 구조체로 옮기는 작업을 한곳에 모은다.
+	// 선택 라이트 우선 처리와 일반 Hierarchy 순회가 같은 방향/Up 계산을 공유해야
+	// 그림자 카메라와 디버그 절두체가 서로 다른 축을 사용하는 실수를 막을 수 있다.
+	auto appendLight = [&buffer](const RenderObject* object)
 	{
 		if (!object || !object->mIsLight || buffer.lightNum >= MAX_LIGHTS)
 		{
-			continue;
+			return;
 		}
 
 		Light light = object->mSceneLight;
@@ -396,8 +404,33 @@ void DemoScene::CollectLights(CommonConstantBufferData& buffer) const
 		// 로컬 +Z를 라이트가 빛을 내보내는 방향으로 정의한다.
 		light.direction = Vector3::TransformNormal(Vector3::UnitZ, object->ObjectRot);
 		light.direction.Normalize();
+		// 로컬 +Y도 함께 전달해야 그림자 카메라의 Roll이 오브젝트 Rotation을 그대로 따른다.
+		// direction만 보고 임의의 Up을 고르면 수직 방향 근처에서 절두체가 갑자기 회전한다.
+		light.shadowUp = Vector3::TransformNormal(Vector3::UnitY, object->ObjectRot);
+		light.shadowUp.Normalize();
 		buffer.light[buffer.lightNum] = light;
 		++buffer.lightNum;
+	};
+
+	const RenderObject* selectedObject = GetSelectedObject();
+	const bool selectedCanCastShadow = selectedObject && selectedObject->mIsLight &&
+		(selectedObject->mSceneLight.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT) ||
+		 selectedObject->mSceneLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT));
+
+	// 현재 Shadow Map은 한 장뿐이다. Directional/Spot Light를 Hierarchy에서 선택하면
+	// 그 라이트를 0번에 먼저 넣어 실제 그림자 패스와 미리보기 패널이 같은 카메라를 보게 한다.
+	if (selectedCanCastShadow)
+	{
+		appendLight(selectedObject);
+	}
+
+	for (const std::unique_ptr<RenderObject>& object : m_objects)
+	{
+		if (selectedCanCastShadow && object.get() == selectedObject)
+		{
+			continue;
+		}
+		appendLight(object.get());
 	}
 }
 
@@ -627,6 +660,10 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 		object->mSceneLight.fallOffStart = 0.0f;
 		object->mSceneLight.fallOffEnd = desc.lightRange;
 		object->mSceneLight.spotPower = desc.spotPower;
+		object->mSceneLight.shadowNear = desc.shadowNear;
+		object->mSceneLight.shadowFar = desc.shadowFar;
+		object->mSceneLight.shadowFovY = desc.shadowFovY;
+		object->mSceneLight.shadowWidth = desc.shadowWidth;
 		object->mSceneLight.lightType = static_cast<UINT>(
 			desc.renderType == SceneRenderType::DirectionalLight ? LightEnum::DIRECTIONAL_LIGHT :
 			desc.renderType == SceneRenderType::PointLight ? LightEnum::POINT_LIGHT : LightEnum::SPOT_LIGHT);
@@ -742,8 +779,8 @@ void DemoScene::SaveSceneToFile() const
 		return;
 	}
 
-	// Version 4부터 Inspector Rotation과 월드 라이트 설정을 저장한다.
-	file << "DearsScene 4\n";
+	// Version 5부터 라이트별 Shadow Camera의 Near/Far/FOV/Width도 저장한다.
+	file << "DearsScene 5\n";
 	file << m_objects.size() << '\n';
 
 	for (size_t index = 0; index < m_objects.size(); ++index)
@@ -780,7 +817,11 @@ void DemoScene::SaveSceneToFile() const
 			<< object->mSceneLight.lightColor.y << ' '
 			<< object->mSceneLight.lightColor.z << ' '
 			<< object->mSceneLight.fallOffEnd << ' '
-			<< object->mSceneLight.spotPower << ' ';
+			<< object->mSceneLight.spotPower << ' '
+			<< object->mSceneLight.shadowNear << ' '
+			<< object->mSceneLight.shadowFar << ' '
+			<< object->mSceneLight.shadowFovY << ' '
+			<< object->mSceneLight.shadowWidth << ' ';
 
 		WriteMatrix(file, object->ObjectPos);
 		WriteMatrix(file, object->ObjectRot);
@@ -800,7 +841,7 @@ void DemoScene::LoadSceneFromFile()
 	std::string magic;
 	int version = 0;
 	file >> magic >> version;
-	if (magic != "DearsScene" || version < 1 || version > 4)
+	if (magic != "DearsScene" || version < 1 || version > 5)
 	{
 		return;
 	}
@@ -862,6 +903,17 @@ void DemoScene::LoadSceneFromFile()
 			>> desc.lightColor.z
 			>> desc.lightRange
 			>> desc.spotPower))
+		{
+			return;
+		}
+
+		// Version 4까지는 그림자 카메라 설정이 하드코딩되어 있었다.
+		// 구버전 파일은 SceneObjectCreateDesc의 안전한 기본값을 사용한다.
+		if (version >= 5 && !(file
+			>> desc.shadowNear
+			>> desc.shadowFar
+			>> desc.shadowFovY
+			>> desc.shadowWidth))
 		{
 			return;
 		}

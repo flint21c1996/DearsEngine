@@ -148,6 +148,7 @@
     <ClCompile Include="GeometryGenerator.cpp" />
 	<ClCompile Include="GBuffer.cpp" />
 	<ClCompile Include="GBufferDebugRenderer.cpp" />
+	<ClCompile Include="ShadowMapDebugRenderer.cpp" />
     <ClCompile Include="GraphicsAssetManager.cpp" />
     <ClCompile Include="GraphicsCommon.cpp" />
     <ClCompile Include="GraphicsResourceContainer.cpp" />
@@ -185,6 +186,7 @@
 	<ClInclude Include="GBuffer.h" />
 	<ClInclude Include="GBufferDebugPanel.h" />
 	<ClInclude Include="GBufferDebugRenderer.h" />
+	<ClInclude Include="ShadowMapDebugRenderer.h" />
     <ClInclude Include="GraphicsAssetManager.h" />
     <ClInclude Include="GraphicsCommon.h" />
     <ClInclude Include="GraphicsResourceContainer.h" />
@@ -280,6 +282,12 @@
 	<FxCompile Include="Shader\GBufferDebugPixelShader.hlsl">
 		<ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
 		<ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+	</FxCompile>
+	<FxCompile Include="Shader\ShadowMapDebugPixelShader.hlsl">
+		<ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+		<ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+		<ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+		<ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
 	</FxCompile>
     <FxCompile Include="Shader\PBRVertexShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>

@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <algorithm>
 #include <imgui.h>
 #include <functional>
 #include <vector>
@@ -130,6 +131,33 @@ public:
 			if (obj->mSceneLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT))
 			{
 				ImGui::DragFloat("Spot Power", &obj->mSceneLight.spotPower, 0.5f, 1.0f, 256.0f);
+				lightEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+			}
+
+			// 두 라이트 모두 Near/Far를 사용하지만, Directional은 Width, Spot은 FOV로 범위를 정한다.
+			if (obj->mSceneLight.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT) ||
+				obj->mSceneLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT))
+			{
+				ImGui::DragFloat("Shadow Near", &obj->mSceneLight.shadowNear, 0.05f, 0.01f, 9999.0f);
+				lightEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+				ImGui::DragFloat("Shadow Far", &obj->mSceneLight.shadowFar, 0.5f, 0.02f, 10000.0f);
+				lightEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+
+				// Near가 Far를 넘어가면 투영행렬이 뒤집히므로 항상 작은 간격을 보장한다.
+				obj->mSceneLight.shadowNear = (std::max)(0.01f,
+					(std::min)(obj->mSceneLight.shadowNear, obj->mSceneLight.shadowFar - 0.01f));
+				obj->mSceneLight.shadowFar = (std::max)(
+					obj->mSceneLight.shadowFar, obj->mSceneLight.shadowNear + 0.01f);
+			}
+			if (obj->mSceneLight.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT))
+			{
+				// Directional은 직교 투영이므로 FOV 대신 그림자를 담을 월드 가로 범위를 조절한다.
+				ImGui::DragFloat("Shadow Width", &obj->mSceneLight.shadowWidth, 0.5f, 0.1f, 10000.0f);
+				lightEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+			}
+			else if (obj->mSceneLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT))
+			{
+				ImGui::DragFloat("Shadow FOV", &obj->mSceneLight.shadowFovY, 0.25f, 1.0f, 179.0f);
 				lightEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
 			}
 			if (lightEditFinished)

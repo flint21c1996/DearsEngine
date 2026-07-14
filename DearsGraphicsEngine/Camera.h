@@ -15,8 +15,8 @@ private:
 	int mScreenWidth;	// 스크린 너비
 	int mScreenHeight;	// 스크린 높이
 
-	int mOrthoGraphicScreenWidth = 192;
-	int mOrthoGraphicScreenHeight = 108;
+	float mOrthoGraphicScreenWidth = 192.0f;
+	float mOrthoGraphicScreenHeight = 108.0f;
 
 	float mAspect;		// 화면 비율
 	float mSpeed;		// 움직이는 속도
@@ -52,8 +52,12 @@ public:
 	void SetSpeed(float _speed);
 	void SetPerspective();
 	void SetOrthgraphic(float _scale);
+	// 월드 단위로 직교 투영의 가로/세로 범위를 직접 지정한다.
+	// Directional Light의 Shadow Width를 화면 해상도와 무관하게 다루기 위한 함수다.
+	void SetOrthographicSize(float width, float height);
 	// [뷰 방향, 업 방향] 카메라의 뷰, 업, right 세팅
 	void SetDirection(Vector3 _viewDir);
+	void SetDirection(Vector3 viewDirection, Vector3 viewUp);
 	void SetUpVec(Vector3 _viewUp);
 
 	///이 친구 손 봐야..
@@ -69,6 +73,9 @@ public:
 	//카메라의 월드 위치 반환
 	Vector3 GetmViewPos();
 	float GetAspectRatio() const { return mAspect; }
+	float GetOrthographicWidth() const { return mOrthoGraphicScreenWidth; }
+	float GetOrthographicHeight() const { return mOrthoGraphicScreenHeight; }
+	bool IsPerspective() const { return isPerspective; }
 
 
 	// [roll(θ), pitch(θ), yaw(θ)] 항공기 주축 값 세팅 // 여기에서 y : 상하 회전 ,  z : 좌우 회전 [쓸필요x]

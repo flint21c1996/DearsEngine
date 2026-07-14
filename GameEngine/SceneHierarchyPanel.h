@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <algorithm>
 #include <imgui.h>
 #include <functional>
 #include <cstring>
@@ -42,6 +43,10 @@ struct SceneObjectCreateDesc
 	Vector3 lightColor = Vector3::One;
 	float lightRange = 20.0f;
 	float spotPower = 32.0f;
+	float shadowNear = 0.1f;
+	float shadowFar = 100.0f;
+	float shadowFovY = 70.0f;
+	float shadowWidth = 30.0f;
 	SceneRenderType renderType = SceneRenderType::StaticMesh;
 	SceneRenderPath renderPath = SceneRenderPath::Forward;
 	bool castShadow = true;
@@ -252,6 +257,23 @@ public:
 				if (selectedRenderType == SceneRenderType::SpotLight)
 				{
 					ImGui::DragFloat("Spot Power", &desc.spotPower, 0.5f, 1.0f, 256.0f);
+				}
+				if (selectedRenderType == SceneRenderType::DirectionalLight ||
+					selectedRenderType == SceneRenderType::SpotLight)
+				{
+					ImGui::DragFloat("Shadow Near", &desc.shadowNear, 0.05f, 0.01f, 9999.0f);
+					ImGui::DragFloat("Shadow Far", &desc.shadowFar, 0.5f, 0.02f, 10000.0f);
+					desc.shadowNear = (std::max)(0.01f, (std::min)(desc.shadowNear, desc.shadowFar - 0.01f));
+					desc.shadowFar = (std::max)(desc.shadowFar, desc.shadowNear + 0.01f);
+				}
+				if (selectedRenderType == SceneRenderType::DirectionalLight)
+				{
+					// Directional Shadow의 직교 투영 가로 범위를 월드 단위로 지정한다.
+					ImGui::DragFloat("Shadow Width", &desc.shadowWidth, 0.5f, 0.1f, 10000.0f);
+				}
+				else if (selectedRenderType == SceneRenderType::SpotLight)
+				{
+					ImGui::DragFloat("Shadow FOV", &desc.shadowFovY, 0.25f, 1.0f, 179.0f);
 				}
 			}
 

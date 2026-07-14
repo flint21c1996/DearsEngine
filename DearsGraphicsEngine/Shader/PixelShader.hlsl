@@ -74,8 +74,16 @@ float4 main(PixelShaderInput input) : SV_TARGET0
     
     // 월드 좌표에서 라이트 뷰-투영 좌표로 변환
    float4 lightSpacePos = mul(float4(input.posWorld, 1.0f), lights[0].viewProj);
+   float receiverDistance = lightSpacePos.w;
 
    // 클립 공간 좌표에서 NDC 좌표로 변환
+   bool validShadowProjection = lightSpacePos.w > 0.0f;
+   if (!validShadowProjection)
+   {
+       // 0으로 나누지 않도록 w만 안전한 값으로 바꾼다.
+       // 아래 insideShadowFrustum이 false이므로 이 좌표는 그림자 판정에 사용되지 않는다.
+       lightSpacePos.w = 1.0f;
+   }
    lightSpacePos.xyz /= lightSpacePos.w;
     lightSpacePos.y *= -1;
        
@@ -87,7 +95,16 @@ float4 main(PixelShaderInput input) : SV_TARGET0
 
    // 그림자 맵에서의 z 값과 비교
    float bias = 0.003f; // 그림자 경계를 부드럽게 하기 위한 바이어스
-   float shadowFactor = lightNum > 0 && (lightSpacePos.z - bias > shadowMapDepth) ? 0.7f : 1.0f;
+   // 고정 bias는 먼 거리의 실제 깊이 차이보다 커질 수 있으므로 현재 거리의 Depth 단위로 환산한다.
+   float shadowBias = ComputeShadowBias(
+       lights[0], receiverDistance, input.posWorld, input.normal);
+   bool insideShadowFrustum =
+       validShadowProjection &&
+       abs(lightSpacePos.x) <= 1.0f &&
+       abs(lightSpacePos.y) <= 1.0f &&
+       lightSpacePos.z >= 0.0f && lightSpacePos.z <= 1.0f;
+   float shadowFactor = lightNum > 0 && insideShadowFrustum &&
+       (lightSpacePos.z - shadowBias > shadowMapDepth) ? 0.7f : 1.0f;
 
    // 빛의 색과 그림자 효과 적용
    //light.lightColor * shadowFactor;

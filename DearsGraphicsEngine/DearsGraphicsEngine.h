@@ -24,6 +24,7 @@ class GraphicsAssetManager;
 class GBuffer;
 class GBufferDebugPanel;
 class GBufferDebugRenderer;
+class ShadowMapDebugRenderer;
 class MeshRenderer;
 class ParticleRenderer;
 class PostProcessRenderer;
@@ -75,6 +76,8 @@ private:
 	std::unique_ptr<GBuffer> m_pGBuffer;
 	std::unique_ptr<GBufferDebugPanel> m_pGBufferDebugPanel;
 	std::unique_ptr<GBufferDebugRenderer> m_pGBufferDebugRenderer;
+	// 실제 Shadow Map을 선형 깊이 이미지로 변환한 에디터 전용 미리보기를 소유한다.
+	std::unique_ptr<ShadowMapDebugRenderer> m_pShadowMapDebugRenderer;
 
 	// 현재 적용된 렌더 패스 종류이다.
 	// 지금은 디버깅용 상태에 가깝지만, 나중에 RHI를 붙이면
@@ -213,6 +216,7 @@ public:
 	void RenderDepthMap(ModelBuffer* _modelbuffer);
 	void RenderAniDepthMap(ModelBuffer* _modelbuffer);
 	void RenderEquipDepthMap(ModelBuffer* _modelbuffer);
+	void RenderShadowMapDebugPreview(float nearPlane, float farPlane, bool isPerspective);
 
 	void Rend_InstancedModels(ModelBuffer* _modelbuffers);
 	void Rend_BillBoard(ModelBuffer* _modelbuffers);
@@ -227,10 +231,7 @@ public:
 	void Rend_DebugLightGizmo(
 		const Light& light,
 		bool drawShadowFrustum = false,
-		float shadowFovYDegrees = 70.0f,
-		float shadowAspect = 1.0f,
-		float shadowNear = 0.1f,
-		float shadowFar = 100.0f);
+		float shadowAspect = 1.0f);
 
 	void Rend_CubeMap(ModelBuffer* _modelBuffer);
 	//占쏙옙占쏙옙占쏙옙占쏙옙 占십울옙占쏙옙 카占쌨띰옙 占쏙옙占쏙옙占싼댐옙.
@@ -244,6 +245,8 @@ public:
 
 	void AddEditorPanel(IEditorPanel* panel);
 	void SetRenderViewportWidth(int viewportWidth);
+	// 에디터 계층이 DX11 SRV 타입을 직접 알지 않도록 Shadow Map 이미지를 그래픽스 UI 경계에서 그린다.
+	bool UIDrawShadowMapDebugPreview(Vector2 size) const;
 
 	void AddFont(std::string _basePath, std::string _fileName, float _size, bool _isKorean);
 

@@ -40,10 +40,7 @@ public:
 	void RenderLightGizmo(
 		const Light& light,
 		bool drawShadowFrustum,
-		float shadowFovYDegrees,
-		float shadowAspect,
-		float shadowNear,
-		float shadowFar);
+		float shadowAspect);
 
 private:
 	void PrepareDebugModel(const std::string& modelName);
@@ -56,6 +53,16 @@ private:
 		Vector3 up,
 		float fovYDegrees,
 		float aspect,
+		float nearDistance,
+		float farDistance,
+		Vector4 color);
+	void AddOrthographicFrustum(
+		Vector3 position,
+		Vector3 direction,
+		Vector3 right,
+		Vector3 up,
+		float width,
+		float height,
 		float nearDistance,
 		float farDistance,
 		Vector4 color);

@@ -164,6 +164,7 @@
     <ClInclude Include="RenderDispatcher.h" />
     <ClInclude Include="SceneHierarchyPanel.h" />
     <ClInclude Include="ObjectInspectorPanel.h" />
+    <ClInclude Include="LightShadowMapPanel.h" />
     <ClInclude Include="PickingManager.h" />
     <ClInclude Include="PickingPanel.h" />
     <ClInclude Include="TimeManager.h" />

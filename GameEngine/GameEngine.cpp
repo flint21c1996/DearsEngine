@@ -6,6 +6,7 @@
 #include "DemoScene.h"
 #include "IScene.h"
 #include "RenderDispatcher.h"
+#include <algorithm>
 #include <imgui.h>
 #include <math.h>
 #include "Pool.h"
@@ -322,7 +323,29 @@ void GameEngine::UpdateLightingState()
 		}
 		Light& shadowLight = tempCCConstantBuffer.light[0];
 		lightCamera->SetEyePos(shadowLight.position);
-		lightCamera->SetDirection(shadowLight.direction);
+		// 라이트 오브젝트의 Forward(+Z)와 Up(+Y)을 함께 사용한다.
+		// 이 두 축을 공유해야 Shadow View와 노란 절두체가 Rotation 전 구간에서 같은 Roll을 가진다.
+		lightCamera->SetDirection(shadowLight.direction, shadowLight.shadowUp);
+
+		// Directional Light는 태양처럼 모든 광선이 서로 평행하므로 직교 투영을 사용한다.
+		// shadowWidth는 그림자 맵이 가로 방향으로 담는 월드 범위이며,
+		// 세로 범위는 Shadow Map의 화면비를 유지하도록 width / aspect로 계산한다.
+		// 반면 Spot Light는 한 점에서 원뿔 형태로 빛이 퍼지므로 기존 원근 투영을 유지한다.
+		if (shadowLight.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT))
+		{
+			const float shadowAspect = (std::max)(lightCamera->GetAspectRatio(), 0.001f);
+			lightCamera->SetOrthographicSize(
+				shadowLight.shadowWidth,
+				shadowLight.shadowWidth / shadowAspect);
+		}
+		else
+		{
+			lightCamera->SetPerspective();
+		}
+		lightCamera->ProjectionSettings(
+			shadowLight.shadowFovY,
+			shadowLight.shadowNear,
+			shadowLight.shadowFar);
 		shadowLight.viewProj = (lightCamera->GetViewRow() * lightCamera->GetProjRow()).Transpose();
 		m_hasShadowLight = true;
 		break;
@@ -504,6 +527,14 @@ void GameEngine::RenderShadowPass()
 	m_pDearsGraphicsEngine->ApplyRenderContext(shadowContext);
 
 	m_pRenderDispatcher->RenderShadowItems(m_pActiveScene->GetShadowRenderItems());
+
+	// 그림자 DSV 쓰기가 모두 끝난 시점에 원본 Depth를 디버그용 색상 텍스처로 변환한다.
+	// UI는 이 SRV를 읽기만 하므로 실제 그림자 결과나 다음 Geometry Pass의 Depth에는 영향이 없다.
+	const Light& shadowLight = tempCCConstantBuffer.light[0];
+	m_pDearsGraphicsEngine->RenderShadowMapDebugPreview(
+		shadowLight.shadowNear,
+		shadowLight.shadowFar,
+		shadowLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT));
 }
 
 void GameEngine::RenderGeometryPass()
@@ -644,10 +675,7 @@ void GameEngine::RenderDebugPass()
 		m_pDearsGraphicsEngine->Rend_DebugLightGizmo(
 			light,
 			drawDirectionalShadowFrustum,
-			lightCamera->mProjFovAngleY,
-			lightCamera->GetAspectRatio(),
-			lightCamera->mNearZ,
-			lightCamera->mFarZ);
+			lightCamera->GetAspectRatio());
 	}
 }
 
