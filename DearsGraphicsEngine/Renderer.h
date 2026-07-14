@@ -52,6 +52,9 @@ private:
 	// 酉고룷??
 	D3D11_VIEWPORT m_pD3dScreenViewport;
 	D3D11_VIEWPORT m_pD3dtempViewport;
+	// Shadow Map은 에디터 패널 때문에 폭이 줄어드는 메인 viewport와 크기가 다르다.
+	// 전용 viewport를 사용해야 Depth가 Shadow Map 텍스처 전체 영역에 기록된다.
+	D3D11_VIEWPORT m_shadowViewport;
 
 	// 源딆씠/?ㅽ뀗??
 	ComPtr<ID3D11DepthStencilView> mpDepthStencilView;
@@ -76,6 +79,9 @@ private:
 
 public:
 	ComPtr<ID3D11Device> GetDevice() const { return m_pDevice; }
+	// 그림자 맵의 소유권은 Renderer가 유지하고, 디버그 패스에는 읽기 전용 뷰만 빌려준다.
+	// 외부에서 ComPtr를 보관하거나 리소스를 교체하지 못하게 raw pointer로 반환한다.
+	ID3D11ShaderResourceView* GetShadowMapShaderResourceView() const { return m_depthOnlySRV.Get(); }
 
 	void SetCamera(Camera* _pTargetCamera);
 	bool Initialize(GraphicsResourceManager* _pResourceManager);

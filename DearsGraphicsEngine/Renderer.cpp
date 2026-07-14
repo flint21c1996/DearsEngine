@@ -229,6 +229,13 @@ bool Renderer::InitalizeD3D()
 	RendererHelper::SetViewPort(m_pDeviceContext, m_startScreenWidth, m_startScreenHeight, m_endScreenWidth, m_endScreenHeight, m_pD3dScreenViewport);
 	// 占쏙옙占쏙옙占?占쏙옙 占쏙옙트
 	RendererHelper::SetViewPort(m_pDeviceContext, 0, 0, 1920 *0.5, 1080 * 0.5, m_pD3dtempViewport);
+	// Shadow Map 텍스처는 m_ScreenWidth x m_ScreenHeight로 생성된다.
+	// 메인 viewport는 Inspector 폭에 따라 줄어들 수 있으므로 그림자 전용 크기를 보관한다.
+	RendererHelper::SetShadowViewport(
+		m_pDeviceContext,
+		static_cast<float>(m_ScreenWidth),
+		static_cast<float>(m_ScreenHeight),
+		m_shadowViewport);
 	
 	// 占쏙옙占쏙옙 占쏙옙占쌕쏙옙 占쏙옙 占쏙옙占쏙옙
 	RendererHelper::CreateDepthStencilBuffer(m_pDevice, m_numQualityLevels, m_endScreenWidth, m_endScreenHeight, mpDepthStencilView);
@@ -272,7 +279,9 @@ void Renderer::RenderDepthMap(ModelBuffer* _modelbuffer)
 {
 	SetPipelineState(Dears::Graphics::depthOnlyPSO);
 //	m_pDeviceContext->RSSetViewports(1, &m_pD3dtempViewport);
-	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
+	// 메인 viewport 폭은 에디터 패널을 제외하도록 줄어들 수 있다.
+	// Shadow Map 전체 크기와 일치시켜야 투영 좌표와 텍스처 샘플 좌표가 어긋나지 않는다.
+	m_pDeviceContext->RSSetViewports(1, &m_shadowViewport);
 	
 	//화占썽에 占쏙옙咀몌옙占? -> 占쎈강 확占쏙옙占쌀쇽옙 占쌍댐옙
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), m_depthOnlyDSV.Get());
@@ -313,7 +322,7 @@ void Renderer::RenderAniDepthMap(ModelBuffer* _modelbuffer)
 {
 	SetPipelineState(Dears::Graphics::depthAniOnlyPSO);
 	//	m_pDeviceContext->RSSetViewports(1, &m_pD3dtempViewport);
-	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
+	m_pDeviceContext->RSSetViewports(1, &m_shadowViewport);
 
 	//화占썽에 占쏙옙咀몌옙占? -> 占쎈강 확占쏙옙占쌀쇽옙 占쌍댐옙
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), m_depthOnlyDSV.Get());
@@ -354,7 +363,7 @@ void Renderer::RenderEquipDepthMap(ModelBuffer* _modelbuffer)
 {
 	SetPipelineState(Dears::Graphics::depthEquipOnlyPSO);
 	//	m_pDeviceContext->RSSetViewports(1, &m_pD3dtempViewport);
-	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
+	m_pDeviceContext->RSSetViewports(1, &m_shadowViewport);
 
 	//화占썽에 占쏙옙咀몌옙占? -> 占쎈강 확占쏙옙占쌀쇽옙 占쌍댐옙
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), m_depthOnlyDSV.Get());
