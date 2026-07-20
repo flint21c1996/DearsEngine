@@ -38,6 +38,12 @@ struct SceneObjectCreateDesc
 	float pbrMetallic = 0.0f;
 	float pbrRoughness = 0.0f;
 	float pbrHeightScale = 0.0f;
+	// Thin Film Pixel Shader의 박막 간섭 계산에 사용하는 재질 전용 값이다.
+	// n1/n2는 바깥 매질과 박막의 굴절률이고, thickness는 광학 경로 차이를 결정한다.
+	float thinFilmOutsideIor = 1.0f;
+	float thinFilmIor = 1.33f;
+	float thinFilmThicknessModulation = 0.0f;
+	int thinFilmThickness = 1;
 	Vector3 rotationDegrees = Vector3::Zero;
 	float lightStrength = 1.0f;
 	Vector3 lightColor = Vector3::One;
@@ -49,6 +55,7 @@ struct SceneObjectCreateDesc
 	float shadowWidth = 30.0f;
 	SceneRenderType renderType = SceneRenderType::StaticMesh;
 	SceneRenderPath renderPath = SceneRenderPath::Forward;
+	MaterialShadingModel shadingModel = MaterialShadingModel::DefaultLit;
 	bool castShadow = true;
 };
 
@@ -120,6 +127,7 @@ public:
 			static int pbrHeightIndex = 6;
 			static int renderTypeIndex = static_cast<int>(SceneRenderType::StaticMesh);
 			static int renderPathIndex = static_cast<int>(SceneRenderPath::Forward);
+			static int shadingModelIndex = static_cast<int>(MaterialShadingModel::DefaultLit);
 
 			if (ImGui::IsWindowAppearing())
 			{
@@ -151,9 +159,26 @@ public:
 				selectedRenderType == SceneRenderType::PointLight ||
 				selectedRenderType == SceneRenderType::SpotLight;
 
-			// 현재 Geometry 전용 셰이더는 PBR 재질 입력만 지원한다.
-			// 다른 타입을 선택하면 잘못된 Deferred 경로가 저장되지 않도록 Forward로 되돌린다.
 			if (!usesPbr)
+			{
+				shadingModelIndex = static_cast<int>(MaterialShadingModel::DefaultLit);
+			}
+			else
+			{
+				DrawResourceCombo("Shading Model", shadingModelIndex, EditorResourceCatalog::ShadingModels);
+				DrawHelpTooltip(
+					"Default Lit: 일반 PBR Pixel Shader를 사용한다.\n"
+					"Thin Film: 박막 간섭 전용 Pixel Shader를 사용한다.");
+			}
+
+			const MaterialShadingModel selectedShadingModel =
+				EditorResourceCatalog::ShadingModelValues[shadingModelIndex];
+			const bool supportsDeferred =
+				usesPbr && selectedShadingModel == MaterialShadingModel::DefaultLit;
+
+			// 현재 Deferred Lighting은 Default Lit 재질만 해석할 수 있다.
+			// Thin Film은 b3와 전용 PS에서 최종 색상을 만들기 때문에 Forward로 고정한다.
+			if (!supportsDeferred)
 			{
 				renderPathIndex = static_cast<int>(SceneRenderPath::Forward);
 				ImGui::BeginDisabled();
@@ -161,14 +186,14 @@ public:
 			const char* renderPaths[] = { "Forward", "Deferred" };
 			ImGui::SetNextItemWidth(220.0f);
 			ImGui::Combo("Render Path", &renderPathIndex, renderPaths, 2);
-			if (!usesPbr)
+			if (!supportsDeferred)
 			{
 				ImGui::EndDisabled();
 			}
 			DrawHelpTooltip(
 				"Forward: Pixel Shader에서 즉시 조명을 계산한다.\n"
 				"Deferred: Geometry Pass에서 G-Buffer에 기록한다.\n"
-				"현재 Deferred Geometry는 PBR Mesh만 지원한다.");
+				"현재 Deferred Geometry는 Default Lit PBR Mesh만 지원한다.");
 
 			if (!isLight)
 			{
@@ -243,6 +268,19 @@ public:
 					EditorResourceCatalog::PbrTextures[pbrNormalIndex].key,
 					EditorResourceCatalog::PbrTextures[pbrMetallicIndex].key,
 					EditorResourceCatalog::PbrTextures[pbrRoughnessIndex].key);
+
+				if (selectedShadingModel == MaterialShadingModel::ThinFilm)
+				{
+					ImGui::SeparatorText("Thin Film");
+					ImGui::DragFloat("Outside IOR", &desc.thinFilmOutsideIor, 0.01f, 1.0f, 3.0f);
+					ImGui::DragFloat("Film IOR", &desc.thinFilmIor, 0.01f, 1.0f, 3.0f);
+					ImGui::DragInt("Film Thickness", &desc.thinFilmThickness, 1.0f, 1, 2000);
+					ImGui::SliderFloat(
+						"Thickness Modulation",
+						&desc.thinFilmThicknessModulation,
+						0.0f,
+						1.0f);
+				}
 			}
 
 			if (isLight)
@@ -298,6 +336,7 @@ public:
 				desc.pbrHeightTextureName = usesPbr ? EditorResourceCatalog::PbrTextures[pbrHeightIndex].key : "";
 				desc.renderType = selectedRenderType;
 				desc.renderPath = static_cast<SceneRenderPath>(renderPathIndex);
+				desc.shadingModel = selectedShadingModel;
 
 				if (m_createObjectCallback)
 				{

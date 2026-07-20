@@ -68,6 +68,18 @@ SceneRenderPath ParseSceneRenderPath(const std::string& value)
 	return value == "Deferred" ? SceneRenderPath::Deferred : SceneRenderPath::Forward;
 }
 
+std::string ToString(MaterialShadingModel shadingModel)
+{
+	return shadingModel == MaterialShadingModel::ThinFilm ? "ThinFilm" : "DefaultLit";
+}
+
+MaterialShadingModel ParseMaterialShadingModel(const std::string& value)
+{
+	return value == "ThinFilm"
+		? MaterialShadingModel::ThinFilm
+		: MaterialShadingModel::DefaultLit;
+}
+
 void WriteMatrix(std::ostream& stream, const Matrix& matrix)
 {
 	const float* values = &matrix._11;
@@ -628,6 +640,14 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 	const bool hasModel = !modelInfoName.empty();
 	const bool hasTexture = !desc.textureName.empty();
 	const bool hasAnimation = !desc.animationName.empty();
+	const MaterialShadingModel effectiveShadingModel =
+		desc.renderType == SceneRenderType::PbrMesh
+		? desc.shadingModel
+		: MaterialShadingModel::DefaultLit;
+	const SceneRenderPath effectiveRenderPath =
+		effectiveShadingModel == MaterialShadingModel::ThinFilm
+		? SceneRenderPath::Forward
+		: desc.renderPath;
 
 	if (hasVertexBuffer)
 	{
@@ -683,6 +703,10 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 		object->mPSPBRConstantBufferData.material.metallic = desc.pbrMetallic;
 		object->mPSPBRConstantBufferData.material.roughness = desc.pbrRoughness;
 		object->mVSPBRConstantBufferData.heightScale = desc.pbrHeightScale;
+		object->mPSThinFilmConstantBufferData.n1 = desc.thinFilmOutsideIor;
+		object->mPSThinFilmConstantBufferData.n2 = desc.thinFilmIor;
+		object->mPSThinFilmConstantBufferData.time = desc.thinFilmThicknessModulation;
+		object->mPSThinFilmConstantBufferData.d = desc.thinFilmThickness;
 		object->CreateVSConstantBuffer();
 		object->CreateVSPBRConstantBuffer();
 		object->CreatePSPBRConstantBuffer();
@@ -693,6 +717,9 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 			desc.pbrMetallicTextureName,
 			desc.pbrRoughnessTextureName,
 			desc.pbrHeightTextureName);
+		// 텍스처 사용 플래그까지 채운 뒤 Shading Model을 설정해야
+		// Thin Film b3 버퍼가 PBR 재질 상태를 온전히 복사해서 생성된다.
+		object->SetShadingModel(effectiveShadingModel);
 		break;
 	case SceneRenderType::EquipmentMesh:
 		object->CreateVSConstantBuffer();
@@ -723,19 +750,21 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 
 	SceneObjectCreateDesc storedDesc = desc;
 	storedDesc.name = MakeUniqueObjectName(m_objectNames, desc.name);
+	storedDesc.shadingModel = effectiveShadingModel;
+	storedDesc.renderPath = effectiveRenderPath;
 	m_objectNames.push_back(storedDesc.name);
 	m_objectCreateDescs.push_back(storedDesc);
 
 	if (!rawObject->mIsLight)
 	{
-		m_mainRenderItems.push_back({ rawObject, desc.renderType, desc.renderPath });
+		m_mainRenderItems.push_back({ rawObject, desc.renderType, effectiveRenderPath });
 	}
 
 	if (!rawObject->mIsLight && desc.castShadow &&
 		desc.renderType != SceneRenderType::CubeMap &&
 		desc.renderType != SceneRenderType::Billboard)
 	{
-		m_shadowRenderItems.push_back({ rawObject, desc.renderType, desc.renderPath });
+		m_shadowRenderItems.push_back({ rawObject, desc.renderType, effectiveRenderPath });
 	}
 
 	if (saveScene)
@@ -779,8 +808,8 @@ void DemoScene::SaveSceneToFile() const
 		return;
 	}
 
-	// Version 5부터 라이트별 Shadow Camera의 Near/Far/FOV/Width도 저장한다.
-	file << "DearsScene 5\n";
+	// Version 6부터 PBR Shading Model과 Thin Film 전용 굴절률/두께 값도 저장한다.
+	file << "DearsScene 6\n";
 	file << m_objects.size() << '\n';
 
 	for (size_t index = 0; index < m_objects.size(); ++index)
@@ -805,10 +834,15 @@ void DemoScene::SaveSceneToFile() const
 			<< std::quoted(desc.pbrHeightTextureName) << ' '
 			<< ToString(desc.renderType) << ' '
 			<< ToString(desc.renderPath) << ' '
+			<< ToString(object->GetShadingModel()) << ' '
 			<< desc.castShadow << ' '
 			<< object->mPSPBRConstantBufferData.material.metallic << ' '
 			<< object->mPSPBRConstantBufferData.material.roughness << ' '
 			<< object->mVSPBRConstantBufferData.heightScale << ' '
+			<< object->mPSThinFilmConstantBufferData.n1 << ' '
+			<< object->mPSThinFilmConstantBufferData.n2 << ' '
+			<< object->mPSThinFilmConstantBufferData.time << ' '
+			<< object->mPSThinFilmConstantBufferData.d << ' '
 			<< object->mEditorRotationDegrees.x << ' '
 			<< object->mEditorRotationDegrees.y << ' '
 			<< object->mEditorRotationDegrees.z << ' '
@@ -841,7 +875,7 @@ void DemoScene::LoadSceneFromFile()
 	std::string magic;
 	int version = 0;
 	file >> magic >> version;
-	if (magic != "DearsScene" || version < 1 || version > 5)
+	if (magic != "DearsScene" || version < 1 || version > 6)
 	{
 		return;
 	}
@@ -854,6 +888,7 @@ void DemoScene::LoadSceneFromFile()
 		SceneObjectCreateDesc desc;
 		std::string renderTypeName;
 		std::string renderPathName = "Forward";
+		std::string shadingModelName = "DefaultLit";
 		Matrix position;
 		Matrix rotation;
 		Matrix scale;
@@ -878,6 +913,10 @@ void DemoScene::LoadSceneFromFile()
 		{
 			return;
 		}
+		if (version >= 6 && !(file >> shadingModelName))
+		{
+			return;
+		}
 		if (!(file >> desc.castShadow))
 		{
 			return;
@@ -889,6 +928,17 @@ void DemoScene::LoadSceneFromFile()
 			>> desc.pbrMetallic
 			>> desc.pbrRoughness
 			>> desc.pbrHeightScale))
+		{
+			return;
+		}
+
+		// Version 5 이하에는 Thin Film이 렌더 목록에 연결되지 않았으므로
+		// 구버전 파일은 Default Lit과 구조체 기본값을 그대로 사용한다.
+		if (version >= 6 && !(file
+			>> desc.thinFilmOutsideIor
+			>> desc.thinFilmIor
+			>> desc.thinFilmThicknessModulation
+			>> desc.thinFilmThickness))
 		{
 			return;
 		}
@@ -925,12 +975,43 @@ void DemoScene::LoadSceneFromFile()
 
 		desc.renderType = ParseSceneRenderType(renderTypeName);
 		desc.renderPath = ParseSceneRenderPath(renderPathName);
+		desc.shadingModel = ParseMaterialShadingModel(shadingModelName);
 		CreateObjectFromDesc(desc, position, rotation, scale, false);
 	}
 }
 
 void DemoScene::HandleSceneObjectEdited()
 {
+	if (m_selectedObjectIndex >= 0 &&
+		m_selectedObjectIndex < static_cast<int>(m_objects.size()) &&
+		m_selectedObjectIndex < static_cast<int>(m_objectCreateDescs.size()))
+	{
+		RenderObject* object = m_objects[m_selectedObjectIndex].get();
+		SceneObjectCreateDesc& desc = m_objectCreateDescs[m_selectedObjectIndex];
+		if (object)
+		{
+			desc.shadingModel = object->GetShadingModel();
+			desc.thinFilmOutsideIor = object->mPSThinFilmConstantBufferData.n1;
+			desc.thinFilmIor = object->mPSThinFilmConstantBufferData.n2;
+			desc.thinFilmThicknessModulation = object->mPSThinFilmConstantBufferData.time;
+			desc.thinFilmThickness = object->mPSThinFilmConstantBufferData.d;
+
+			// 현재 Thin Film 셰이더는 G-Buffer를 출력하지 않고 최종 색상을 계산한다.
+			// Inspector에서 런타임에 Thin Film으로 바꾼 경우에도 Scene Item을 Forward로 맞춘다.
+			if (desc.shadingModel == MaterialShadingModel::ThinFilm)
+			{
+				desc.renderPath = SceneRenderPath::Forward;
+				for (SceneRenderItem& item : m_mainRenderItems)
+				{
+					if (item.object == object)
+					{
+						item.renderPath = SceneRenderPath::Forward;
+					}
+				}
+			}
+		}
+	}
+
 	SaveSceneToFile();
 }
 

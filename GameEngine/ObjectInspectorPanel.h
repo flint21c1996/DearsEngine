@@ -192,6 +192,16 @@ public:
 		{
 			if (ImGui::CollapsingHeader("PBR Material", ImGuiTreeNodeFlags_DefaultOpen))
 			{
+				// Shading Model은 Render Flag처럼 버퍼 존재 여부를 직접 뒤집는 옵션이 아니다.
+				// SetShadingModel()을 통과시키면 Thin Film에 필요한 b3 버퍼가 없을 때 안전하게 생성된다.
+				const char* shadingModelNames[] = { "Default Lit", "Thin Film" };
+				int shadingModelIndex = static_cast<int>(obj->GetShadingModel());
+				if (ImGui::Combo("Shading Model", &shadingModelIndex, shadingModelNames, 2))
+				{
+					obj->SetShadingModel(static_cast<MaterialShadingModel>(shadingModelIndex));
+					NotifyObjectEdited();
+				}
+
 				DrawTextureRow("Albedo", obj->mEditorPbrAlbedoTextureName);
 				DrawTextureRow("Normal", obj->mEditorPbrNormalTextureName);
 				DrawTextureRow("AO", obj->mEditorPbrAOTextureName);
@@ -211,6 +221,43 @@ public:
 				if (materialEditFinished)
 				{
 					NotifyObjectEdited();
+				}
+
+				if (obj->GetShadingModel() == MaterialShadingModel::ThinFilm)
+				{
+					ImGui::SeparatorText("Thin Film");
+					bool thinFilmEditFinished = false;
+					ImGui::DragFloat(
+						"Outside IOR",
+						&obj->mPSThinFilmConstantBufferData.n1,
+						0.01f,
+						1.0f,
+						3.0f);
+					thinFilmEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+					ImGui::DragFloat(
+						"Film IOR",
+						&obj->mPSThinFilmConstantBufferData.n2,
+						0.01f,
+						1.0f,
+						3.0f);
+					thinFilmEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+					ImGui::DragInt(
+						"Film Thickness",
+						&obj->mPSThinFilmConstantBufferData.d,
+						1.0f,
+						1,
+						2000);
+					thinFilmEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+					ImGui::SliderFloat(
+						"Thickness Modulation",
+						&obj->mPSThinFilmConstantBufferData.time,
+						0.0f,
+						1.0f);
+					thinFilmEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
+					if (thinFilmEditFinished)
+					{
+						NotifyObjectEdited();
+					}
 				}
 			}
 		}

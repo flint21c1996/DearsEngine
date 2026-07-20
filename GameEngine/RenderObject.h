@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 #include "DearsGraphicsEngine.h"
+#include "IScene.h"
 struct ModelBuffer;
 struct VSConstantBufferData;
 struct VSBoneConstantBufferData;
@@ -92,6 +93,11 @@ public:
 	Vector3 mEditorRotationDegrees = Vector3::Zero;
 	bool mIsLight = false;
 	Light mSceneLight;
+
+	// Render Type은 메시의 구조(PBR/Skinned 등)를 나타내고,
+	// Shading Model은 같은 PBR 메시를 어떤 표면 조명 공식으로 그릴지 나타낸다.
+	// 기본값은 기존 PBRPixelShader를 사용하는 Default Lit이다.
+	MaterialShadingModel mShadingModel = MaterialShadingModel::DefaultLit;
 
 	// 에디터에서 어떤 리소스를 골라 이 오브젝트를 만들었는지 기록한다.
 	// 렌더링에는 ModelBuffer의 실제 포인터/SRV가 쓰이지만,
@@ -215,11 +221,18 @@ public:
 	void SetObjectScl(Matrix _Scl);
 	void EnsureEdgeConstantBuffers();
 	void ConfigureOutline(float scale, Vector3 color);
+	void SetShadingModel(MaterialShadingModel shadingModel);
+	MaterialShadingModel GetShadingModel() const { return mShadingModel; }
 	void SetPickable(bool isPickable) { mIsPickable = isPickable; }
 	bool IsPickable() const { return mIsPickable; }
 
 	void GetObjectTargetBoneMatrix(std::string _targetModel, std::string _targetBoneName);
 	void GetObjectTargetBoneMatrix(VSBoneConstantBufferData _targetModelBoneConstantBuffer);
 	ModelBuffer* GetModelBuffer() const;
+
+private:
+	// Thin Film PS는 PBR PS와 별도의 b3 상수 버퍼를 사용하지만,
+	// Albedo/Normal/MRA 텍스처 선택과 기본 재질 값은 같은 PBR 설정을 공유한다.
+	void SynchronizeThinFilmMaterialData();
 };
 

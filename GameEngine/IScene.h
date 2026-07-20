@@ -33,6 +33,15 @@ enum class SceneRenderPath
 	Deferred,
 };
 
+// 같은 PBR 메시라도 표면의 최종 색상을 계산하는 방법은 재질마다 다를 수 있다.
+// Render Path가 "언제 그릴지"를 정한다면, Shading Model은 "어떤 조명 공식으로 그릴지"를 정한다.
+// Thin Film은 현재 전용 Pixel Shader가 최종 색상을 계산하므로 Forward Path에서 처리한다.
+enum class MaterialShadingModel
+{
+	DefaultLit,
+	ThinFilm,
+};
+
 struct SceneRenderItem
 {
 	RenderObject* object = nullptr;

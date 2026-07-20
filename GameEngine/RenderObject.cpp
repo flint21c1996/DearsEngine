@@ -117,6 +117,9 @@ void RenderObject::Update()
 
 	if (mIs_PSThinFilmConstant)
 	{
+		// Inspector에서 Metallic/Roughness나 텍스처 사용 여부를 바꾸면
+		// PBR용 b2뿐 아니라 Thin Film용 b3에도 같은 재질 상태가 반영되어야 한다.
+		SynchronizeThinFilmMaterialData();
 		mpGraphicsEngine->UpdatePSThinFilmonstantBuffer(mpModelBuffer.get(), mPSThinFilmConstantBufferData);
 
 	}
@@ -332,6 +335,35 @@ void RenderObject::ConfigureOutline(float scale, Vector3 color)
 	// 그래서 edge constant buffer는 여기서 즉시 GPU 버퍼에 반영한다.
 	mpGraphicsEngine->UpdateVSEdgeConstantBuffer(mpModelBuffer.get(), mVSEdgeConstantBufferData);
 	mpGraphicsEngine->UpdatePSEdgeConstantBuffer(mpModelBuffer.get(), mPSEdgeConstantBufferData);
+}
+
+void RenderObject::SetShadingModel(MaterialShadingModel shadingModel)
+{
+	mShadingModel = shadingModel;
+
+	if (mShadingModel != MaterialShadingModel::ThinFilm)
+	{
+		return;
+	}
+
+	// 체크박스 bool만 바꾸고 존재하지 않는 버퍼를 Update하면 DX11 Map에서 예외가 발생한다.
+	// 그래서 Thin Film을 실제로 선택하는 순간에만 b3 상수 버퍼를 지연 생성한다.
+	SynchronizeThinFilmMaterialData();
+	if (!mIs_PSThinFilmConstant || !mpModelBuffer->m_PSThinFilmConstantBuffer)
+	{
+		CreatePSThinFilmConstantBuffer();
+	}
+}
+
+void RenderObject::SynchronizeThinFilmMaterialData()
+{
+	mPSThinFilmConstantBufferData.maxLights = mPSPBRConstantBufferData.maxLights;
+	mPSThinFilmConstantBufferData.useAlbedoMap = mPSPBRConstantBufferData.useAlbedoMap;
+	mPSThinFilmConstantBufferData.useNormalMap = mPSPBRConstantBufferData.useNormalMap;
+	mPSThinFilmConstantBufferData.useAOMap = mPSPBRConstantBufferData.useAOMap;
+	mPSThinFilmConstantBufferData.useMetallicMap = mPSPBRConstantBufferData.useMetallicMap;
+	mPSThinFilmConstantBufferData.useRoughnessMap = mPSPBRConstantBufferData.useRoughnessMap;
+	mPSThinFilmConstantBufferData.material = mPSPBRConstantBufferData.material;
 }
 
 void RenderObject::GetObjectTargetBoneMatrix(std::string _targetModel, std::string _targetBoneName)

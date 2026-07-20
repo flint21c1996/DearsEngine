@@ -45,6 +45,20 @@ namespace EditorResourceCatalog
 		SceneRenderType::SpotLight,
 	}};
 
+	// Render Type이 메시 구조를 선택한다면 Shading Model은 같은 PBR 메시의
+	// 최종 표면색을 어떤 Pixel Shader로 계산할지 선택한다.
+	inline constexpr std::array<EditorResourceOption, 2> ShadingModels =
+	{{
+		{ "Default Lit", "DefaultLit" },
+		{ "Thin Film", "ThinFilm" },
+	}};
+
+	inline constexpr std::array<MaterialShadingModel, 2> ShadingModelValues =
+	{{
+		MaterialShadingModel::DefaultLit,
+		MaterialShadingModel::ThinFilm,
+	}};
+
 	inline constexpr std::array<EditorResourceOption, 8> VertexBuffers =
 	{{
 		{ "Box", "MyBox" },

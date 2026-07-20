@@ -163,7 +163,17 @@ void RenderDispatcher::RenderForwardItem(const SceneRenderItem& item)
 		m_pGraphicsEngine->Rend_BillBoard(modelBuffer);
 		break;
 	case SceneRenderType::PbrMesh:
-		m_pGraphicsEngine->Rend_PBR(modelBuffer);
+		// Thin Film은 별도의 프레임 Pass가 아니라 Forward Pass 안에서 선택하는
+		// PBR 계열 Shading Model이다. 메시/텍스처는 그대로 사용하고 PSO의
+		// Pixel Shader와 b3 상수 버퍼만 Thin Film 경로로 교체한다.
+		if (item.object->GetShadingModel() == MaterialShadingModel::ThinFilm)
+		{
+			m_pGraphicsEngine->Rend_ThinFilm(modelBuffer);
+		}
+		else
+		{
+			m_pGraphicsEngine->Rend_PBR(modelBuffer);
+		}
 		break;
 	case SceneRenderType::SkinnedMesh:
 		m_pGraphicsEngine->Rend_AnimateModel(modelBuffer);
