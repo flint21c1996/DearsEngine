@@ -296,7 +296,10 @@ public:
 				{
 					ImGui::DragFloat("Spot Power", &desc.spotPower, 0.5f, 1.0f, 256.0f);
 				}
+				// Point도 Cube 여섯 면에서 같은 Near/Far를 사용한다.
+				// 다만 각 면의 FOV는 정확히 90도여야 빈 방향이 생기지 않으므로 별도 입력을 받지 않는다.
 				if (selectedRenderType == SceneRenderType::DirectionalLight ||
+					selectedRenderType == SceneRenderType::PointLight ||
 					selectedRenderType == SceneRenderType::SpotLight)
 				{
 					ImGui::DragFloat("Shadow Near", &desc.shadowNear, 0.05f, 0.01f, 9999.0f);

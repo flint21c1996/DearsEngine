@@ -7,6 +7,7 @@
 #include "IScene.h"
 #include "RenderDispatcher.h"
 #include <algorithm>
+#include <array>
 #include <imgui.h>
 #include <math.h>
 #include "Pool.h"
@@ -296,60 +297,69 @@ void GameEngine::UpdateDemoControls()
 void GameEngine::UpdateLightingState()
 {
 	m_hasShadowLight = false;
+	m_selectedShadowLightIndex = -1;
 	if (!m_pActiveScene)
 	{
 		tempCCConstantBuffer.lightNum = 0;
 		return;
 	}
 
-	m_pActiveScene->CollectLights(tempCCConstantBuffer);
+	// Scene은 라이트를 Hierarchy 순서로 수집하고 선택된 라이트의 인덱스만 반환한다.
+	// 선택 여부가 GPU 배열 순서를 바꾸지 않으므로 Shadow Map 배열과 lights[]의 대응이 안정적이다.
+	m_selectedShadowLightIndex = m_pActiveScene->CollectLights(tempCCConstantBuffer);
 	for (UINT index = 0; index < tempCCConstantBuffer.lightNum; ++index)
 	{
 		Light& light = tempCCConstantBuffer.light[index];
 		if (light.lightType != static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT) &&
+			light.lightType != static_cast<UINT>(LightEnum::POINT_LIGHT) &&
 			light.lightType != static_cast<UINT>(LightEnum::SPOT_LIGHT))
 		{
 			continue;
 		}
 
-		// 현재 엔진은 Shadow Map이 한 장뿐이므로 첫 Directional/Spot Light만 그림자를 만든다.
-		// 기존 셰이더가 shadowMaps[0]과 lights[0].viewProj를 한 쌍으로 사용하므로,
-		// 그림자를 만드는 라이트를 배열의 0번으로 옮겨 두 데이터의 기준을 일치시킨다.
-		if (index != 0)
-		{
-			Light firstLight = tempCCConstantBuffer.light[0];
-			tempCCConstantBuffer.light[0] = light;
-			tempCCConstantBuffer.light[index] = firstLight;
-		}
-		Light& shadowLight = tempCCConstantBuffer.light[0];
-		lightCamera->SetEyePos(shadowLight.position);
-		// 라이트 오브젝트의 Forward(+Z)와 Up(+Y)을 함께 사용한다.
-		// 이 두 축을 공유해야 Shadow View와 노란 절두체가 Rotation 전 구간에서 같은 Roll을 가진다.
-		lightCamera->SetDirection(shadowLight.direction, shadowLight.shadowUp);
-
-		// Directional Light는 태양처럼 모든 광선이 서로 평행하므로 직교 투영을 사용한다.
-		// shadowWidth는 그림자 맵이 가로 방향으로 담는 월드 범위이며,
-		// 세로 범위는 Shadow Map의 화면비를 유지하도록 width / aspect로 계산한다.
-		// 반면 Spot Light는 한 점에서 원뿔 형태로 빛이 퍼지므로 기존 원근 투영을 유지한다.
-		if (shadowLight.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT))
-		{
-			const float shadowAspect = (std::max)(lightCamera->GetAspectRatio(), 0.001f);
-			lightCamera->SetOrthographicSize(
-				shadowLight.shadowWidth,
-				shadowLight.shadowWidth / shadowAspect);
-		}
-		else
-		{
-			lightCamera->SetPerspective();
-		}
-		lightCamera->ProjectionSettings(
-			shadowLight.shadowFovY,
-			shadowLight.shadowNear,
-			shadowLight.shadowFar);
-		shadowLight.viewProj = (lightCamera->GetViewRow() * lightCamera->GetProjRow()).Transpose();
+		// Directional/Spot은 메인 픽셀 셰이더에서 이 행렬로 월드 위치를 Shadow UV로 바꾼다.
+		// Point는 여섯 면을 개별 카메라로 그리므로 이 행렬을 샘플링에 사용하지 않지만,
+		// 구조체 값을 유효하게 유지하기 위해 기본 +X 면의 행렬을 기록한다.
+		ConfigureShadowCamera(light);
+		light.viewProj = (lightCamera->GetViewRow() * lightCamera->GetProjRow()).Transpose();
 		m_hasShadowLight = true;
-		break;
 	}
+}
+
+void GameEngine::ConfigureShadowCamera(const Light& light)
+{
+	lightCamera->SetEyePos(light.position);
+
+	if (light.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT))
+	{
+		// Directional Light는 광선이 서로 평행하므로 직교 투영을 사용한다.
+		// shadowWidth는 그림자 맵에 담을 월드 가로 길이이고, 세로는 화면비로 계산한다.
+		lightCamera->SetAspectRatio(m_screenWidth, m_screenHeight);
+		lightCamera->SetDirection(light.direction, light.shadowUp);
+		const float shadowAspect = (std::max)(lightCamera->GetAspectRatio(), 0.001f);
+		lightCamera->SetOrthographicSize(
+			light.shadowWidth,
+			light.shadowWidth / shadowAspect);
+		lightCamera->ProjectionSettings(light.shadowFovY, light.shadowNear, light.shadowFar);
+		return;
+	}
+
+	if (light.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT))
+	{
+		// Spot Light는 한 점에서 원뿔 형태로 퍼지므로 원근 투영을 사용한다.
+		lightCamera->SetAspectRatio(m_screenWidth, m_screenHeight);
+		lightCamera->SetDirection(light.direction, light.shadowUp);
+		lightCamera->SetPerspective();
+		lightCamera->ProjectionSettings(light.shadowFovY, light.shadowNear, light.shadowFar);
+		return;
+	}
+
+	// Point Light는 정육면체 여섯 면을 채우기 위해 1:1 화면비와 90도 시야각을 사용한다.
+	// 실제 면 방향은 RenderShadowPass에서 면마다 다시 설정한다.
+	lightCamera->SetAspectRatio(1, 1);
+	lightCamera->SetDirection(Vector3::UnitX, Vector3::UnitY);
+	lightCamera->SetPerspective();
+	lightCamera->ProjectionSettings(90.0f, light.shadowNear, light.shadowFar);
 }
 
 void GameEngine::UpdateSceneObjects(float deltaTime)
@@ -524,17 +534,91 @@ void GameEngine::RenderShadowPass()
 	shadowContext.passType = RenderPassType::Shadow;
 	shadowContext.camera = lightCamera.get();
 	shadowContext.commonBuffer = &tempLightCConstantBuffer;
-	m_pDearsGraphicsEngine->ApplyRenderContext(shadowContext);
 
-	m_pRenderDispatcher->RenderShadowItems(m_pActiveScene->GetShadowRenderItems());
+	// Direct3D TextureCube의 표준 면 순서이다.
+	// Y축 면은 Up 벡터까지 Y축을 쓰면 direction과 평행해지므로 각각 -Z/+Z를 사용한다.
+	static const std::array<Vector3, 6> faceDirections =
+	{
+		Vector3::UnitX, -Vector3::UnitX,
+		Vector3::UnitY, -Vector3::UnitY,
+		Vector3::UnitZ, -Vector3::UnitZ
+	};
+	static const std::array<Vector3, 6> faceUps =
+	{
+		Vector3::UnitY, Vector3::UnitY,
+		-Vector3::UnitZ, Vector3::UnitZ,
+		Vector3::UnitY, Vector3::UnitY
+	};
 
-	// 그림자 DSV 쓰기가 모두 끝난 시점에 원본 Depth를 디버그용 색상 텍스처로 변환한다.
-	// UI는 이 SRV를 읽기만 하므로 실제 그림자 결과나 다음 Geometry Pass의 Depth에는 영향이 없다.
-	const Light& shadowLight = tempCCConstantBuffer.light[0];
-	m_pDearsGraphicsEngine->RenderShadowMapDebugPreview(
-		shadowLight.shadowNear,
-		shadowLight.shadowFar,
-		shadowLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT));
+	// lights[]의 인덱스와 Shadow Map 배열의 인덱스를 동일하게 사용한다.
+	// 선택 여부와 무관하게 등록된 모든 라이트의 Shadow Map을 매 프레임 갱신한다.
+	for (UINT lightIndex = 0; lightIndex < tempCCConstantBuffer.lightNum; ++lightIndex)
+	{
+		const Light& shadowLight = tempCCConstantBuffer.light[lightIndex];
+		const bool isDirectional =
+			shadowLight.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT);
+		const bool isPoint =
+			shadowLight.lightType == static_cast<UINT>(LightEnum::POINT_LIGHT);
+		const bool isSpot =
+			shadowLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT);
+		if (!isDirectional && !isPoint && !isSpot)
+		{
+			continue;
+		}
+
+		ConfigureShadowCamera(shadowLight);
+		if (isPoint)
+		{
+			// 같은 Scene을 여섯 번 그리지만 카메라 방향과 DSV 면만 바뀐다.
+			// lightIndex * 6 + faceIndex가 TextureCubeArray의 실제 배열 슬라이스가 된다.
+			for (UINT faceIndex = 0; faceIndex < faceDirections.size(); ++faceIndex)
+			{
+				lightCamera->SetDirection(faceDirections[faceIndex], faceUps[faceIndex]);
+				m_pDearsGraphicsEngine->ApplyRenderContext(shadowContext);
+				m_pDearsGraphicsEngine->BeginPointShadowFace(lightIndex, faceIndex);
+				m_pRenderDispatcher->RenderShadowItems(m_pActiveScene->GetShadowRenderItems());
+			}
+		}
+		else
+		{
+			// Directional과 Spot은 투영 방식은 다르지만 같은 Texture2DArray를 사용한다.
+			// Begin 함수가 현재 lightIndex에 해당하는 DSV 슬라이스를 골라서 바인딩한다.
+			m_pDearsGraphicsEngine->ApplyRenderContext(shadowContext);
+			m_pDearsGraphicsEngine->BeginTwoDimensionalShadowPass(lightIndex);
+			m_pRenderDispatcher->RenderShadowItems(m_pActiveScene->GetShadowRenderItems());
+		}
+	}
+
+	// 모든 DSV 쓰기가 끝난 뒤 배열 SRV를 메인 픽셀 셰이더에 한 번만 연결한다.
+	// DX12/Vulkan에서는 이 위치가 Depth Write에서 Shader Read로 전환하는 배리어가 된다.
+	m_pDearsGraphicsEngine->EndShadowPass();
+
+	// 하이어라키 선택은 Shadow Map 생성 대상을 제한하지 않는다.
+	// 여기서는 이미 만들어진 배열 중 어떤 슬라이스를 디버그 창에 보여줄지만 결정한다.
+	if (m_selectedShadowLightIndex >= 0 &&
+		static_cast<UINT>(m_selectedShadowLightIndex) < tempCCConstantBuffer.lightNum)
+	{
+		const UINT selectedLightIndex = static_cast<UINT>(m_selectedShadowLightIndex);
+		const Light& selectedLight = tempCCConstantBuffer.light[selectedLightIndex];
+		ConfigureShadowCamera(selectedLight);
+
+		if (selectedLight.lightType == static_cast<UINT>(LightEnum::POINT_LIGHT))
+		{
+			m_pDearsGraphicsEngine->RenderPointShadowMapDebugPreview(
+				selectedLightIndex,
+				selectedLight.shadowNear,
+				selectedLight.shadowFar);
+		}
+		else if (selectedLight.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT) ||
+			selectedLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT))
+		{
+			m_pDearsGraphicsEngine->RenderShadowMapDebugPreview(
+				selectedLightIndex,
+				selectedLight.shadowNear,
+				selectedLight.shadowFar,
+				selectedLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT));
+		}
+	}
 }
 
 void GameEngine::RenderGeometryPass()
@@ -667,14 +751,16 @@ void GameEngine::RenderDebugPass()
 	for (UINT lightIndex = 0; lightIndex < tempCCConstantBuffer.lightNum; ++lightIndex)
 	{
 		const Light& light = tempCCConstantBuffer.light[lightIndex];
-		const bool drawDirectionalShadowFrustum =
+		const bool drawShadowFrustum =
 			m_hasShadowLight &&
-			lightIndex == 0 &&
-			light.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT);
+			m_selectedShadowLightIndex >= 0 &&
+			lightIndex == static_cast<UINT>(m_selectedShadowLightIndex) &&
+			(light.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT) ||
+			 light.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT));
 
 		m_pDearsGraphicsEngine->Rend_DebugLightGizmo(
 			light,
-			drawDirectionalShadowFrustum,
+			drawShadowFrustum,
 			lightCamera->GetAspectRatio());
 	}
 }

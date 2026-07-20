@@ -226,19 +226,31 @@ void DebugRenderer::RenderLightGizmo(
 	}
 	else if (light.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT))
 	{
-		const float length = (std::max)(light.fallOffEnd, 0.1f);
-		// 현재 Spot은 각도 대신 pow 지수(Spot Power)를 사용한다.
-		// 밝기가 1%가 되는 경계를 시각적 원뿔의 외곽으로 정의한다.
-		const float power = (std::max)(light.spotPower, 1.0f);
-		const float halfAngle = std::acos(std::pow(0.01f, 1.0f / power));
-		const float radius = std::tan(halfAngle) * length;
-		const Vector3 endCenter = position + direction * length;
-		AddCircle(endCenter, right, up, radius, spotColor);
-		AddLine(position, endCenter + right * radius, spotColor);
-		AddLine(position, endCenter - right * radius, spotColor);
-		AddLine(position, endCenter + up * radius, spotColor);
-		AddLine(position, endCenter - up * radius, spotColor);
-		AddLine(position, endCenter, spotColor);
+		// Spot의 FOV는 직접광의 외곽 각도와 Shadow Camera의 투영 각도에 함께 사용한다.
+		// 예전처럼 Spot Power에서 임의의 각도를 역산하면 눈에 보이는 원뿔과 실제 빛 범위가 달라진다.
+		const float lightRange = (std::max)(light.fallOffEnd, 0.1f);
+		AddLine(position, position + direction * lightRange, spotColor);
+
+		if (drawShadowFrustum)
+		{
+			AddPerspectiveFrustum(
+				position, direction, right, up,
+				light.shadowFovY, (std::max)(shadowAspect, 0.001f),
+				light.shadowNear, light.shadowFar,
+				spotColor);
+		}
+		else
+		{
+			// 선택되지 않은 Spot도 실제 조사 범위는 볼 수 있도록 Far 단면과 네 모서리를 그린다.
+			const float halfAngle = DirectX::XMConvertToRadians(light.shadowFovY) * 0.5f;
+			const float radius = std::tan(halfAngle) * lightRange;
+			const Vector3 endCenter = position + direction * lightRange;
+			AddCircle(endCenter, right, up, radius, spotColor);
+			AddLine(position, endCenter + right * radius, spotColor);
+			AddLine(position, endCenter - right * radius, spotColor);
+			AddLine(position, endCenter + up * radius, spotColor);
+			AddLine(position, endCenter - up * radius, spotColor);
+		}
 	}
 
 	FlushLines();

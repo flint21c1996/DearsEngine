@@ -43,6 +43,9 @@ private:
 	std::unique_ptr<Camera> tempCamera;
 	std::unique_ptr<Camera> lightCamera;
 	bool m_hasShadowLight = false;
+	// 에디터에서 선택한 라이트의 GPU 배열 인덱스다.
+	// 모든 라이트의 그림자는 항상 만들고, 이 값은 미리보기와 선택 절두체에만 사용한다.
+	int m_selectedShadowLightIndex = -1;
 	std::unique_ptr<IScene> m_pActiveScene;
 
 	std::unique_ptr<AStar> tempAStar;
@@ -74,6 +77,8 @@ private:
 	bool IsViewportNavigationActive() const;
 	void UpdateDemoControls();
 	void UpdateLightingState();
+	// Light 종류에 맞춰 공용 Shadow Camera의 위치, 방향, 투영 방식을 설정한다.
+	void ConfigureShadowCamera(const Light& light);
 	void UpdateSceneObjects(float deltaTime);
 	void UpdatePresentationControls();
 

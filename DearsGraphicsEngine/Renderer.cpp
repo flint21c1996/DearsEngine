@@ -72,7 +72,8 @@ void Renderer::BeginRender()
 
 	// 占쏙옙占쏙옙-占쏙옙占식실븝옙 占쏙옙占쏙옙
 	m_pDeviceContext->ClearDepthStencilView(mpDepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-	m_pDeviceContext->ClearDepthStencilView(m_depthOnlyDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	// Shadow Map은 BeginTwoDimensionalShadowPass/BeginPointShadowFace에서 SRV를 해제한 뒤 지운다.
+	// 여기서 먼저 Clear하면 이전 프레임의 t15/t16 SRV가 아직 바인딩된 상태일 수 있다.
 
 	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 
@@ -86,6 +87,66 @@ void Renderer::BindMainRenderTarget(ID3D11DepthStencilView* depthStencilView)
 	ID3D11DepthStencilView* targetDepth = depthStencilView ? depthStencilView : mpDepthStencilView.Get();
 	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), targetDepth);
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
+}
+
+void Renderer::BeginTwoDimensionalShadowPass(UINT lightIndex)
+{
+	if (lightIndex >= m_twoDimensionalShadowDSVs.size())
+	{
+		return;
+	}
+
+	// 같은 Depth 리소스를 DSV(쓰기)와 SRV(읽기)로 동시에 묶을 수 없다.
+	// 배열 전체를 하나의 SRV로 읽기 때문에 단 한 slice에 쓰더라도 t15/t16을 모두 먼저 해제해야 한다.
+	ID3D11ShaderResourceView* nullShadowResources[2] = { nullptr, nullptr };
+	m_pDeviceContext->PSSetShaderResources(15, 2, nullShadowResources);
+
+	m_pDeviceContext->ClearDepthStencilView(
+		m_twoDimensionalShadowDSVs[lightIndex].Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+	m_activeShadowDSV = m_twoDimensionalShadowDSVs[lightIndex].Get();
+	m_activeShadowViewport = &m_shadowViewport;
+	m_pDeviceContext->RSSetViewports(1, m_activeShadowViewport);
+	m_pDeviceContext->OMSetRenderTargets(0, nullptr, m_activeShadowDSV);
+}
+
+void Renderer::BeginPointShadowFace(UINT lightIndex, UINT faceIndex)
+{
+	if (lightIndex >= MAX_LIGHTS || faceIndex >= 6)
+	{
+		return;
+	}
+	const UINT arraySlice = lightIndex * 6 + faceIndex;
+
+	// Point Light는 한 위치에서 +X, -X, +Y, -Y, +Z, -Z를 각각 렌더링한다.
+	// 매 호출은 TextureCube 배열의 한 면만 DSV로 선택하며, 실제 메시 draw 코드는
+	// 현재 면 번호나 TextureCube의 존재를 몰라도 된다.
+	ID3D11ShaderResourceView* nullShadowResources[2] = { nullptr, nullptr };
+	m_pDeviceContext->PSSetShaderResources(15, 2, nullShadowResources);
+
+	m_activeShadowDSV = m_pointShadowCubeDSVs[arraySlice].Get();
+	m_activeShadowViewport = &m_pointShadowViewport;
+	m_pDeviceContext->ClearDepthStencilView(
+		m_activeShadowDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	m_pDeviceContext->RSSetViewports(1, m_activeShadowViewport);
+	m_pDeviceContext->OMSetRenderTargets(0, nullptr, m_activeShadowDSV);
+}
+
+void Renderer::EndShadowPass()
+{
+	// 모든 Depth 쓰기가 끝난 다음에만 두 Shadow Map을 셰이더 입력으로 연결한다.
+	// t15는 Directional/Spot용 2D 맵, t16은 Point용 Cube 맵으로 고정한다.
+	m_pDeviceContext->OMSetRenderTargets(
+		1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
+	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
+
+	ID3D11ShaderResourceView* shadowResources[2] =
+	{
+		m_twoDimensionalShadowArraySRV.Get(),
+		m_pointShadowCubeSRV.Get()
+	};
+	m_pDeviceContext->PSSetShaderResources(15, 2, shadowResources);
+	m_activeShadowDSV = nullptr;
+	m_activeShadowViewport = nullptr;
 }
 
 void Renderer::SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _environmentTexture, ComPtr<ID3D11ShaderResourceView> _diffuseTexture,
@@ -119,6 +180,15 @@ bool Renderer::SetCommonShaderResourceToGPU()
 		mpCubeMapBRDFResourceView.Get(),
 	};
 	m_pDeviceContext->PSSetShaderResources(10, 4, pixelResources);
+
+	// 그림자 패스가 실행되지 않는 프레임에도 마지막으로 완성된 Shadow Map은 읽을 수 있다.
+	// 실제 Depth 쓰기 직전에는 Begin*ShadowPass()가 이 슬롯을 안전하게 해제한다.
+	ID3D11ShaderResourceView* shadowResources[2] =
+	{
+		m_twoDimensionalShadowArraySRV.Get(),
+		m_pointShadowCubeSRV.Get()
+	};
+	m_pDeviceContext->PSSetShaderResources(15, 2, shadowResources);
 	return true;
 }
 
@@ -244,7 +314,144 @@ bool Renderer::InitalizeD3D()
 	RendererHelper::CreateRenderTargetView(m_pDevice, mpSwapChain, m_pTempTargetview, mpTempBuffer, 1, 1920 * 0.5, 1080 * 0.5);
 	hr = m_pDevice->CreateShaderResourceView(mpTempBuffer.Get(), nullptr, mpTempTargetSRV.GetAddressOf());
 
-	RendererHelper::CreateDepthOnlyBuffer(m_pDevice, m_ScreenWidth, m_ScreenHeight, m_depthOnlyDSV, m_depthOnlySRV);
+	if (!CreateTwoDimensionalShadowArray())
+	{
+		return false;
+	}
+
+	if (!CreatePointShadowCube())
+	{
+		return false;
+	}
+	return true;
+}
+
+bool Renderer::CreateTwoDimensionalShadowArray()
+{
+	// Directional과 Spot은 모두 2D Depth Map을 사용한다.
+	// 각 라이트마다 Texture를 따로 만들 수도 있지만 하나의 Texture2DArray로 묶으면
+	// 바인딩 슬롯 하나(t15)만 사용하면서 lightIndex로 원하는 slice를 선택할 수 있다.
+	D3D11_TEXTURE2D_DESC textureDesc{};
+	textureDesc.Width = m_ScreenWidth;
+	textureDesc.Height = m_ScreenHeight;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = MAX_LIGHTS;
+	textureDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+	textureDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+	if (FAILED(m_pDevice->CreateTexture2D(
+		&textureDesc, nullptr, m_twoDimensionalShadowArrayTexture.GetAddressOf())))
+	{
+		DEBUG_LOG("ERROR - 2D Shadow Array texture creation failed.");
+		return false;
+	}
+
+	// Shadow Pass에서는 한 라이트의 slice만 Depth Target으로 묶어야 하므로
+	// slice마다 ArraySize가 1인 DSV를 하나씩 만든다.
+	for (UINT lightIndex = 0; lightIndex < m_twoDimensionalShadowDSVs.size(); ++lightIndex)
+	{
+		D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+		dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+		dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+		dsvDesc.Texture2DArray.MipSlice = 0;
+		dsvDesc.Texture2DArray.FirstArraySlice = lightIndex;
+		dsvDesc.Texture2DArray.ArraySize = 1;
+		if (FAILED(m_pDevice->CreateDepthStencilView(
+			m_twoDimensionalShadowArrayTexture.Get(),
+			&dsvDesc,
+			m_twoDimensionalShadowDSVs[lightIndex].GetAddressOf())))
+		{
+			DEBUG_LOG("ERROR - 2D Shadow Array DSV creation failed.");
+			return false;
+		}
+	}
+
+	// 메인 조명 패스에서는 배열 전체를 한 번에 읽고, HLSL의 세 번째 좌표로 slice를 고른다.
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+	srvDesc.Texture2DArray.MostDetailedMip = 0;
+	srvDesc.Texture2DArray.MipLevels = 1;
+	srvDesc.Texture2DArray.FirstArraySlice = 0;
+	srvDesc.Texture2DArray.ArraySize = MAX_LIGHTS;
+	if (FAILED(m_pDevice->CreateShaderResourceView(
+		m_twoDimensionalShadowArrayTexture.Get(),
+		&srvDesc,
+		m_twoDimensionalShadowArraySRV.GetAddressOf())))
+	{
+		DEBUG_LOG("ERROR - 2D Shadow Array SRV creation failed.");
+		return false;
+	}
+
+	return true;
+}
+
+bool Renderer::CreatePointShadowCube()
+{
+	// Cube Array도 실제 저장 형태는 Texture2D 배열이다.
+	// Point Light 하나당 여섯 slice를 연속으로 배치하고 MAX_LIGHTS개 분량을 미리 확보한다.
+	D3D11_TEXTURE2D_DESC textureDesc{};
+	textureDesc.Width = m_pointShadowMapSize;
+	textureDesc.Height = m_pointShadowMapSize;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = MAX_LIGHTS * 6;
+	textureDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+	textureDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+	textureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+	if (FAILED(m_pDevice->CreateTexture2D(
+		&textureDesc, nullptr, m_pointShadowCubeTexture.GetAddressOf())))
+	{
+		DEBUG_LOG("ERROR - Point Shadow Cube texture creation failed.");
+		return false;
+	}
+
+	// DSV 하나는 Point Light 한 개의 한 방향만 가리킨다.
+	// FirstArraySlice는 lightIndex * 6 + faceIndex와 동일한 선형 slice 번호다.
+	for (UINT arraySlice = 0; arraySlice < m_pointShadowCubeDSVs.size(); ++arraySlice)
+	{
+		D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+		dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+		dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+		dsvDesc.Texture2DArray.MipSlice = 0;
+		dsvDesc.Texture2DArray.FirstArraySlice = arraySlice;
+		dsvDesc.Texture2DArray.ArraySize = 1;
+		if (FAILED(m_pDevice->CreateDepthStencilView(
+			m_pointShadowCubeTexture.Get(),
+			&dsvDesc,
+			m_pointShadowCubeDSVs[arraySlice].GetAddressOf())))
+		{
+			DEBUG_LOG("ERROR - Point Shadow Cube face DSV creation failed.");
+			return false;
+		}
+	}
+
+	// 렌더가 끝난 뒤에는 전체 배열을 TextureCubeArray로 읽는다.
+	// 셰이더는 방향 벡터와 lightIndex를 함께 넘겨 Cube와 면을 동시에 선택한다.
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
+	srvDesc.TextureCubeArray.MostDetailedMip = 0;
+	srvDesc.TextureCubeArray.MipLevels = 1;
+	srvDesc.TextureCubeArray.First2DArrayFace = 0;
+	srvDesc.TextureCubeArray.NumCubes = MAX_LIGHTS;
+	if (FAILED(m_pDevice->CreateShaderResourceView(
+		m_pointShadowCubeTexture.Get(),
+		&srvDesc,
+		m_pointShadowCubeSRV.GetAddressOf())))
+	{
+		DEBUG_LOG("ERROR - Point Shadow Cube SRV creation failed.");
+		return false;
+	}
+
+	m_pointShadowViewport.TopLeftX = 0.0f;
+	m_pointShadowViewport.TopLeftY = 0.0f;
+	m_pointShadowViewport.Width = static_cast<float>(m_pointShadowMapSize);
+	m_pointShadowViewport.Height = static_cast<float>(m_pointShadowMapSize);
+	m_pointShadowViewport.MinDepth = 0.0f;
+	m_pointShadowViewport.MaxDepth = 1.0f;
 	return true;
 }
 
@@ -278,17 +485,16 @@ int a = D3D11_FILTER_MIN_LINEAR_MAG_MIP_POINT;
 void Renderer::RenderDepthMap(ModelBuffer* _modelbuffer)
 {
 	SetPipelineState(Dears::Graphics::depthOnlyPSO);
-//	m_pDeviceContext->RSSetViewports(1, &m_pD3dtempViewport);
-	// 메인 viewport 폭은 에디터 패널을 제외하도록 줄어들 수 있다.
-	// Shadow Map 전체 크기와 일치시켜야 투영 좌표와 텍스처 샘플 좌표가 어긋나지 않는다.
-	m_pDeviceContext->RSSetViewports(1, &m_shadowViewport);
-	
-	//화占썽에 占쏙옙咀몌옙占? -> 占쎈강 확占쏙옙占쌀쇽옙 占쌍댐옙
-	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), m_depthOnlyDSV.Get());
-	
-	m_pDeviceContext->OMSetRenderTargets(0,NULL, m_depthOnlyDSV.Get());
-	//占쌕몌옙 占쏙옙占쏙옙타占쌕울옙 占쌓몌옙占쏙옙
-	//m_pDeviceContext->OMSetRenderTargets(1, m_pTempRednerTargetview.GetAddressOf(), m_depthOnlyDSV.Get());
+	// BeginTwoDimensionalShadowPass/BeginPointShadowFace가 고른 현재 Depth Target을 사용한다.
+	// 활성 타깃이 없으면 기존 2D 맵을 기본값으로 사용해 과거 호출 경로도 안전하게 유지한다.
+	ID3D11DepthStencilView* shadowDSV = m_activeShadowDSV
+		? m_activeShadowDSV
+		: m_twoDimensionalShadowDSVs[0].Get();
+	const D3D11_VIEWPORT* shadowViewport = m_activeShadowViewport
+		? m_activeShadowViewport
+		: &m_shadowViewport;
+	m_pDeviceContext->RSSetViewports(1, shadowViewport);
+	m_pDeviceContext->OMSetRenderTargets(0, nullptr, shadowDSV);
 
 
 	// 占쏙옙占쌔쏙옙/占싸듸옙占쏙옙 占쏙옙占쏙옙 占쏙옙占쏙옙
@@ -315,21 +521,57 @@ void Renderer::RenderDepthMap(ModelBuffer* _modelbuffer)
 
 	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 
-	m_pDeviceContext->PSSetShaderResources(15, 1, m_depthOnlySRV.GetAddressOf());	  //(占쌔쏙옙占쏙옙占쏙옙 占쏙옙호(占싸듸옙占쏙옙), SRV占쏙옙 占쏙옙占쏙옙, 占쏙옙占쏙옙占쏙옙(占쌍소곤옙))
+}
+
+void Renderer::RenderPbrDepthMap(ModelBuffer* _modelbuffer)
+{
+	// MeshRenderer가 Height 변형용 PBR Shadow PSO를 먼저 설정한다.
+	// 여기서는 현재 라이트의 Shadow DSV를 선택하고 PBR 정점 리소스를 바인딩해 Draw만 수행한다.
+	ID3D11DepthStencilView* shadowDSV = m_activeShadowDSV
+		? m_activeShadowDSV
+		: m_twoDimensionalShadowDSVs[0].Get();
+	const D3D11_VIEWPORT* shadowViewport = m_activeShadowViewport
+		? m_activeShadowViewport
+		: &m_shadowViewport;
+	m_pDeviceContext->RSSetViewports(1, shadowViewport);
+	m_pDeviceContext->OMSetRenderTargets(0, nullptr, shadowDSV);
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	m_pDeviceContext->IASetVertexBuffers(
+		0, 1, _modelbuffer->m_pVertexBuffer.GetAddressOf(), &stride, &offset);
+	m_pDeviceContext->IASetIndexBuffer(
+		_modelbuffer->m_pIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+	// PBRVertexShader와 PBRShadowVertexShader는 같은 b6 구조를 공유한다.
+	// useHeightMap과 heightScale을 그대로 읽기 때문에 화면과 그림자의 변형 크기가 일치한다.
+	m_pDeviceContext->VSSetConstantBuffers(
+		6, 1, _modelbuffer->m_VSPBRConstantBuffer.GetAddressOf());
+	ID3D11ShaderResourceView* heightResource = _modelbuffer->heightTex.Get();
+	m_pDeviceContext->VSSetShaderResources(0, 1, &heightResource);
+
+	m_pDeviceContext->DrawIndexed(_modelbuffer->mNumIndices, 0, 0);
+
+	// 다음 Shadow Item이 일반 StaticMesh일 수 있으므로 Height Texture 바인딩을 명시적으로 지운다.
+	// 전용 PSO로 경로를 나눴지만 리소스 상태도 정리해 두면 이후 RHI 전환 시 의존성이 더 선명하다.
+	ID3D11ShaderResourceView* nullResource = nullptr;
+	m_pDeviceContext->VSSetShaderResources(0, 1, &nullResource);
+	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
+	m_pDeviceContext->OMSetRenderTargets(
+		1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 }
 
 void Renderer::RenderAniDepthMap(ModelBuffer* _modelbuffer)
 {
 	SetPipelineState(Dears::Graphics::depthAniOnlyPSO);
-	//	m_pDeviceContext->RSSetViewports(1, &m_pD3dtempViewport);
-	m_pDeviceContext->RSSetViewports(1, &m_shadowViewport);
-
-	//화占썽에 占쏙옙咀몌옙占? -> 占쎈강 확占쏙옙占쌀쇽옙 占쌍댐옙
-	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), m_depthOnlyDSV.Get());
-
-	m_pDeviceContext->OMSetRenderTargets(0, NULL, m_depthOnlyDSV.Get());
-	//占쌕몌옙 占쏙옙占쏙옙타占쌕울옙 占쌓몌옙占쏙옙
-	//m_pDeviceContext->OMSetRenderTargets(1, m_pTempRednerTargetview.GetAddressOf(), m_depthOnlyDSV.Get());
+	ID3D11DepthStencilView* shadowDSV = m_activeShadowDSV
+		? m_activeShadowDSV
+		: m_twoDimensionalShadowDSVs[0].Get();
+	const D3D11_VIEWPORT* shadowViewport = m_activeShadowViewport
+		? m_activeShadowViewport
+		: &m_shadowViewport;
+	m_pDeviceContext->RSSetViewports(1, shadowViewport);
+	m_pDeviceContext->OMSetRenderTargets(0, nullptr, shadowDSV);
 
 
 	// 占쏙옙占쌔쏙옙/占싸듸옙占쏙옙 占쏙옙占쏙옙 占쏙옙占쏙옙
@@ -356,21 +598,19 @@ void Renderer::RenderAniDepthMap(ModelBuffer* _modelbuffer)
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
 	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 
-	m_pDeviceContext->PSSetShaderResources(15, 1, m_depthOnlySRV.GetAddressOf());	  //(占쌔쏙옙占쏙옙占쏙옙 占쏙옙호(占싸듸옙占쏙옙), SRV占쏙옙 占쏙옙占쏙옙, 占쏙옙占쏙옙占쏙옙(占쌍소곤옙))
 }
 
 void Renderer::RenderEquipDepthMap(ModelBuffer* _modelbuffer)
 {
 	SetPipelineState(Dears::Graphics::depthEquipOnlyPSO);
-	//	m_pDeviceContext->RSSetViewports(1, &m_pD3dtempViewport);
-	m_pDeviceContext->RSSetViewports(1, &m_shadowViewport);
-
-	//화占썽에 占쏙옙咀몌옙占? -> 占쎈강 확占쏙옙占쌀쇽옙 占쌍댐옙
-	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), m_depthOnlyDSV.Get());
-
-	m_pDeviceContext->OMSetRenderTargets(0, NULL, m_depthOnlyDSV.Get());
-	//占쌕몌옙 占쏙옙占쏙옙타占쌕울옙 占쌓몌옙占쏙옙
-	//m_pDeviceContext->OMSetRenderTargets(1, m_pTempRednerTargetview.GetAddressOf(), m_depthOnlyDSV.Get());
+	ID3D11DepthStencilView* shadowDSV = m_activeShadowDSV
+		? m_activeShadowDSV
+		: m_twoDimensionalShadowDSVs[0].Get();
+	const D3D11_VIEWPORT* shadowViewport = m_activeShadowViewport
+		? m_activeShadowViewport
+		: &m_shadowViewport;
+	m_pDeviceContext->RSSetViewports(1, shadowViewport);
+	m_pDeviceContext->OMSetRenderTargets(0, nullptr, shadowDSV);
 
 
 	// 占쏙옙占쌔쏙옙/占싸듸옙占쏙옙 占쏙옙占쏙옙 占쏙옙占쏙옙
@@ -398,7 +638,6 @@ void Renderer::RenderEquipDepthMap(ModelBuffer* _modelbuffer)
 	//m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 	m_pDeviceContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 
-	m_pDeviceContext->PSSetShaderResources(15, 1, m_depthOnlySRV.GetAddressOf());	  //(占쌔쏙옙占쏙옙占쏙옙 占쏙옙호(占싸듸옙占쏙옙), SRV占쏙옙 占쏙옙占쏙옙, 占쏙옙占쏙옙占쏙옙(占쌍소곤옙))
 }
 
 void Renderer::RenderEdge(ModelBuffer* _modelbuffer)

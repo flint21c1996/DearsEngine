@@ -134,8 +134,10 @@ public:
 				lightEditFinished |= ImGui::IsItemDeactivatedAfterEdit();
 			}
 
-			// 두 라이트 모두 Near/Far를 사용하지만, Directional은 Width, Spot은 FOV로 범위를 정한다.
+			// 세 라이트 모두 Shadow Near/Far를 사용한다.
+			// Directional은 Width, Spot은 FOV를 추가로 사용하며 Point의 FOV는 Cube 면마다 90도로 고정한다.
 			if (obj->mSceneLight.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT) ||
+				obj->mSceneLight.lightType == static_cast<UINT>(LightEnum::POINT_LIGHT) ||
 				obj->mSceneLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT))
 			{
 				ImGui::DragFloat("Shadow Near", &obj->mSceneLight.shadowNear, 0.05f, 0.01f, 9999.0f);

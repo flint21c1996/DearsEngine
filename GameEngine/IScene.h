@@ -70,7 +70,9 @@ public:
 	virtual const std::vector<SceneRenderItem>& GetMainRenderItems() const = 0;
 	virtual RenderObject* GetSelectedObject() const = 0;
 	// Scene에 배치된 라이트를 GPU 공통 버퍼 형식으로 수집한다.
-	virtual void CollectLights(CommonConstantBufferData& buffer) const = 0;
+	// 반환값은 현재 선택된 라이트의 GPU 배열 인덱스이며, 선택된 라이트가 없으면 -1이다.
+	// 그림자 생성 여부와 에디터의 미리보기 선택을 분리하기 위해 인덱스를 별도로 돌려준다.
+	virtual int CollectLights(CommonConstantBufferData& buffer) const = 0;
 
 	virtual const Vector2& GetPrimaryUiPoint() const = 0;
 	virtual const Vector2& GetSecondaryUiPoint() const = 0;

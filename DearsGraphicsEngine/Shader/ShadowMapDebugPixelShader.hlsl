@@ -1,11 +1,11 @@
-Texture2D shadowDepth : register(t0);
+Texture2DArray shadowDepth : register(t0);
 
 cbuffer ShadowDebugConstants : register(b0)
 {
     float nearPlane;
     float farPlane;
     float isPerspective;
-    float padding;
+    uint lightIndex;
 };
 
 struct DebugPixelInput
@@ -18,10 +18,12 @@ float4 main(DebugPixelInput input) : SV_Target
 {
     uint sourceWidth;
     uint sourceHeight;
-    shadowDepth.GetDimensions(sourceWidth, sourceHeight);
+    uint sourceArraySize;
+    shadowDepth.GetDimensions(sourceWidth, sourceHeight, sourceArraySize);
     int2 sourcePixel = int2(input.uv * float2(sourceWidth, sourceHeight));
     sourcePixel = clamp(sourcePixel, int2(0, 0), int2(sourceWidth - 1, sourceHeight - 1));
-    float depth = shadowDepth.Load(int3(sourcePixel, 0)).r;
+    uint sourceSlice = min(lightIndex, sourceArraySize - 1);
+    float depth = shadowDepth.Load(int4(sourcePixel, sourceSlice, 0)).r;
 
     // Clear 값 1.0은 라이트 카메라에 아무 물체도 잡히지 않은 픽셀이다.
     // 검은 배경으로 분리해 두면 실제로 기록된 영역의 윤곽을 바로 확인할 수 있다.

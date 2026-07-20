@@ -214,9 +214,17 @@ public:
 
 
 	void RenderDepthMap(ModelBuffer* _modelbuffer);
+	void RenderPbrDepthMap(ModelBuffer* _modelbuffer);
 	void RenderAniDepthMap(ModelBuffer* _modelbuffer);
 	void RenderEquipDepthMap(ModelBuffer* _modelbuffer);
-	void RenderShadowMapDebugPreview(float nearPlane, float farPlane, bool isPerspective);
+	// GameEngine은 라이트/면 인덱스만 전달하고 DX11 Array DSV 선택은 그래픽스 계층에 맡긴다.
+	// lightIndex는 CommonConstantBuffer의 lights[] 인덱스와 같고,
+	// Point의 faceIndex 순서는 +X, -X, +Y, -Y, +Z, -Z이다.
+	void BeginTwoDimensionalShadowPass(UINT lightIndex);
+	void BeginPointShadowFace(UINT lightIndex, UINT faceIndex);
+	void EndShadowPass();
+	void RenderShadowMapDebugPreview(UINT lightIndex, float nearPlane, float farPlane, bool isPerspective);
+	void RenderPointShadowMapDebugPreview(UINT lightIndex, float nearPlane, float farPlane);
 
 	void Rend_InstancedModels(ModelBuffer* _modelbuffers);
 	void Rend_BillBoard(ModelBuffer* _modelbuffers);

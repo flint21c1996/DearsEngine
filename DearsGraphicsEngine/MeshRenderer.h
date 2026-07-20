@@ -29,6 +29,7 @@ public:
 	void RenderWater(ModelBuffer* modelBuffer);
 
 	void RenderDepthMap(ModelBuffer* modelBuffer);
+	void RenderPbrDepthMap(ModelBuffer* modelBuffer);
 	void RenderAnimatedDepthMap(ModelBuffer* modelBuffer);
 	void RenderEquipmentDepthMap(ModelBuffer* modelBuffer);
 
@@ -44,4 +45,8 @@ private:
 	DearsGraphicsEngine* m_pGraphicsEngine = nullptr;
 	PipelineStateObject m_deferredGeometryPSO;
 	bool m_isDeferredGeometryPipelineInitialized = false;
+	// Height Map 변형을 Shadow Pass에도 적용하는 PBR 전용 Depth Pipeline이다.
+	// 일반 StaticMesh용 Shadow Pipeline과 분리해 b6/t0 리소스가 다른 타입으로 새는 것을 막는다.
+	PipelineStateObject m_pbrShadowPSO;
+	bool m_isPbrShadowPipelineInitialized = false;
 };

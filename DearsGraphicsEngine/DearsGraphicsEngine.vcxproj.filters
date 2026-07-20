@@ -400,9 +400,15 @@
 	<FxCompile Include="Shader\ShadowMapDebugPixelShader.hlsl">
 		<Filter>shader\PBR</Filter>
 	</FxCompile>
+	<FxCompile Include="Shader\PointShadowMapDebugPixelShader.hlsl">
+		<Filter>shader\PBR</Filter>
+	</FxCompile>
     <FxCompile Include="Shader\PBRVertexShader.hlsl">
       <Filter>shader\PBR</Filter>
     </FxCompile>
+	<FxCompile Include="Shader\PBRShadowVertexShader.hlsl">
+		<Filter>shader\Shadow</Filter>
+	</FxCompile>
     <FxCompile Include="Shader\ThinFilmPixelShader.hlsl">
       <Filter>shader\ThinFilmShader</Filter>
     </FxCompile>
@@ -414,5 +420,8 @@
     <None Include="Shader\Common.hlsli">
       <Filter>shader</Filter>
     </None>
+	<None Include="Shader\PBRLighting.hlsli">
+	  <Filter>shader\PBR</Filter>
+	</None>
   </ItemGroup>
 </Project>

@@ -97,6 +97,33 @@ void MeshRenderer::RenderDepthMap(ModelBuffer* modelBuffer)
 	m_pGraphicsEngine->mpRenderer->RenderDepthMap(modelBuffer);
 }
 
+void MeshRenderer::RenderPbrDepthMap(ModelBuffer* modelBuffer)
+{
+	if (!m_isPbrShadowPipelineInitialized)
+	{
+		// Depth/Rasterizer 상태는 기존 Shadow PSO를 그대로 재사용한다.
+		// Vertex Shader만 PBR 전용으로 교체해 메인 PBR Pass와 같은 Height 변형을 수행한다.
+		m_pbrShadowPSO = Dears::Graphics::depthOnlyPSO;
+		const std::vector<D3D11_INPUT_ELEMENT_DESC> inputElements =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TANGENT",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		};
+		RendererHelper::CreateVertexShaderAndInputLayout(
+			m_pGraphicsEngine->m_pDevice,
+			"../DearsGraphicsEngine/Shader/PBRShadowVertexShader.hlsl",
+			inputElements,
+			m_pbrShadowPSO.m_pVertexShader,
+			m_pbrShadowPSO.m_pInputLayout);
+		m_isPbrShadowPipelineInitialized = true;
+	}
+
+	m_pGraphicsEngine->SetPipelineState(m_pbrShadowPSO);
+	m_pGraphicsEngine->mpRenderer->RenderPbrDepthMap(modelBuffer);
+}
+
 void MeshRenderer::RenderAnimatedDepthMap(ModelBuffer* modelBuffer)
 {
 	// 스키닝 메시의 그림자 깊이 렌더링 경로이다.

@@ -594,6 +594,13 @@ void DearsGraphicsEngine::RenderDepthMap(ModelBuffer* _modelbuffer)
 	m_pMeshRenderer->RenderDepthMap(_modelbuffer);
 }
 
+void DearsGraphicsEngine::RenderPbrDepthMap(ModelBuffer* _modelbuffer)
+{
+	// PBR 메시는 메인 패스에서 Height Map으로 정점 위치가 바뀌므로
+	// 일반 Depth 경로가 아니라 동일한 변형을 수행하는 전용 Shadow 경로로 전달한다.
+	m_pMeshRenderer->RenderPbrDepthMap(_modelbuffer);
+}
+
 void DearsGraphicsEngine::RenderAniDepthMap(ModelBuffer* _modelbuffer)
 {
 	m_pMeshRenderer->RenderAnimatedDepthMap(_modelbuffer);
@@ -604,7 +611,25 @@ void DearsGraphicsEngine::RenderEquipDepthMap(ModelBuffer* _modelbuffer)
 	m_pMeshRenderer->RenderEquipmentDepthMap(_modelbuffer);
 }
 
+void DearsGraphicsEngine::BeginTwoDimensionalShadowPass(UINT lightIndex)
+{
+	// DX11 리소스 형식과 바인딩 슬롯은 Renderer 내부 구현이다.
+	// 게임 계층에서는 어떤 라이트의 2D 그림자 패스를 시작할지만 전달한다.
+	mpRenderer->BeginTwoDimensionalShadowPass(lightIndex);
+}
+
+void DearsGraphicsEngine::BeginPointShadowFace(UINT lightIndex, UINT faceIndex)
+{
+	mpRenderer->BeginPointShadowFace(lightIndex, faceIndex);
+}
+
+void DearsGraphicsEngine::EndShadowPass()
+{
+	mpRenderer->EndShadowPass();
+}
+
 void DearsGraphicsEngine::RenderShadowMapDebugPreview(
+	UINT lightIndex,
 	float nearPlane,
 	float farPlane,
 	bool isPerspective)
@@ -616,9 +641,27 @@ void DearsGraphicsEngine::RenderShadowMapDebugPreview(
 
 	m_pShadowMapDebugRenderer->Render(
 		mpRenderer->GetShadowMapShaderResourceView(),
+		lightIndex,
 		nearPlane,
 		farPlane,
 		isPerspective);
+}
+
+void DearsGraphicsEngine::RenderPointShadowMapDebugPreview(
+	UINT lightIndex,
+	float nearPlane,
+	float farPlane)
+{
+	if (!m_pShadowMapDebugRenderer || !mpRenderer)
+	{
+		return;
+	}
+
+	m_pShadowMapDebugRenderer->RenderPointCube(
+		mpRenderer->GetPointShadowCubeShaderResourceView(),
+		lightIndex,
+		nearPlane,
+		farPlane);
 }
 
 bool DearsGraphicsEngine::UIDrawShadowMapDebugPreview(Vector2 size) const

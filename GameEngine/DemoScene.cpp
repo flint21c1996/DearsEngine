@@ -391,7 +391,7 @@ RenderObject* DemoScene::GetSelectedObject() const
 	return GetObject(static_cast<size_t>(m_selectedObjectIndex));
 }
 
-void DemoScene::CollectLights(CommonConstantBufferData& buffer) const
+int DemoScene::CollectLights(CommonConstantBufferData& buffer) const
 {
 	// GPU 상수 버퍼는 고정 크기이므로 매 프레임 먼저 비우고,
 	// Hierarchy 순서대로 활성 라이트를 MAX_LIGHTS개까지만 복사한다.
@@ -402,8 +402,8 @@ void DemoScene::CollectLights(CommonConstantBufferData& buffer) const
 	}
 
 	// RenderObject의 Transform을 GPU Light 구조체로 옮기는 작업을 한곳에 모은다.
-	// 선택 라이트 우선 처리와 일반 Hierarchy 순회가 같은 방향/Up 계산을 공유해야
-	// 그림자 카메라와 디버그 절두체가 서로 다른 축을 사용하는 실수를 막을 수 있다.
+	// 그림자 카메라와 디버그 절두체가 같은 방향/Up 계산을 공유해야
+	// 두 기능이 서로 다른 축을 사용하는 실수를 막을 수 있다.
 	auto appendLight = [&buffer](const RenderObject* object)
 	{
 		if (!object || !object->mIsLight || buffer.lightNum >= MAX_LIGHTS)
@@ -425,25 +425,26 @@ void DemoScene::CollectLights(CommonConstantBufferData& buffer) const
 	};
 
 	const RenderObject* selectedObject = GetSelectedObject();
-	const bool selectedCanCastShadow = selectedObject && selectedObject->mIsLight &&
-		(selectedObject->mSceneLight.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT) ||
-		 selectedObject->mSceneLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT));
+	int selectedLightIndex = -1;
 
-	// 현재 Shadow Map은 한 장뿐이다. Directional/Spot Light를 Hierarchy에서 선택하면
-	// 그 라이트를 0번에 먼저 넣어 실제 그림자 패스와 미리보기 패널이 같은 카메라를 보게 한다.
-	if (selectedCanCastShadow)
-	{
-		appendLight(selectedObject);
-	}
-
+	// GPU Light와 Shadow Map 배열은 같은 인덱스를 사용하므로 라이트 순서를 매 프레임
+	// Hierarchy 순서로 고정한다. 선택된 라이트를 0번으로 옮기면 클릭할 때마다 모든
+	// Shadow Map의 의미가 바뀌므로, 선택 상태는 인덱스만 따로 기억한다.
 	for (const std::unique_ptr<RenderObject>& object : m_objects)
 	{
-		if (selectedCanCastShadow && object.get() == selectedObject)
+		if (!object || !object->mIsLight || buffer.lightNum >= MAX_LIGHTS)
 		{
 			continue;
 		}
+
+		if (object.get() == selectedObject)
+		{
+			selectedLightIndex = static_cast<int>(buffer.lightNum);
+		}
 		appendLight(object.get());
 	}
+
+	return selectedLightIndex;
 }
 
 const Vector2& DemoScene::GetPrimaryUiPoint() const

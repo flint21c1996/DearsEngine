@@ -50,15 +50,6 @@ public:
 			ImGuiWindowFlags_NoCollapse;
 		ImGui::Begin(GetName(), nullptr, flags);
 
-		if (lightObject->mSceneLight.lightType == static_cast<UINT>(LightEnum::POINT_LIGHT))
-		{
-			// Point Light 그림자는 여섯 방향의 큐브 Shadow Map이 필요하다.
-			// 현재 엔진은 2D Shadow Map 한 장만 지원하므로 잘못된 미리보기를 대신 보여주지 않는다.
-			ImGui::TextDisabled("Point Light shadow cubemap is not implemented.");
-			ImGui::End();
-			return;
-		}
-
 		if (m_graphicsEngine->UIDrawShadowMapDebugPreview(
 			Vector2(previewWidth, previewHeight)))
 		{
@@ -70,13 +61,21 @@ public:
 					lightObject->mSceneLight.shadowFar,
 					lightObject->mSceneLight.shadowWidth);
 			}
-			else
+			else if (lightObject->mSceneLight.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT))
 			{
 				ImGui::Text(
 					"Near %.2f   Far %.2f   FOV %.1f",
 					lightObject->mSceneLight.shadowNear,
 					lightObject->mSceneLight.shadowFar,
 					lightObject->mSceneLight.shadowFovY);
+			}
+			else
+			{
+				// 이미지는 +X, -X, +Y / -Y, +Z, -Z 순서의 3x2 Cube Atlas다.
+				ImGui::Text(
+					"Near %.2f   Far %.2f   Point Cube (6 faces)",
+					lightObject->mSceneLight.shadowNear,
+					lightObject->mSceneLight.shadowFar);
 			}
 		}
 		else

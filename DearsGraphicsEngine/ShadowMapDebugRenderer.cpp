@@ -25,6 +25,10 @@ bool ShadowMapDebugRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContex
 		devicePtr,
 		"../DearsGraphicsEngine/Shader/ShadowMapDebugPixelShader.hlsl",
 		m_pixelShader);
+	RendererHelper::CreatePixelShader(
+		devicePtr,
+		"../DearsGraphicsEngine/Shader/PointShadowMapDebugPixelShader.hlsl",
+		m_pointCubePixelShader);
 
 	// 미리보기는 UI에서 16:9로 보여주므로 렌더 타깃도 같은 비율로 만든다.
 	// 원본 Shadow Map 해상도와 분리해 두면 디버그 UI 때문에 큰 텍스처를 한 장 더 만들지 않아도 된다.
@@ -49,16 +53,39 @@ bool ShadowMapDebugRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContex
 
 	DebugConstants constants;
 	m_constantBuffer = RendererHelper::CreateConstantBuffer(devicePtr, constants);
-	return m_vertexShader && m_pixelShader && m_constantBuffer;
+	return m_vertexShader && m_pixelShader && m_pointCubePixelShader && m_constantBuffer;
 }
 
 void ShadowMapDebugRenderer::Render(
 	ID3D11ShaderResourceView* shadowMap,
+	UINT lightIndex,
 	float nearPlane,
 	float farPlane,
 	bool isPerspective)
 {
-	if (!m_context || !shadowMap || !m_renderTargetView || !m_vertexShader || !m_pixelShader)
+	RenderInternal(shadowMap, m_pixelShader.Get(), lightIndex, nearPlane, farPlane, isPerspective);
+}
+
+void ShadowMapDebugRenderer::RenderPointCube(
+	ID3D11ShaderResourceView* shadowCube,
+	UINT lightIndex,
+	float nearPlane,
+	float farPlane)
+{
+	// Cube 전용 픽셀 셰이더가 여섯 면을 3x2 Atlas로 펼친다.
+	// 실제 그림자 판정과 마찬가지로 TextureCube SRV를 직접 읽으며 복사본을 만들지 않는다.
+	RenderInternal(shadowCube, m_pointCubePixelShader.Get(), lightIndex, nearPlane, farPlane, true);
+}
+
+void ShadowMapDebugRenderer::RenderInternal(
+	ID3D11ShaderResourceView* shadowMap,
+	ID3D11PixelShader* pixelShader,
+	UINT lightIndex,
+	float nearPlane,
+	float farPlane,
+	bool isPerspective)
+{
+	if (!m_context || !shadowMap || !m_renderTargetView || !m_vertexShader || !pixelShader)
 	{
 		return;
 	}
@@ -67,6 +94,9 @@ void ShadowMapDebugRenderer::Render(
 	constants.nearPlane = (std::max)(nearPlane, 0.001f);
 	constants.farPlane = (std::max)(farPlane, constants.nearPlane + 0.001f);
 	constants.isPerspective = isPerspective ? 1.0f : 0.0f;
+	// SRV는 모든 라이트의 Shadow Array를 가리킨다.
+	// 패널에서 선택한 GPU lightIndex만 디버그 셰이더에 넘겨 해당 slice/cube를 펼친다.
+	constants.lightIndex = lightIndex;
 	RendererHelper::UpdateBuffer(m_context, constants, m_constantBuffer);
 
 	// 그림자 패스에서 DSV 쓰기가 끝난 뒤 같은 리소스를 SRV로 읽어 디버그 색상으로 변환한다.
@@ -87,7 +117,7 @@ void ShadowMapDebugRenderer::Render(
 	m_context->IASetInputLayout(nullptr);
 	m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_context->VSSetShader(m_vertexShader.Get(), nullptr, 0);
-	m_context->PSSetShader(m_pixelShader.Get(), nullptr, 0);
+	m_context->PSSetShader(pixelShader, nullptr, 0);
 	m_context->PSSetConstantBuffers(0, 1, m_constantBuffer.GetAddressOf());
 	m_context->PSSetShaderResources(0, 1, &shadowMap);
 	m_context->Draw(3, 0);

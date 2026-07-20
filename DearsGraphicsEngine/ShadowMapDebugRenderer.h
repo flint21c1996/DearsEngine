@@ -11,7 +11,8 @@ class ShadowMapDebugRenderer
 {
 public:
 	bool Initialize(ID3D11Device* device, ID3D11DeviceContext* context);
-	void Render(ID3D11ShaderResourceView* shadowMap, float nearPlane, float farPlane, bool isPerspective);
+	void Render(ID3D11ShaderResourceView* shadowMap, UINT lightIndex, float nearPlane, float farPlane, bool isPerspective);
+	void RenderPointCube(ID3D11ShaderResourceView* shadowCube, UINT lightIndex, float nearPlane, float farPlane);
 	ID3D11ShaderResourceView* GetShaderResourceView() const { return m_shaderResourceView.Get(); }
 
 private:
@@ -20,12 +21,20 @@ private:
 		float nearPlane = 0.1f;
 		float farPlane = 100.0f;
 		float isPerspective = 1.0f;
-		float padding = 0.0f;
+		UINT lightIndex = 0;
 	};
+	void RenderInternal(
+		ID3D11ShaderResourceView* shadowMap,
+		ID3D11PixelShader* pixelShader,
+		UINT lightIndex,
+		float nearPlane,
+		float farPlane,
+		bool isPerspective);
 
 	ComPtr<ID3D11DeviceContext> m_context;
 	ComPtr<ID3D11VertexShader> m_vertexShader;
 	ComPtr<ID3D11PixelShader> m_pixelShader;
+	ComPtr<ID3D11PixelShader> m_pointCubePixelShader;
 	ComPtr<ID3D11InputLayout> m_unusedInputLayout;
 	ComPtr<ID3D11Buffer> m_constantBuffer;
 	ComPtr<ID3D11Texture2D> m_texture;

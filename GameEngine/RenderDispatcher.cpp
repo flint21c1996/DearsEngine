@@ -108,6 +108,11 @@ void RenderDispatcher::RenderShadowItem(const SceneRenderItem& item)
 	// 선택된 백엔드에 draw 요청을 전달하는 위치로 바뀔 가능성이 높다.
 	switch (item.renderType)
 	{
+	case SceneRenderType::PbrMesh:
+		// PBR 메시는 Height Map이 실루엣을 바꿀 수 있으므로 전용 Shadow VS가 필요하다.
+		// 원본 정점만 그리면 화면의 돌출된 표면과 그림자 모양이 서로 달라진다.
+		m_pGraphicsEngine->RenderPbrDepthMap(modelBuffer);
+		break;
 	case SceneRenderType::SkinnedMesh:
 		m_pGraphicsEngine->RenderAniDepthMap(modelBuffer);
 		break;
