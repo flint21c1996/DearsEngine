@@ -65,6 +65,15 @@ bool RendererHelper::CreateSwapChain(ComPtr<ID3D11Device>& _pDevice,
 		_numQualityLevels = 0; // MSAA 강제로 끄기 -> 디퍼드 렌더링을 간접 체험할 때 사용해보자.
 	}
 
+	// 현재 Deferred 경로의 G-Buffer와 Depth Texture는 모두 SampleDesc.Count = 1이다.
+	// DX11은 한 번의 OMSetRenderTargets()에 묶는 Color/Depth Target의 샘플 수가
+	// 반드시 같아야 하므로, 4x MSAA 백 버퍼와 1x G-Buffer Depth를 함께 사용할 수 없다.
+	//
+	// Deferred에서 MSAA를 지원하려면 Texture2DMS용 G-Buffer, 멀티샘플 읽기,
+	// Resolve 처리까지 별도의 설계가 필요하다. 그 기능을 붙이기 전까지는
+	// 백 버퍼와 기본 Depth도 1 sample로 통일해 모든 패스가 같은 Depth를 공유하게 한다.
+	_numQualityLevels = 0;
+
 	//스왑체인 - 다중버퍼링
 	DXGI_SWAP_CHAIN_DESC sd;												//스왑체인의 정보를 담고있는 구조체
 	ZeroMemory(&sd, sizeof(sd));

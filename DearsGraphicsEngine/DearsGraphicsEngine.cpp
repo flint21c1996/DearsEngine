@@ -3,6 +3,7 @@
 #endif
 #include "DearsGraphicsEngine.h"
 #include "DebugRenderer.h"
+#include "DeferredLightingRenderer.h"
 #include "GraphicsAssetManager.h"
 #include "GraphicsCommon.h"
 #include "GBuffer.h"
@@ -64,6 +65,11 @@ void DearsGraphicsEngine::Initialize()
 	m_pGBufferDebugRenderer->Initialize(m_pDevice.Get(), m_pDeviceContext.Get(), m_pGBuffer.get());
 	m_pGBufferDebugPanel = std::make_unique<GBufferDebugPanel>(*m_pGBuffer, *m_pGBufferDebugRenderer);
 	m_pUiRenderer->AddEditorPanel(m_pGBufferDebugPanel.get());
+
+	// Geometry Pass가 채운 G-Buffer를 실제 Scene Color로 바꾸는 Fullscreen Lighting 렌더러다.
+	// G-Buffer 리소스는 DearsGraphicsEngine이 계속 소유하고, 이 객체는 Lighting Draw만 담당한다.
+	m_pDeferredLightingRenderer = std::make_unique<DeferredLightingRenderer>();
+	m_pDeferredLightingRenderer->Initialize(m_pDevice.Get(), m_pDeviceContext.Get());
 
 	// Shadow Map 미리보기는 실제 Depth 리소스를 복사하지 않고, 매 프레임 선형 깊이 색상만 만든다.
 	// 패널 자체는 Scene이 선택 상태와 함께 등록하고 그래픽스 엔진은 변환된 SRV만 제공한다.
@@ -153,6 +159,14 @@ void DearsGraphicsEngine::AddParticle(unsigned int particleNum, CSParticleData& 
 void DearsGraphicsEngine::RendPostProcessing()
 {
 	m_pPostProcessRenderer->Render();
+}
+
+void DearsGraphicsEngine::RenderDeferredLighting()
+{
+	if (m_pDeferredLightingRenderer)
+	{
+		m_pDeferredLightingRenderer->Render();
+	}
 }
 
 int DearsGraphicsEngine::GetScreenWidth() const
@@ -857,11 +871,21 @@ void DearsGraphicsEngine::SetRenderViewportWidth(int viewportWidth)
 {
 	mpRenderer->SetViewportWidth(viewportWidth);
 
-	// 에디터 오른쪽 패널은 3D 렌더 영역에 포함되지 않는다.
-	// G-Buffer도 실제 렌더 뷰포트와 같은 크기로 만들어야 픽셀 좌표와 UV가 일치한다.
+	// 에디터 오른쪽 패널은 3D Viewport에 포함되지 않지만, G-Buffer 리소스 자체는
+	// Back Buffer와 같은 전체 창 크기를 유지해야 한다.
+	//
+	// Lighting 뒤의 Forward Pass는 Back Buffer RTV와 G-Buffer DSV를 동시에 묶는다.
+	// DX11은 이때 RTV와 DSV의 Width/Height 및 Sample Count가 모두 같아야 하므로,
+	// G-Buffer를 viewportWidth(현재 1600)로 줄이면 1920 너비의 Back Buffer와 함께
+	// 바인딩할 수 없고 Forward 물체가 Deferred 결과를 올바르게 깊이 검사하지 못한다.
+	//
+	// 실제 3D 렌더 범위는 위의 SetViewportWidth()가 제한한다. 따라서 전체 크기의
+	// G-Buffer 중 왼쪽 viewportWidth 영역만 사용되며 픽셀 좌표도 그대로 일치한다.
 	if (m_pGBuffer && viewportWidth > 0)
 	{
-		m_pGBuffer->Resize(static_cast<UINT>(viewportWidth), static_cast<UINT>(m_screenHeight));
+		m_pGBuffer->Resize(
+			static_cast<UINT>(m_screenWidth),
+			static_cast<UINT>(m_screenHeight));
 
 		// Editor Panel이 ImGui DrawData를 만들기 전에 파생 디버그 텍스처도 같은 크기로 맞춘다.
 		// 이전에는 Lighting Pass 안에서 처음 Resize되면서, 이미 ImGui에 전달된 SRV가
@@ -869,7 +893,7 @@ void DearsGraphicsEngine::SetRenderViewportWidth(int viewportWidth)
 		if (m_pGBufferDebugRenderer)
 		{
 			m_pGBufferDebugRenderer->Resize(
-				static_cast<UINT>(viewportWidth),
+				static_cast<UINT>(m_screenWidth),
 				static_cast<UINT>(m_screenHeight));
 		}
 	}

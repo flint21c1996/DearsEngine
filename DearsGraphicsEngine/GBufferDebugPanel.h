@@ -65,6 +65,13 @@ public:
 		// 디버그 텍스처의 실제 해상도와 관계없이 사람이 비교하기 익숙한 16:9로 표시한다.
 		// 모든 항목이 같은 비율을 사용하므로 행 사이 높이와 정렬도 안정적으로 유지된다.
 		const float previewHeight = previewWidth * (9.0f / 16.0f);
+		// G-Buffer는 Forward Pass에서 Back Buffer와 깊이를 공유하기 위해 전체 창 크기로 만든다.
+		// 하지만 실제 3D Viewport는 오른쪽 에디터 영역을 제외한 왼쪽 5/6만 사용한다.
+		// 사용하지 않은 오른쪽 영역까지 썸네일에 넣으면 장면이 가로로 눌려 보이므로,
+		// ImGui UV의 끝점을 실제 렌더 영역 비율로 제한해 기록된 부분만 잘라서 보여준다.
+		const float renderedUvMaxX = displaySize.x > 0.0f
+			? (std::min)(renderWidth / displaySize.x, 1.0f)
+			: 1.0f;
 
 		for (size_t index = 0; index < views.size(); ++index)
 		{
@@ -79,7 +86,9 @@ public:
 			{
 				ImGui::Image(
 					reinterpret_cast<ImTextureID>(views[index]),
-					ImVec2(previewWidth, previewHeight));
+					ImVec2(previewWidth, previewHeight),
+					ImVec2(0.0f, 0.0f),
+					ImVec2(renderedUvMaxX, 1.0f));
 			}
 			else
 			{

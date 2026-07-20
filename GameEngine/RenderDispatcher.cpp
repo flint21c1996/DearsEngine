@@ -40,6 +40,18 @@ float CalculateDistanceBasedOutlineScale(const RenderObject& object, Camera* cam
 	const float outlineAmount = (std::max)(0.04f, (std::min)(distance * 0.002f, 0.35f));
 	return 1.0f + outlineAmount;
 }
+
+bool IsDeferredDefaultLitPbr(const SceneRenderItem& item)
+{
+	// 현재 Deferred Lighting Shader가 해석할 수 있는 G-Buffer 형식은
+	// Default Lit PBR Material로 한정되어 있다. Geometry와 Forward 필터가
+	// 서로 다른 조건을 사용하면 오브젝트가 두 번 그려지거나 아예 사라질 수 있으므로
+	// 하나의 판정 함수를 두 패스에서 함께 사용한다.
+	return item.renderPath == SceneRenderPath::Deferred &&
+		item.renderType == SceneRenderType::PbrMesh &&
+		item.object &&
+		item.object->GetShadingModel() == MaterialShadingModel::DefaultLit;
+}
 }
 
 RenderDispatcher::RenderDispatcher(DearsGraphicsEngine* graphicsEngine)
@@ -63,8 +75,7 @@ void RenderDispatcher::RenderGeometryItems(const std::vector<SceneRenderItem>& i
 	// 첫 디퍼드 대상은 표면 데이터가 이미 준비된 PBR 메시로 제한한다.
 	for (const SceneRenderItem& item : items)
 	{
-		if (item.renderPath == SceneRenderPath::Deferred &&
-			item.renderType == SceneRenderType::PbrMesh)
+		if (IsDeferredDefaultLitPbr(item))
 		{
 			RenderGeometryItem(item);
 		}
@@ -73,14 +84,15 @@ void RenderDispatcher::RenderGeometryItems(const std::vector<SceneRenderItem>& i
 
 void RenderDispatcher::RenderForwardItems(const std::vector<SceneRenderItem>& items)
 {
-	// 현재 메시 셰이더는 픽셀 셰이더 안에서 조명까지 계산한 뒤
-	// 결과 색상을 백 버퍼에 곧바로 기록하므로 모두 Forward pass에 속한다.
-	// 이후 G-Buffer 셰이더가 준비되면 불투명 PBR 항목은 Geometry pass 목록으로
-	// 옮기고, 투명/물/특수 효과만 이 목록에 남길 예정이다.
-	// 이 함수가 있으면 나중에 sorting, batching, render queue 최적화를
-	// GameEngine을 건드리지 않고 이쪽에서 시작할 수 있다.
+	// Geometry + Lighting Pass에서 이미 최종 색상을 만든 Deferred PBR은 제외한다.
+	// 같은 오브젝트를 여기서 다시 그리면 Deferred 결과가 Forward 결과로 덮여서
+	// G-Buffer 조명이 잘못되어도 정상처럼 보이는 문제가 생긴다.
 	for (const SceneRenderItem& item : items)
 	{
+		if (IsDeferredDefaultLitPbr(item))
+		{
+			continue;
+		}
 		RenderForwardItem(item);
 	}
 }
@@ -139,7 +151,7 @@ void RenderDispatcher::RenderGeometryItem(const SceneRenderItem& item)
 	}
 
 	// 최종 조명 색상 대신 Albedo/Normal/Material G-Buffer만 기록한다.
-	// Lighting Pass 완성 전까지 같은 항목은 Forward에서도 그려 화면 출력을 유지한다.
+	// 이 항목의 최종 색상은 뒤의 Fullscreen Deferred Lighting Pass에서 만들어진다.
 	m_pGraphicsEngine->Rend_DeferredGeometry(modelBuffer);
 }
 

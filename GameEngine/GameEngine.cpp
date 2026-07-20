@@ -649,23 +649,23 @@ void GameEngine::RenderLightingPass()
 	// Geometry pass가 모든 오브젝트의 G-Buffer 기록을 끝낸 뒤 딱 한 번 실행된다.
 	// 이 단계에서는 개별 모델을 다시 그리지 않고 화면 전체 삼각형을 그리며,
 	// G-Buffer와 shadow map을 읽어 각 화면 픽셀의 최종 조명 색상을 계산한다.
-	//
-	// 현재는 읽을 G-Buffer와 Lighting 셰이더가 아직 없으므로 패스 경계만 적용한다.
-	// 다음 단계에서 G-Buffer SRV 바인딩과 fullscreen triangle draw를 연결한다.
 	RenderContext lightingContext;
 	lightingContext.passType = RenderPassType::Lighting;
 	lightingContext.camera = tempCamera.get();
 	lightingContext.commonBuffer = &tempCCConstantBuffer;
 	m_pDearsGraphicsEngine->ApplyRenderContext(lightingContext);
+
+	// ApplyRenderContext가 Albedo/Normal/Material/Depth를 t20~t23에 연결하고
+	// Back Buffer를 출력 대상으로 되돌린 뒤, 이 호출이 실제 Fullscreen Triangle을 그린다.
+	// 따라서 Deferred 오브젝트의 최종 색상은 더 이상 Forward Pass가 대신 만들지 않는다.
+	m_pDearsGraphicsEngine->RenderDeferredLighting();
 }
 
 void GameEngine::RenderForwardPass()
 {
 	// Forward pass:
-	// 현재 엔진의 메시 셰이더는 오브젝트를 그리는 순간 조명 계산까지 끝내므로,
-	// 기존 화면을 보존하기 위해 모든 씬 오브젝트는 아직 이 패스에서 렌더링한다.
-	// G-Buffer가 완성되면 불투명 PBR 메시는 Geometry pass로 이동하고,
-	// 투명 오브젝트, 물, 파티클과 일부 특수 셰이더만 Forward 경로에 남는다.
+	// Deferred Default Lit PBR은 앞의 Geometry + Lighting Pass에서 이미 최종 색상이 완성됐다.
+	// 여기서는 Forward로 지정한 메시와 CubeMap, 투명/물/특수 셰이더만 추가로 렌더링한다.
 	RenderContext forwardContext;
 	forwardContext.passType = RenderPassType::Forward;
 	forwardContext.camera = tempCamera.get();

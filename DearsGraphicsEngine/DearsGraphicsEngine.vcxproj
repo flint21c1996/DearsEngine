@@ -140,6 +140,7 @@
     <ClCompile Include="AnimationHelper.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DebugRenderer.cpp" />
+	<ClCompile Include="DeferredLightingRenderer.cpp" />
     <ClCompile Include="DearsGraphicsEngine.cpp" />
     <ClCompile Include="FBXLoader.cpp" />
     <ClCompile Include="FBXLoadHelper.cpp">
@@ -179,6 +180,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CubeMapInfo.h" />
     <ClInclude Include="DebugRenderer.h" />
+	<ClInclude Include="DeferredLightingRenderer.h" />
     <ClInclude Include="DearsGraphicsEngine.h" />
     <ClInclude Include="FBXLoader.h" />
     <ClInclude Include="FBXLoadHelper.h" />
@@ -270,6 +272,12 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
     </FxCompile>
 	<FxCompile Include="Shader\DeferredGeometryPixelShader.hlsl">
+		<ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+		<ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+		<ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+		<ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+	</FxCompile>
+	<FxCompile Include="Shader\DeferredLightingPixelShader.hlsl">
 		<ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
 		<ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
 		<ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>

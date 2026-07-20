@@ -20,6 +20,7 @@ using DirectX::SimpleMath::Vector4;
 using DirectX::SimpleMath::Quaternion;
 
 class DebugRenderer;
+class DeferredLightingRenderer;
 class GraphicsAssetManager;
 class GBuffer;
 class GBufferDebugPanel;
@@ -70,6 +71,8 @@ private:
 	std::unique_ptr<ParticleRenderer> m_pParticleRenderer;
 	std::unique_ptr<PostProcessRenderer> m_pPostProcessRenderer;
 	std::unique_ptr<UiRenderer> m_pUiRenderer;
+	// G-Buffer를 읽고 Fullscreen Triangle으로 최종 PBR 조명을 계산한다.
+	std::unique_ptr<DeferredLightingRenderer> m_pDeferredLightingRenderer;
 
 	// 디퍼드 Geometry/Lighting 패스가 공유하는 화면 공간 표면 데이터이다.
 	// DX11 리소스의 생성과 바인딩은 GBuffer 내부에 숨겨 GameEngine이 알지 못하게 한다.
@@ -112,6 +115,8 @@ public:
 	void AddParticle(unsigned int particleNum, CSParticleData& particleData);
 
 	void RendPostProcessing();
+	// ApplyRenderContext(Lighting)으로 G-Buffer가 SRV에 연결된 뒤 실제 조명 Draw를 실행한다.
+	void RenderDeferredLighting();
 
 	int GetScreenWidth() const;
 	
