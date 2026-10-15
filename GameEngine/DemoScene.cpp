@@ -175,10 +175,12 @@ void DemoScene::RegisterEditorPanels(int screenWidth)
 		m_pGraphicsEngine,
 		m_objects,
 		m_selectedObjectIndex);
+	m_pAStarDemoPanel = std::make_unique<AStarDemoPanel>();
 	m_pGraphicsEngine->AddEditorPanel(m_pScenePanel.get());
 	m_pGraphicsEngine->AddEditorPanel(m_pPickingPanel.get());
 	m_pGraphicsEngine->AddEditorPanel(m_pInspectorPanel.get());
 	m_pGraphicsEngine->AddEditorPanel(m_pLightShadowMapPanel.get());
+	m_pGraphicsEngine->AddEditorPanel(m_pAStarDemoPanel.get());
 
 	const int editorPanelWidth = GetEditorPanelWidth(static_cast<float>(screenWidth));
 	m_renderViewportWidth = screenWidth - editorPanelWidth;

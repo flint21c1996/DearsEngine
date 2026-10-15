@@ -3,6 +3,7 @@
 #include <queue>
 #include <unordered_set>
 #include <iostream>
+#include <vector>
 
 using DirectX::SimpleMath::Vector2;
 
