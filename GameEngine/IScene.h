@@ -66,6 +66,15 @@ public:
 	virtual void HandlePresentationInput(InputManager& inputManager, EasingFunc& easingFunc, float deltaTime) = 0;
 	virtual void HandleRenderInput(InputManager& inputManager) = 0;
 
+	// 에디터 기능: 매 프레임 호출되어 단축키(Ctrl+Z/Y/S/D, W/E/R), 이동/회전/크기 기즈모,
+	// 뷰포트로 끌어다 놓은 에셋, 실행 취소 기록을 처리한다.
+	// Viewport 창이 열려 있는 동안(BeginEditorFrame 이후, Render 이전) 호출해야 기즈모가 그 창에 그려진다.
+	virtual void UpdateEditor(InputManager& inputManager, Camera* camera) = 0;
+	// 메인 메뉴 바에 File/Edit 메뉴와 Play/Stop 버튼을 그린다.
+	virtual void DrawEditorMenuBar() = 0;
+	// Play 중이면 true. Play 중에 바뀐 씬 상태는 Stop할 때 버려지고 편집 원본으로 돌아간다.
+	virtual bool IsPlaying() const = 0;
+
 	virtual const std::vector<SceneRenderItem>& GetShadowRenderItems() const = 0;
 	virtual const std::vector<SceneRenderItem>& GetMainRenderItems() const = 0;
 	virtual RenderObject* GetSelectedObject() const = 0;

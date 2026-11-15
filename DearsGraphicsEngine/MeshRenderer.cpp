@@ -3,6 +3,7 @@
 #include "DearsGraphicsEngine.h"
 #include "GraphicsCommon.h"
 #include "Renderer.h"
+#include "ShaderCatalog.h"
 
 MeshRenderer::MeshRenderer(DearsGraphicsEngine* graphicsEngine)
 	: m_pGraphicsEngine(graphicsEngine)
@@ -33,6 +34,14 @@ void MeshRenderer::RenderPbrModel(ModelBuffer* modelBuffer)
 
 void MeshRenderer::RenderDeferredGeometry(ModelBuffer* modelBuffer)
 {
+	EnsureDeferredGeometryPipeline();
+
+	m_pGraphicsEngine->SetPipelineState(m_deferredGeometryPSO);
+	m_pGraphicsEngine->mpRenderer->Render(modelBuffer);
+}
+
+void MeshRenderer::EnsureDeferredGeometryPipeline()
+{
 	if (!m_isDeferredGeometryPipelineInitialized)
 	{
 		// 기존 PBR 정점 처리와 렌더 상태는 재사용하고, 조명 대신 MRT를 출력하는 PS만 교체한다.
@@ -46,9 +55,114 @@ void MeshRenderer::RenderDeferredGeometry(ModelBuffer* modelBuffer)
 		m_deferredGeometryPSO.m_pBlendState.Reset();
 		m_isDeferredGeometryPipelineInitialized = true;
 	}
+}
 
-	m_pGraphicsEngine->SetPipelineState(m_deferredGeometryPSO);
+bool MeshRenderer::RenderWithShaders(
+	ModelBuffer* modelBuffer,
+	const std::string& vertexShader,
+	const std::string& pixelShader)
+{
+	const std::string key = vertexShader + "|" + pixelShader;
+	auto found = m_shaderPipelines.find(key);
+	if (found == m_shaderPipelines.end())
+	{
+		PipelineStateObject pipeline;
+		if (!BuildShaderPipeline(vertexShader, pixelShader, pipeline))
+		{
+			return false;
+		}
+		found = m_shaderPipelines.emplace(key, pipeline).first;
+	}
+
+	// Renderer::Render()는 오브젝트가 가진 상수 버퍼와 텍스처를 슬롯 규칙대로 전부 바인딩한다.
+	// 그래서 셰이더 조합이 달라져도 그리기 코드는 같고, 셰이더가 읽는 슬롯에
+	// 오브젝트의 데이터가 없으면(예: 본 버퍼 없는 메시에 Skinned) 그 값이 0으로 읽힐 뿐이다.
+	m_pGraphicsEngine->SetPipelineState(found->second);
 	m_pGraphicsEngine->mpRenderer->Render(modelBuffer);
+	return true;
+}
+
+bool MeshRenderer::BuildShaderPipeline(
+	const std::string& vertexShader,
+	const std::string& pixelShader,
+	PipelineStateObject& pipeline)
+{
+	// 입출력 구조체 계열이 다른 셰이더를 묶으면 DX11이 Draw를 버리거나 쓰레기 값을 넘긴다.
+	if (!ShaderCatalog::AreCompatible(vertexShader, pixelShader))
+	{
+		return false;
+	}
+
+	// Vertex Shader를 원래 쓰던 PSO를 바탕으로 삼는다.
+	// Input Layout, Rasterizer/Depth/Blend 상태가 그 Vertex Shader에 맞게 이미 설정되어 있기 때문이다.
+	const PipelineStateObject* basePipeline = nullptr;
+	if (vertexShader == ShaderCatalog::VertexShader::Static)
+	{
+		basePipeline = &Dears::Graphics::BasicGeometryPSO;
+	}
+	else if (vertexShader == ShaderCatalog::VertexShader::Skinned)
+	{
+		basePipeline = &Dears::Graphics::AnimeGeometryPSO;
+	}
+	else if (vertexShader == ShaderCatalog::VertexShader::Equipment)
+	{
+		basePipeline = &Dears::Graphics::EquipmentGeometryPSO;
+	}
+	else if (vertexShader == ShaderCatalog::VertexShader::Water)
+	{
+		basePipeline = &Dears::Graphics::WaterPSO;
+	}
+	else if (vertexShader == ShaderCatalog::VertexShader::Billboard)
+	{
+		basePipeline = &Dears::Graphics::TestPSO;
+	}
+	else if (vertexShader == ShaderCatalog::VertexShader::Pbr)
+	{
+		basePipeline = &Dears::Graphics::PBRPSO;
+	}
+	if (!basePipeline)
+	{
+		return false;
+	}
+
+	// Pixel Shader는 그 셰이더를 가진 PSO에서 빌려 온다.
+	ComPtr<ID3D11PixelShader> selectedPixelShader;
+	bool writesGBuffer = false;
+	if (pixelShader == ShaderCatalog::PixelShader::Lit)
+	{
+		selectedPixelShader = Dears::Graphics::BasicGeometryPSO.m_pPixelShader;
+	}
+	else if (pixelShader == ShaderCatalog::PixelShader::Unlit)
+	{
+		selectedPixelShader = Dears::Graphics::TestPSO.m_pPixelShader;
+	}
+	else if (pixelShader == ShaderCatalog::PixelShader::PbrLit)
+	{
+		selectedPixelShader = Dears::Graphics::PBRPSO.m_pPixelShader;
+	}
+	else if (pixelShader == ShaderCatalog::PixelShader::ThinFilm)
+	{
+		selectedPixelShader = Dears::Graphics::ThinFilmPSO.m_pPixelShader;
+	}
+	else if (pixelShader == ShaderCatalog::PixelShader::GBuffer)
+	{
+		EnsureDeferredGeometryPipeline();
+		selectedPixelShader = m_deferredGeometryPSO.m_pPixelShader;
+		writesGBuffer = true;
+	}
+	if (!selectedPixelShader)
+	{
+		return false;
+	}
+
+	pipeline = *basePipeline;
+	pipeline.m_pPixelShader = selectedPixelShader;
+	if (writesGBuffer)
+	{
+		// G-Buffer에는 Normal/Material 같은 "값"을 그대로 기록해야 하므로 블렌딩을 끈다.
+		pipeline.m_pBlendState.Reset();
+	}
+	return true;
 }
 
 void MeshRenderer::RenderThinFilmModel(ModelBuffer* modelBuffer)

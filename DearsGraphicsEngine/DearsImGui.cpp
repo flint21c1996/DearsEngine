@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "DearsImGui.h"
+#include <ImGuizmo.h>
 #include <windows.h>
 #include <iostream>
 #include <wrl.h>
@@ -9,6 +10,7 @@ using Microsoft::WRL::ComPtr;
 DearsImGui::DearsImGui(HWND _hWnd, ComPtr<ID3D11Device>& _pDevice, ComPtr<ID3D11DeviceContext>& m_pDeviceContext, int _endScreenWidth, int _endScreenHeight, GraphicsResourceManager* _pResourceManager)
 {
 	m_pInputManager = nullptr;
+	m_editorWindow = _hWnd;
 
 	m_pDevice = _pDevice;
 	m_endScreenWidth = _endScreenWidth;
@@ -20,15 +22,26 @@ DearsImGui::DearsImGui(HWND _hWnd, ComPtr<ID3D11Device>& _pDevice, ComPtr<ID3D11
 	io = &ImGui::GetIO(); // 창占쏙옙 占십깍옙화占싹거놂옙 占쏙옙占쏙옙占싹는듸옙 占쏙옙占?
 	// Keep a small default editor font for panels. Large localized fonts are
 	// loaded separately and used only where explicit UI text needs them.
-	io->Fonts->AddFontDefault();
+	ImFontConfig fontConfig;
+	fontConfig.SizePixels = 16;
+	io->Fonts->AddFontDefault(&fontConfig);
 /*	io->FontGlobalScale = 0.5f;*/
 	//io->Fonts->TexDesiredWidth = 2048; // 占쏙옙트 占쏙옙틀占쏙옙占쏙옙 占쌔쏙옙처 占십븝옙 占쏙옙占쏙옙, 占쏙옙占쏙옙 크占썩가 占쏙옙 占싱삼옙占쏙옙占쏙옙 占싼어가占쏙옙 占쏙옙占싸뤄옙 占쏙옙載? 占십뱄옙 크占쏙옙 GPU占쏙옙占쏙옙 占쏙옙 처占쏙옙占쌔쇽옙 占싹댐옙 占썅동.
+
+#ifdef IMGUI_HAS_DOCK
+	// 에디터 창을 서로 붙였다 뗄 수 있게 한다. (ImGui docking 브랜치에서만 제공되는 기능)
+	// 창을 메인 윈도우 밖으로 꺼내는 멀티 뷰포트는 켜지 않는다. 스왑 체인이 하나뿐이기 때문이다.
+	io->ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	// 제목 표시줄을 잡았을 때만 창이 움직이게 해서, 뷰포트 안을 드래그할 때 창이 딸려 오지 않게 한다.
+	io->ConfigWindowsMoveFromTitleBarOnly = true;
+#endif
 
 	ImGui_ImplWin32_Init(_hWnd);
 	ImGui_ImplDX11_Init(m_pDevice.Get(), m_pDeviceContext.Get());
 
 	//占썩본 占쏙옙타占쏙옙 占쏙옙占쏙옙
 	ImGui::StyleColorsDark();
+	m_baseStyle = ImGui::GetStyle();
 }
 
 DearsImGui::~DearsImGui()
@@ -62,10 +75,20 @@ void DearsImGui::UIBuildFonts()
 
 void DearsImGui::UIBeginRender()
 {
+	const float dpiScale = float(GetDpiForWindow(m_editorWindow)) / 96.0f;
+	if (dpiScale > 0 && dpiScale != m_lastDpiScale)
+	{
+		ImGui::GetStyle() = m_baseStyle;
+		ImGui::GetStyle().ScaleAllSizes(dpiScale);
+		io->FontGlobalScale = dpiScale;
+		m_lastDpiScale = dpiScale;
+	}
 	// ImGui 占쏙옙占쏙옙占쏙옙 占쏙옙占쏙옙
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
+	// 이동/회전/크기 기즈모(ImGuizmo)는 ImGui 프레임이 시작된 직후에 한 번 초기화해야 한다.
+	ImGuizmo::BeginFrame();
 
 }
 
@@ -134,7 +157,7 @@ void DearsImGui::SetUICurrentWindow()
 
 void DearsImGui::UIDrawText(Vector2 _posXY, const std::string _text, Vector4 _rgba)
 {
-	ImGui::SetCursorPos(ImVec2(_posXY.x, _posXY.y)); // 占싱뱄옙占쏙옙占쏙옙 표占쏙옙占쏙옙 占쏙옙치 (x, y)
+	ImGui::SetCursorPos(ImVec2(m_canvasOrigin.x + _posXY.x, m_canvasOrigin.y + _posXY.y)); // 占싱뱄옙占쏙옙占쏙옙 표占쏙옙占쏙옙 占쏙옙치 (x, y)
 
 		// _text占쏙옙 '\n'占쏙옙占쏙옙 占쏙옙占쏙옙占쏙옙 占쏙옙 占쏙옙占쏙옙 처占쏙옙
 	std::stringstream ss(_text);
@@ -146,33 +169,33 @@ void DearsImGui::UIDrawText(Vector2 _posXY, const std::string _text, Vector4 _rg
 
 		// 占쏙옙占쏙옙 占쌕뤄옙 占싼어가占쏙옙 占쏙옙占쏙옙 Y 占쏙옙표占쏙옙 占쏙옙占쏙옙 占쏙옙 占쏙옙占싱몌옙큼 占쏙옙占쏙옙占싹울옙 占쏙옙占쏙옙
 		_posXY.y += ImGui::GetTextLineHeightWithSpacing();
-		ImGui::SetCursorPos(ImVec2(_posXY.x, _posXY.y));
+		ImGui::SetCursorPos(ImVec2(m_canvasOrigin.x + _posXY.x, m_canvasOrigin.y + _posXY.y));
 	}
 }
 
 void DearsImGui::UIDrawRect(Vector2 _posXY, Vector2 _sizeWH, Vector4 _rgba, float _rounding, float _thickness)
 {
-	window->DrawList->AddRect(ImVec2(_posXY.x, _posXY.y), ImVec2(_posXY.x + _sizeWH.x, _posXY.y + _sizeWH.y), ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)), _rounding, 0, _thickness);
+	window->DrawList->AddRect(CanvasPoint(_posXY.x, _posXY.y), CanvasPoint(_posXY.x + _sizeWH.x, _posXY.y + _sizeWH.y), ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)), _rounding, 0, _thickness);
 }
 
 void DearsImGui::UIDrawRectFilled(Vector2 _posXY, Vector2 _sizeWH, Vector4 _rgba, float _rounding/* = 0.0f*/)
 {
-	window->DrawList->AddRectFilled(ImVec2(_posXY.x, _posXY.y), ImVec2(_posXY.x + _sizeWH.x, _posXY.y + _sizeWH.y), ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)), _rounding);
+	window->DrawList->AddRectFilled(CanvasPoint(_posXY.x, _posXY.y), CanvasPoint(_posXY.x + _sizeWH.x, _posXY.y + _sizeWH.y), ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)), _rounding);
 }
 
 
 void DearsImGui::UIDrawRectwithBorder(Vector2 _posXY, Vector2 _sizeWH, Vector4 _rgba, float _rounding, float _thickness)
 {
-	window->DrawList->AddRectFilled(ImVec2(_posXY.x, _posXY.y), ImVec2(_posXY.x + _sizeWH.x, _posXY.y + _sizeWH.y), ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)), _rounding);
-	window->DrawList->AddRect(ImVec2(_posXY.x, _posXY.y), ImVec2(_posXY.x + _sizeWH.x, _posXY.y + _sizeWH.y), ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)), _rounding, 0, _thickness);
+	window->DrawList->AddRectFilled(CanvasPoint(_posXY.x, _posXY.y), CanvasPoint(_posXY.x + _sizeWH.x, _posXY.y + _sizeWH.y), ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)), _rounding);
+	window->DrawList->AddRect(CanvasPoint(_posXY.x, _posXY.y), CanvasPoint(_posXY.x + _sizeWH.x, _posXY.y + _sizeWH.y), ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)), _rounding, 0, _thickness);
 }
 
 void DearsImGui::UIFreeRect(Vector2 _posXY1, Vector2 _posXY2, Vector2 _posXY3, Vector2 _posXY4, Vector4 _rgba, float _thickness)
 {
-	ImVec2 p1(_posXY1.x, _posXY1.y);
-	ImVec2 p2(_posXY2.x, _posXY2.y);
-	ImVec2 p3(_posXY3.x, _posXY3.y);
-	ImVec2 p4(_posXY4.x, _posXY4.y);
+	ImVec2 p1 = CanvasPoint(_posXY1.x, _posXY1.y);
+	ImVec2 p2 = CanvasPoint(_posXY2.x, _posXY2.y);
+	ImVec2 p3 = CanvasPoint(_posXY3.x, _posXY3.y);
+	ImVec2 p4 = CanvasPoint(_posXY4.x, _posXY4.y);
 
 	ImVec2 points[6] = { p1, p2, p3, p4, p1, p2 };
 
@@ -181,10 +204,10 @@ void DearsImGui::UIFreeRect(Vector2 _posXY1, Vector2 _posXY2, Vector2 _posXY3, V
 
 void DearsImGui::UIFreeRectFilled(Vector2 _posXY1, Vector2 _posXY2, Vector2 _posXY3, Vector2 _posXY4, Vector4 _rgba)
 {
-	ImVec2 p1(_posXY1.x, _posXY1.y);
-	ImVec2 p2(_posXY2.x, _posXY2.y);
-	ImVec2 p3(_posXY3.x, _posXY3.y);
-	ImVec2 p4(_posXY4.x, _posXY4.y);
+	ImVec2 p1 = CanvasPoint(_posXY1.x, _posXY1.y);
+	ImVec2 p2 = CanvasPoint(_posXY2.x, _posXY2.y);
+	ImVec2 p3 = CanvasPoint(_posXY3.x, _posXY3.y);
+	ImVec2 p4 = CanvasPoint(_posXY4.x, _posXY4.y);
 
 	ImVec2 points[4] = { p1, p2, p3, p4 };
 
@@ -193,10 +216,10 @@ void DearsImGui::UIFreeRectFilled(Vector2 _posXY1, Vector2 _posXY2, Vector2 _pos
 
 void DearsImGui::UIFreeRectwithBorder(Vector2 _posXY1, Vector2 _posXY2, Vector2 _posXY3, Vector2 _posXY4, Vector4 _rgba, float _thickness, Vector4 _borderRgba)
 {
-	ImVec2 p1(_posXY1.x, _posXY1.y);
-	ImVec2 p2(_posXY2.x, _posXY2.y);
-	ImVec2 p3(_posXY3.x, _posXY3.y);
-	ImVec2 p4(_posXY4.x, _posXY4.y);
+	ImVec2 p1 = CanvasPoint(_posXY1.x, _posXY1.y);
+	ImVec2 p2 = CanvasPoint(_posXY2.x, _posXY2.y);
+	ImVec2 p3 = CanvasPoint(_posXY3.x, _posXY3.y);
+	ImVec2 p4 = CanvasPoint(_posXY4.x, _posXY4.y);
 
 	ImVec2 points[4] = { p1, p2, p3, p4 };
 	ImVec2 borderPoints[6] = { p1, p2, p3, p4, p1, p2 };
@@ -207,17 +230,17 @@ void DearsImGui::UIFreeRectwithBorder(Vector2 _posXY1, Vector2 _posXY2, Vector2 
 
 void DearsImGui::UIDrawLine(Vector2 _sPosXY, Vector2 _ePosXY, Vector4 _rgba)
 {
-	window->DrawList->AddLine(ImVec2(_sPosXY.x, _sPosXY.y), ImVec2(_ePosXY.x, _ePosXY.y), ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)));
+	window->DrawList->AddLine(CanvasPoint(_sPosXY.x, _sPosXY.y), CanvasPoint(_ePosXY.x, _ePosXY.y), ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)));
 }
 
 void DearsImGui::UIDrawCircle(Vector2 _posXY, float _radius, Vector4 _rgba)
 {
-	ImGui::GetWindowDrawList()->AddCircle(ImVec2(_posXY.x, _posXY.y), _radius, ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)));
+	ImGui::GetWindowDrawList()->AddCircle(CanvasPoint(_posXY.x, _posXY.y), _radius, ImGui::ColorConvertFloat4ToU32(ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)));
 }
 
 void DearsImGui::UIDrawImage(Vector2 _posXY, Vector2 _sizeWH, ComPtr<ID3D11ShaderResourceView> _srv, Vector4 _rgba)
 {
-	ImGui::SetCursorPos(ImVec2(_posXY.x, _posXY.y)); // 占싱뱄옙占쏙옙占쏙옙 표占쏙옙占쏙옙 占쏙옙치 (x, y)
+	ImGui::SetCursorPos(ImVec2(m_canvasOrigin.x + _posXY.x, m_canvasOrigin.y + _posXY.y)); // 占싱뱄옙占쏙옙占쏙옙 표占쏙옙占쏙옙 占쏙옙치 (x, y)
 	ImGui::Image((void*)_srv.Get(), ImVec2(_sizeWH.x, _sizeWH.y), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(_rgba.x, _rgba.y, _rgba.z, _rgba.w)); // 占싱뱄옙占쏙옙占쏙옙 화占썽에 표占쏙옙
 }
 

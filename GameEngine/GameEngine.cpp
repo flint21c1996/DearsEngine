@@ -6,6 +6,7 @@
 #include "DemoScene.h"
 #include "IScene.h"
 #include "RenderDispatcher.h"
+#include "RenderPipelinePanel.h"
 #include <algorithm>
 #include <array>
 #include <imgui.h>
@@ -46,6 +47,105 @@ void GameEngine::Initialize()
 	CreateSceneObjects();
 	InitializeEditorPanels();
 	InitializeLighting();
+	SetupRenderPipeline();
+}
+
+void GameEngine::SetupRenderPipeline()
+{
+	// 프레임이 어떤 패스로, 어떤 순서로 구성되는지는 그래픽스 엔진이 아니라 여기서 정한다.
+	// 그래픽스 엔진의 RenderFrame()은 이 목록을 위에서부터 실행하기만 한다.
+	//
+	// 각 패스가 지정하는 것:
+	// - type        : 패스의 분류 (디버그 이름, io를 생략했을 때의 기본 입출력 구성)
+	// - io          : 어디에 쓰고 무엇을 읽을지 (백 버퍼 / G-Buffer / 오프스크린 타깃, 깊이 공유 여부 등)
+	//                 생략하면 직전 패스가 묶어 둔 출력 대상에 이어서 그린다.
+	// - camera      : 이 패스의 View/Projection
+	// - commonBuffer: 카메라/라이트 등 패스 전체가 공유하는 상수 버퍼
+	// - execute     : 그 상태에서 실제로 무엇을 그릴지
+	//
+	// 새 패스를 넣고 싶으면 여기에 AddPass를 추가하거나, 실행 중에
+	// pipeline.InsertPassAfter("Forward", {...}) / SetPassEnabled("Particle", false)처럼 바꾸면 된다.
+	RenderPipeline& pipeline = m_pDearsGraphicsEngine->GetRenderPipeline();
+	pipeline.Clear();
+
+	Camera* mainCamera = tempCamera.get();
+	CommonConstantBufferData* sceneBuffer = &tempCCConstantBuffer;
+
+	// 데모/디버그 숫자를 ImGui 캔버스에 쌓는다. 실제 출력은 프레임 끝의 ImGui 렌더에서 이뤄진다.
+	pipeline.AddPass({
+		.name = "DemoOverlay",
+		.type = RenderPassType::Ui,
+		.execute = [this](IDearsRenderer&) { RenderDemoOverlay(); },
+	});
+
+	// 라이트마다(Point는 면마다) 카메라와 Depth 타깃이 바뀌므로 컨텍스트를 패스 안에서 직접 적용한다.
+	pipeline.AddPass({
+		.name = "Shadow",
+		.type = RenderPassType::Shadow,
+		.applyContext = false,
+		.shouldExecute = [this]() { return m_hasShadowLight; },
+		.execute = [this](IDearsRenderer& renderer) { RenderShadowPass(renderer); },
+	});
+
+	// Deferred 대상 메시의 표면 정보를 G-Buffer에 기록한다.
+	pipeline.AddPass({
+		.name = "Geometry",
+		.type = RenderPassType::Geometry,
+		.camera = mainCamera,
+		.commonBuffer = sceneBuffer,
+		.io = RenderPassIO{ .color = PassColorOutput::GBuffer },
+		.execute = [this](IDearsRenderer&) { RenderGeometryPass(); },
+	});
+
+	// G-Buffer와 Shadow Map을 읽어 화면 전체 삼각형 하나로 최종 조명을 계산한다.
+	pipeline.AddPass({
+		.name = "Lighting",
+		.type = RenderPassType::Lighting,
+		.camera = mainCamera,
+		.commonBuffer = sceneBuffer,
+		.io = RenderPassIO{ .color = PassColorOutput::BackBuffer, .readGBuffer = true },
+		.execute = [](IDearsRenderer& renderer) { renderer.DrawDeferredLighting(); },
+	});
+
+	// Forward로 지정한 메시, CubeMap, 투명/특수 셰이더를 Geometry 깊이를 공유하며 그린다.
+	pipeline.AddPass({
+		.name = "Forward",
+		.type = RenderPassType::Forward,
+		.camera = mainCamera,
+		.commonBuffer = sceneBuffer,
+		.io = RenderPassIO{ .color = PassColorOutput::BackBuffer, .depth = PassDepthOutput::GBufferDepth },
+		.execute = [this](IDearsRenderer&) { RenderForwardPass(); },
+	});
+
+	pipeline.AddPass({
+		.name = "SelectionOutline",
+		.type = RenderPassType::SelectionOutline,
+		.camera = mainCamera,
+		.commonBuffer = sceneBuffer,
+		.execute = [this](IDearsRenderer&) { RenderSelectedOutlinePass(); },
+	});
+
+	pipeline.AddPass({
+		.name = "Particle",
+		.type = RenderPassType::Particle,
+		.camera = mainCamera,
+		.commonBuffer = sceneBuffer,
+		.execute = [](IDearsRenderer& renderer) { renderer.DrawParticles(); },
+	});
+
+	pipeline.AddPass({
+		.name = "PostProcess",
+		.type = RenderPassType::PostProcess,
+		.execute = [this](IDearsRenderer& renderer) { RenderPostProcessPass(renderer); },
+	});
+
+	pipeline.AddPass({
+		.name = "Debug",
+		.type = RenderPassType::Debug,
+		.camera = mainCamera,
+		.commonBuffer = sceneBuffer,
+		.execute = [this](IDearsRenderer& renderer) { RenderDebugPass(renderer); },
+	});
 }
 
 void GameEngine::LoadDemoAssets()
@@ -158,6 +258,12 @@ void GameEngine::CreateSceneObjects()
 
 void GameEngine::InitializeEditorPanels()
 {
+	// 패스 목록 패널: Reset을 누르면 SetupRenderPipeline()이 등록하는 기본 구성으로 되돌린다.
+	m_pRenderPipelinePanel = std::make_unique<RenderPipelinePanel>(
+		m_pDearsGraphicsEngine.get(),
+		[this]() { SetupRenderPipeline(); });
+	m_pDearsGraphicsEngine->AddEditorPanel(m_pRenderPipelinePanel.get());
+
 	if (m_pActiveScene)
 	{
 		m_pActiveScene->RegisterEditorPanels(m_screenWidth);
@@ -165,10 +271,33 @@ void GameEngine::InitializeEditorPanels()
 		// The main gameplay camera should match the reduced render viewport.
 		// Without this adjustment the 3D image is stretched after the editor
 		// lane shrinks the visible render width.
-		const int editorPanelWidth = GetEditorPanelWidth(static_cast<float>(m_screenWidth));
-		const int renderViewportWidth = m_screenWidth - editorPanelWidth;
-		tempCamera->SetAspectRatio(renderViewportWidth, m_screenHeight);
+		// Main-camera aspect is set from the actual viewport image each frame.
+
+
 	}
+
+	// 기본 에디터 배치: 가운데 월드(Viewport), 오른쪽 위 목록, 오른쪽 아래 속성, 아래쪽 에셋.
+	// 같은 자리에 등록한 창은 등록 순서대로 탭으로 묶인다.
+	// 처음 실행과 Window > Reset Layout에만 쓰이고, 그 뒤에는 사용자가 옮긴 배치가 imgui.ini에 저장된다.
+	m_pDearsGraphicsEngine->SetEditorDockSlot("Scene Hierarchy", EditorDockSlot::Right);
+	m_pDearsGraphicsEngine->SetEditorDockSlot("Inspector", EditorDockSlot::RightBottom);
+	m_pDearsGraphicsEngine->SetEditorDockSlot("Content Browser", EditorDockSlot::Bottom);
+	m_pDearsGraphicsEngine->SetEditorDockSlot("Render Presets", EditorDockSlot::Bottom);
+	m_pDearsGraphicsEngine->SetEditorDockSlot("Render Pipeline", EditorDockSlot::Bottom);
+	// 디버그용 창들은 아래쪽 탭 뒤편에 모아 둔다. Inspector 자리에는 Inspector만 두어 항상 보이게 한다.
+	m_pDearsGraphicsEngine->SetEditorDockSlot("Deferred G-Buffer", EditorDockSlot::Bottom);
+	m_pDearsGraphicsEngine->SetEditorDockSlot("Light Shadow Map", EditorDockSlot::Bottom);
+	m_pDearsGraphicsEngine->SetEditorDockSlot("Picking", EditorDockSlot::Bottom);
+	m_pDearsGraphicsEngine->SetEditorDockSlot("A* Demo", EditorDockSlot::Floating);
+
+	// 메뉴 바의 File/Edit 메뉴와 Play/Stop 버튼은 씬이 그린다. (씬 파일, 실행 취소 기록을 씬이 갖고 있다.)
+	m_pDearsGraphicsEngine->SetEditorMenuBarCallback([this]()
+	{
+		if (m_pActiveScene)
+		{
+			m_pActiveScene->DrawEditorMenuBar();
+		}
+	});
 }
 
 void GameEngine::InitializeLighting()
@@ -193,7 +322,9 @@ void GameEngine::Update()
 	//
 	// 예를 들어 Add Object의 Name 입력창에서 W/A/S/D를 누르는 동안
 	// 파티클 위치나 카메라 이동이 같이 처리되면 에디터 입력과 게임 입력이 섞인다.
-	const bool blockEngineKeyboardInput = ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
+	const auto mouse = m_pInputManager->GetMousePos();
+	const bool viewportInput = m_pDearsGraphicsEngine->GetEditorViewport().AllowsSceneInput(mouse.x, mouse.y);
+	const bool blockEngineKeyboardInput = !viewportInput || ImGui::GetIO().WantTextInput;
 	const bool viewportNavigationActive = IsViewportNavigationActive();
 	if (!blockEngineKeyboardInput)
 	{
@@ -202,15 +333,25 @@ void GameEngine::Update()
 		{
 			m_pActiveScene->HandlePickingInput(*m_pInputManager, tempCamera.get());
 		}
-		if (!viewportNavigationActive)
+		// 데모용 키(파티클 위치 WASD, F 생성 등)는 Play 중에만 받는다.
+		// 편집 중에는 W/E/R이 기즈모 전환이라서 같은 키가 두 가지 일을 하면 안 된다.
+		if (!viewportNavigationActive && m_pActiveScene && m_pActiveScene->IsPlaying())
 		{
 			UpdateDemoControls();
 		}
 	}
 
+	// 에디터 조작(기즈모, Ctrl+Z/Y, 뷰포트 드롭)은 뷰포트에 마우스가 없어도 처리해야 한다.
+	// 예: Inspector에서 값을 바꾼 직후의 Ctrl+Z, 드래그가 끝난 뒤의 실행 취소 기록.
+	// Viewport 창이 열려 있는 지금 호출해야 기즈모가 그 창 안에 그려진다.
+	if (m_pActiveScene)
+	{
+		m_pActiveScene->UpdateEditor(*m_pInputManager, tempCamera.get());
+	}
+
 	UpdateLightingState();
 	UpdateSceneObjects(deltaTime);
-	if (!blockEngineKeyboardInput)
+	if (!blockEngineKeyboardInput && m_pActiveScene && m_pActiveScene->IsPlaying())
 	{
 		UpdatePresentationControls();
 	}
@@ -224,12 +365,19 @@ void GameEngine::UpdateInputState()
 	// 언리얼 에디터처럼 RMB를 누르고 있는 동안만 viewport navigation 모드로 둔다.
 	// 예전 T 토글 방식은 한 번 켜면 계속 마우스 look 상태로 남아서,
 	// 에디터 선택/피킹 입력과 카메라 입력이 서로 섞이기 쉬웠다.
-	tempCamera->mIsFirstPersonMode = IsViewportNavigationActive();
-
-	if (!ImGui::GetIO().WantCaptureMouse)
-	{
-		tempCamera->OnMouseMove(static_cast<int>(m_pInputManager->GetMousePos().x), static_cast<int>(m_pInputManager->GetMousePos().y));
-	}
+    const auto& viewport = m_pDearsGraphicsEngine->GetEditorViewport();
+    if (viewport.Valid()) tempCamera->SetAspectRatio(viewport.PixelWidth(), viewport.PixelHeight());
+    const bool active = IsViewportNavigationActive();
+    const auto mouse = m_pInputManager->GetMousePos();
+    // Seed the look anchor on RMB entry; window movement must not jump the camera.
+    if (active && !m_wasViewportNavigation)
+    {
+        tempCamera->mIsFirstPersonMode = false;
+        tempCamera->OnMouseMove(int(mouse.x), int(mouse.y));
+    }
+    tempCamera->mIsFirstPersonMode = active;
+    tempCamera->OnMouseMove(int(mouse.x), int(mouse.y));
+    m_wasViewportNavigation = active;
 }
 
 void GameEngine::UpdateCameraControls(float deltaTime)
@@ -275,13 +423,15 @@ void GameEngine::UpdateCameraControls(float deltaTime)
 
 bool GameEngine::IsViewportNavigationActive() const
 {
-	if (!m_pInputManager || ImGui::GetIO().WantCaptureMouse)
+	if (!m_pInputManager)
 	{
 		return false;
 	}
 
 	const KEY_STATE rightMouseState = m_pInputManager->GetKeyState(KEY::RBUTTON);
-	return rightMouseState == KEY_STATE::TAP || rightMouseState == KEY_STATE::HOLD;
+	const auto mouse = m_pInputManager->GetMousePos();
+	return m_pDearsGraphicsEngine->GetEditorViewport().AllowsSceneInput(mouse.x, mouse.y)
+		&& (rightMouseState == KEY_STATE::TAP || rightMouseState == KEY_STATE::HOLD);
 }
 
 void GameEngine::UpdateDemoControls()
@@ -387,32 +537,19 @@ void GameEngine::Render()
 		return;
 	}
 
-	// 이 함수는 한 프레임의 렌더링 순서를 보여주는 최상위 함수다.
-	//
-	// RHI 리팩터링에서 중요한 생각:
-	// GameEngine은 나중에 "다음에 어떤 렌더 패스를 실행할지"만 결정하고,
-	// 실제로 그 패스를 DX11, DX12, Vulkan 중 어떤 방식으로 실행할지는
-	// 선택된 그래픽스 백엔드가 맡게 만드는 것이 목표다.
-	// 지금은 아직 DearsGraphicsEngine을 직접 호출하지만, 패스 경계가
-	// 보이도록 먼저 함수를 나눠둔다.
+	// 한 프레임의 패스 종류와 순서는 SetupRenderPipeline()에서 등록한 목록이 결정한다.
+	// 여기서는 입력에 따른 상태 변경만 처리하고, 프레임 시작 -> 등록된 패스 실행 -> Present는
+	// 그래픽스 엔진의 RenderFrame()에 맡긴다.
 	HandleRenderControls();
 
-	m_pDearsGraphicsEngine->BeginRender();
-	RenderDemoOverlay();
-	RenderShadowPass();
-	RenderGeometryPass();
-	RenderLightingPass();
-	RenderForwardPass();
-	RenderSelectedOutlinePass();
-	RenderParticlePass();
-	RenderPostProcessPass();
-	RenderDebugPass();
-	m_pDearsGraphicsEngine->EndRender();
+	m_pDearsGraphicsEngine->RenderFrame();
 }
 
 void GameEngine::HandleRenderControls()
 {
-	const bool blockEngineKeyboardInput = ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
+	const auto mouse = m_pInputManager->GetMousePos();
+	const bool viewportInput = m_pDearsGraphicsEngine->GetEditorViewport().AllowsSceneInput(mouse.x, mouse.y);
+	const bool blockEngineKeyboardInput = !viewportInput || ImGui::GetIO().WantTextInput;
 	if (blockEngineKeyboardInput)
 	{
 		return;
@@ -440,6 +577,7 @@ void GameEngine::HandleRenderControls()
 
 void GameEngine::RenderDemoOverlay()
 {
+	if (!m_pDearsGraphicsEngine->ShowViewportOverlay()) return;
 	// 이 오버레이는 엔진 핵심 렌더링이 아니라 데모/디버그 표시용 UI다.
 	// FPS, 마우스 좌표, 카메라 벡터, 라이트 view-projection 행렬처럼
 	// GameEngine이 들고 있는 상태를 읽기 때문에 지금은 여기에 남겨둔다.
@@ -448,9 +586,9 @@ void GameEngine::RenderDemoOverlay()
 	// - 사용자가 직접 조작하는 에디터 패널은 editor layer로 이동
 	// - 임시 디버그 숫자는 DebugOverlay 같은 클래스로 이동
 	// - DX11/DX12/Vulkan 백엔드는 이런 UI 내용 자체를 몰라도 되게 만들기
-	RenderContext uiContext;
-	uiContext.passType = RenderPassType::Ui;
-	m_pDearsGraphicsEngine->ApplyRenderContext(uiContext);
+	//
+	// UI 함수들은 아직 IDearsRenderer 인터페이스 밖(DX11/ImGui 구현 쪽)에 있어서
+	// 이 패스만 구체 클래스 포인터를 직접 사용한다.
 
 	// 현재 샘플 화면을 보여주기 위한 데모 이미지들이다.
 	m_pDearsGraphicsEngine->UIDrawImageStart();
@@ -460,7 +598,7 @@ void GameEngine::RenderDemoOverlay()
 	m_pDearsGraphicsEngine->UIDrawImageFin();
 
 	m_pDearsGraphicsEngine->UIStartFontID("NotoSansKR-Regular(48).ttf");
-	ImGui::SetWindowFontScale(0.5f);
+	// Overlay is clipped to the world image; do not change the viewport window font scale.
 	m_pDearsGraphicsEngine->UIDrawText(
 		Vector2(150, 600),
 		u8"1~3: 큐브맵 변경\nWASD: 파티클 위치 이동\nF: 파티클 생성",
@@ -514,12 +652,10 @@ void GameEngine::RenderDemoOverlay()
 	m_pDearsGraphicsEngine->UIFinFontID();
 }
 
-void GameEngine::RenderShadowPass()
+void GameEngine::RenderShadowPass(IDearsRenderer& renderer)
 {
-	if (!m_hasShadowLight)
-	{
-		return;
-	}
+	// 그림자를 만드는 라이트가 없는 프레임은 파이프라인의 shouldExecute가 이 패스를 건너뛴다.
+	//
 	// Shadow pass:
 	// 라이트 카메라 시점에서 씬을 depth-only target에 먼저 그린다.
 	// 이후 메인 씬 패스에서 이 depth texture를 샘플링해서
@@ -574,8 +710,8 @@ void GameEngine::RenderShadowPass()
 			for (UINT faceIndex = 0; faceIndex < faceDirections.size(); ++faceIndex)
 			{
 				lightCamera->SetDirection(faceDirections[faceIndex], faceUps[faceIndex]);
-				m_pDearsGraphicsEngine->ApplyRenderContext(shadowContext);
-				m_pDearsGraphicsEngine->BeginPointShadowFace(lightIndex, faceIndex);
+				renderer.ApplyRenderContext(shadowContext);
+				renderer.BeginPointShadowFace(lightIndex, faceIndex);
 				m_pRenderDispatcher->RenderShadowItems(m_pActiveScene->GetShadowRenderItems());
 			}
 		}
@@ -583,15 +719,15 @@ void GameEngine::RenderShadowPass()
 		{
 			// Directional과 Spot은 투영 방식은 다르지만 같은 Texture2DArray를 사용한다.
 			// Begin 함수가 현재 lightIndex에 해당하는 DSV 슬라이스를 골라서 바인딩한다.
-			m_pDearsGraphicsEngine->ApplyRenderContext(shadowContext);
-			m_pDearsGraphicsEngine->BeginTwoDimensionalShadowPass(lightIndex);
+			renderer.ApplyRenderContext(shadowContext);
+			renderer.BeginTwoDimensionalShadowPass(lightIndex);
 			m_pRenderDispatcher->RenderShadowItems(m_pActiveScene->GetShadowRenderItems());
 		}
 	}
 
 	// 모든 DSV 쓰기가 끝난 뒤 배열 SRV를 메인 픽셀 셰이더에 한 번만 연결한다.
 	// DX12/Vulkan에서는 이 위치가 Depth Write에서 Shader Read로 전환하는 배리어가 된다.
-	m_pDearsGraphicsEngine->EndShadowPass();
+	renderer.EndShadowPass();
 
 	// 하이어라키 선택은 Shadow Map 생성 대상을 제한하지 않는다.
 	// 여기서는 이미 만들어진 배열 중 어떤 슬라이스를 디버그 창에 보여줄지만 결정한다.
@@ -632,33 +768,13 @@ void GameEngine::RenderGeometryPass()
 	// PBR 불투명 메시의 표면 정보를 실제 MRT에 기록한다.
 	// 다만 Lighting Pass가 아직 최종 색상을 만들지 못하므로, 같은 PBR 메시는
 	// 아래 Forward Pass에서도 임시로 한 번 더 그려 기존 화면 출력을 유지한다.
-	RenderContext geometryContext;
-	geometryContext.passType = RenderPassType::Geometry;
-	geometryContext.camera = tempCamera.get();
-	geometryContext.commonBuffer = &tempCCConstantBuffer;
-	m_pDearsGraphicsEngine->ApplyRenderContext(geometryContext);
+	//
+	// G-Buffer 바인딩과 카메라/공통 버퍼 적용은 파이프라인이 이 함수 직전에
+	// { Geometry, 메인 카메라, 씬 공통 버퍼 } 컨텍스트로 처리한다.
 
 	// 우선 PBR 불투명 메시만 Geometry Pass에서 G-Buffer에 기록한다.
 	// Lighting 구현 전에는 Forward Pass에서도 다시 그려 기존 화면을 보존한다.
 	m_pRenderDispatcher->RenderGeometryItems(m_pActiveScene->GetMainRenderItems());
-}
-
-void GameEngine::RenderLightingPass()
-{
-	// Deferred Lighting pass:
-	// Geometry pass가 모든 오브젝트의 G-Buffer 기록을 끝낸 뒤 딱 한 번 실행된다.
-	// 이 단계에서는 개별 모델을 다시 그리지 않고 화면 전체 삼각형을 그리며,
-	// G-Buffer와 shadow map을 읽어 각 화면 픽셀의 최종 조명 색상을 계산한다.
-	RenderContext lightingContext;
-	lightingContext.passType = RenderPassType::Lighting;
-	lightingContext.camera = tempCamera.get();
-	lightingContext.commonBuffer = &tempCCConstantBuffer;
-	m_pDearsGraphicsEngine->ApplyRenderContext(lightingContext);
-
-	// ApplyRenderContext가 Albedo/Normal/Material/Depth를 t20~t23에 연결하고
-	// Back Buffer를 출력 대상으로 되돌린 뒤, 이 호출이 실제 Fullscreen Triangle을 그린다.
-	// 따라서 Deferred 오브젝트의 최종 색상은 더 이상 Forward Pass가 대신 만들지 않는다.
-	m_pDearsGraphicsEngine->RenderDeferredLighting();
 }
 
 void GameEngine::RenderForwardPass()
@@ -666,12 +782,6 @@ void GameEngine::RenderForwardPass()
 	// Forward pass:
 	// Deferred Default Lit PBR은 앞의 Geometry + Lighting Pass에서 이미 최종 색상이 완성됐다.
 	// 여기서는 Forward로 지정한 메시와 CubeMap, 투명/물/특수 셰이더만 추가로 렌더링한다.
-	RenderContext forwardContext;
-	forwardContext.passType = RenderPassType::Forward;
-	forwardContext.camera = tempCamera.get();
-	forwardContext.commonBuffer = &tempCCConstantBuffer;
-	m_pDearsGraphicsEngine->ApplyRenderContext(forwardContext);
-
 	m_pRenderDispatcher->RenderForwardItems(m_pActiveScene->GetMainRenderItems());
 }
 
@@ -684,39 +794,16 @@ void GameEngine::RenderSelectedOutlinePass()
 	// 지금은 DX11 stencil 기반 외곽선 렌더를 직접 호출하지만,
 	// 나중에 에디터 전용 overlay pass나 post-process outline으로 바꾸더라도
 	// GameEngine은 "선택 강조 패스를 실행한다"는 순서만 유지하면 된다.
-	RenderContext outlineContext;
-	outlineContext.passType = RenderPassType::SelectionOutline;
-	outlineContext.camera = tempCamera.get();
-	outlineContext.commonBuffer = &tempCCConstantBuffer;
-	m_pDearsGraphicsEngine->ApplyRenderContext(outlineContext);
-
 	m_pRenderDispatcher->RenderSelectedOutline(m_pActiveScene->GetSelectedObject(), tempCamera.get());
 }
 
-void GameEngine::RenderParticlePass()
-{
-	// Particle pass:
-	// 파티클은 DearsGraphicsEngine::Update()에서 갱신되고 여기서 렌더링된다.
-	// 파티클은 보통 blending, depth write/read 규칙이 일반 mesh와 다르기 때문에
-	// 현대 렌더러에서는 별도 패스로 분리되는 경우가 많다.
-	RenderContext particleContext;
-	particleContext.passType = RenderPassType::Particle;
-	particleContext.camera = tempCamera.get();
-	particleContext.commonBuffer = &tempCCConstantBuffer;
-	m_pDearsGraphicsEngine->ApplyRenderContext(particleContext);
-
-	m_pDearsGraphicsEngine->RendParticle();
-}
-
-void GameEngine::RenderPostProcessPass()
+void GameEngine::RenderPostProcessPass(IDearsRenderer& renderer)
 {
 	// 포스트 프로세싱은 현재 꺼져 있지만, 기존 테스트 키 동작을 보존하려고
 	// 토글 구조는 남겨둔다.
 	// 나중에 bloom, tone mapping, SSAO 같은 후처리 효과를 다시 붙이면
 	// 이 함수에서 관련 패스를 호출하면 된다.
-	RenderContext postProcessContext;
-	postProcessContext.passType = RenderPassType::PostProcess;
-	m_pDearsGraphicsEngine->ApplyRenderContext(postProcessContext);
+	(void)renderer;
 
 	static bool a = true;
 	if (m_pInputManager->GetKeyState(KEY::_7) == KEY_STATE::HOLD)
@@ -729,22 +816,18 @@ void GameEngine::RenderPostProcessPass()
 	}
 	if (a == true)
 	{
-		//m_pDearsGraphicsEngine->RendPostProcessing();
+		//renderer.DrawPostProcess();
 	}
 }
 
-void GameEngine::RenderDebugPass()
+void GameEngine::RenderDebugPass(IDearsRenderer& renderer)
 {
 	// Debug pass:
 	// 메인 씬을 그린 뒤에 엔진 시각화용 helper geometry를 추가로 그린다.
 	// 디버그 기하도 일반 장면 렌더링과 같은 카메라를 사용해야 월드 좌표와 정확히 겹친다.
 	// 아래 RenderContext를 적용한 뒤 라이트 기즈모를 그리면 현재 뷰/투영 행렬이
 	// DebugLineVertexShader에도 전달되므로, 카메라가 움직여도 선이 라이트 위치를 따라간다.
-	RenderContext debugContext;
-	debugContext.passType = RenderPassType::Debug;
-	debugContext.camera = tempCamera.get();
-	debugContext.commonBuffer = &tempCCConstantBuffer;
-	m_pDearsGraphicsEngine->ApplyRenderContext(debugContext);
+	// (이 컨텍스트는 파이프라인이 Debug 패스 실행 직전에 적용한다.)
 
 	// Scene에 실제로 배치된 라이트만 기즈모로 표시한다.
 	// 기즈모는 Debug Pass에서 그리므로 G-Buffer, Shadow Map, Picking 대상에는 포함되지 않는다.
@@ -758,7 +841,7 @@ void GameEngine::RenderDebugPass()
 			(light.lightType == static_cast<UINT>(LightEnum::DIRECTIONAL_LIGHT) ||
 			 light.lightType == static_cast<UINT>(LightEnum::SPOT_LIGHT));
 
-		m_pDearsGraphicsEngine->Rend_DebugLightGizmo(
+		renderer.DrawLightGizmo(
 			light,
 			drawShadowFrustum,
 			lightCamera->GetAspectRatio());
@@ -767,6 +850,7 @@ void GameEngine::RenderDebugPass()
 
 void GameEngine::GameLoop()
 {
+	m_pDearsGraphicsEngine->BeginEditorFrame();
 	Update();
 	Render();
 }
@@ -799,4 +883,14 @@ void GameEngine::InitializeManager()
 
 	m_pFileManager->Initialize();
 	//m_pFileManager->SearchOneFile("Michelle", "Michelle.fbx");
+}
+
+bool GameEngine::ResizeClient(int width, int height)
+{
+    // The fixed shadow-map extents keep their original projection. Main-camera
+    // aspect follows the image, independently of the native presentation extent.
+    const bool ready = m_pDearsGraphicsEngine->ResizeClient(width, height);
+    m_pTimeManager->Tick(); // Discard time spent minimized or in the native resize modal loop.
+    m_wasViewportNavigation = false;
+    return ready;
 }

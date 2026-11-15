@@ -5,10 +5,15 @@
 #include "InputManager.h"
 
 #include <imgui.h>
+#include <ImGuizmo.h>
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <cmath>
+#include <exception>
+#include <utility>
+#include <filesystem>
 
 namespace
 {
@@ -21,6 +26,8 @@ constexpr size_t WaterIndex = 5;
 constexpr size_t TerrainIndex = 6;
 constexpr size_t CubeMapIndex = 7;
 constexpr const char* SavedScenePath = "../SavedScene.txt";
+// 렌더 프리셋은 특정 씬이 아니라 프로젝트 전체에서 쓰는 에셋이므로 씬 파일과 따로 저장한다.
+constexpr const char* RenderPresetsPath = "../RenderPresets.txt";
 
 std::string ToString(SceneRenderType renderType)
 {
@@ -94,7 +101,7 @@ bool ReadMatrix(std::istream& stream, Matrix& matrix)
 	float* values = &matrix._11;
 	for (int index = 0; index < 16; ++index)
 	{
-		if (!(stream >> values[index]))
+		if (!(stream >> values[index]) || !std::isfinite(values[index]))
 		{
 			return false;
 		}
@@ -142,7 +149,33 @@ void DemoScene::Initialize()
 	// Engine-wide systems such as the renderer or cameras stay in GameEngine.
 	CreateSceneObjects();
 	CreateRenderItems();
-	LoadSceneFromFile();
+
+	// 씬의 오브젝트가 프리셋을 이름으로 참조하므로 씬보다 먼저 읽는다.
+	// 파일이 아직 없으면 바로 끌어다 쓸 수 있는 기본 프리셋을 만들어 저장해 둔다.
+	if (!m_renderPresets.Load(RenderPresetsPath))
+	{
+		m_renderPresets.Clear();
+		m_renderPresets.AddDefaults();
+		m_renderPresets.Save(RenderPresetsPath);
+	}
+
+	if (!LoadSceneFromFile(SavedScenePath))
+	{
+		// Only an absent directory entry is a new scene. Invalid/unreadable files
+		// (including dangling links or status errors) must not become save targets.
+		std::error_code error;
+		const auto status = std::filesystem::symlink_status(SavedScenePath, error);
+		if (status.type() == std::filesystem::file_type::not_found &&
+			(!error || error == std::errc::no_such_file_or_directory))
+		{
+			m_scenePath = SavedScenePath;
+			m_sceneFileError.clear();
+		}
+	}
+
+	// 불러온 직후의 상태가 실행 취소의 바닥이 된다. 여기까지만 되돌릴 수 있다.
+	m_history.Reset(SerializeScene());
+	m_historyDirty = false;
 }
 
 void DemoScene::RegisterEditorPanels(int screenWidth)
@@ -160,6 +193,14 @@ void DemoScene::RegisterEditorPanels(int screenWidth)
 		[this](const SceneObjectCreateDesc& desc)
 		{
 			CreateObjectFromDesc(desc);
+		},
+		[this](int objectIndex, const std::string& presetName)
+		{
+			AssignRenderPreset(objectIndex, presetName);
+		},
+		[this](int objectIndex, const std::string& textureName)
+		{
+			AssignDiffuseTexture(objectIndex, textureName);
 		});
 
 	m_pInspectorPanel = std::make_unique<ObjectInspectorPanel>(
@@ -169,6 +210,33 @@ void DemoScene::RegisterEditorPanels(int screenWidth)
 		[this]()
 		{
 			HandleSceneObjectEdited();
+		},
+		&m_renderPresets,
+		[this](int objectIndex, const std::string& presetName)
+		{
+			AssignRenderPreset(objectIndex, presetName);
+		},
+		[this](int objectIndex, const std::string& textureName)
+		{
+			AssignDiffuseTexture(objectIndex, textureName);
+		});
+	// 메시와 텍스처를 타일로 보여 주고 월드/Hierarchy/Inspector로 끌어다 놓는 출발점이다.
+	m_pContentBrowserPanel = std::make_unique<ContentBrowserPanel>(m_pGraphicsEngine);
+	// 월드 이미지가 받을 수 있는 드래그 종류: 메시(오브젝트 생성), 텍스처/프리셋(놓인 오브젝트에 적용).
+	m_pGraphicsEngine->SetViewportDropTypes({
+		MeshAssetDragPayloadType,
+		TextureAssetDragPayloadType,
+		RenderPresetDragPayloadType });
+	// 프리셋 전용 브라우저: 프리셋을 만들고 고치며, 여기서 끌어다 Hierarchy/Inspector에 놓는다.
+	m_pRenderPresetPanel = std::make_unique<RenderPresetPanel>(
+		m_renderPresets,
+		[this]()
+		{
+			HandleRenderPresetLibraryEdited();
+		},
+		[this](const std::string& oldName, const std::string& newName)
+		{
+			HandleRenderPresetRenamed(oldName, newName);
 		});
 	m_pPickingPanel = std::make_unique<PickingPanel>(m_pickingManager);
 	m_pLightShadowMapPanel = std::make_unique<LightShadowMapPanel>(
@@ -181,10 +249,10 @@ void DemoScene::RegisterEditorPanels(int screenWidth)
 	m_pGraphicsEngine->AddEditorPanel(m_pInspectorPanel.get());
 	m_pGraphicsEngine->AddEditorPanel(m_pLightShadowMapPanel.get());
 	m_pGraphicsEngine->AddEditorPanel(m_pAStarDemoPanel.get());
+	m_pGraphicsEngine->AddEditorPanel(m_pContentBrowserPanel.get());
+	m_pGraphicsEngine->AddEditorPanel(m_pRenderPresetPanel.get());
 
-	const int editorPanelWidth = GetEditorPanelWidth(static_cast<float>(screenWidth));
-	m_renderViewportWidth = screenWidth - editorPanelWidth;
-	m_pGraphicsEngine->SetRenderViewportWidth(m_renderViewportWidth);
+// The world image establishes its own extent before scene input is processed.
 }
 
 void DemoScene::Update(float deltaTime)
@@ -202,7 +270,13 @@ void DemoScene::Update(float deltaTime)
 			continue;
 		}
 
-		object->UpdateAnimationTime(deltaTime);
+		// 애니메이션 시간은 Play 중에만 흐른다. 편집 중에는 멈춰 있어야 물체를 배치하기 쉽고,
+		// "실행해 봐야 움직인다"는 점이 편집 상태와 실행 상태를 구분해 준다.
+		// 상수 버퍼 갱신(Update)은 편집 중에도 해야 옮긴 위치가 화면에 반영된다.
+		if (m_isPlaying)
+		{
+			object->UpdateAnimationTime(deltaTime);
+		}
 		object->Update();
 	}
 }
@@ -249,6 +323,10 @@ void DemoScene::HandleDemoInput(InputManager& inputManager)
 
 void DemoScene::HandlePickingInput(InputManager& inputManager, Camera* camera)
 {
+	const auto& viewport = m_pGraphicsEngine->GetEditorViewport();
+	const auto mouse = inputManager.GetMousePos();
+	const auto local = viewport.ToLocal(mouse.x, mouse.y);
+	if (!viewport.AllowsSceneInput(mouse.x, mouse.y) || !local) return;
 	// 피킹은 "마우스로 씬 오브젝트를 선택하는 입력"이다.
 	// 선택된 인덱스는 SceneHierarchyPanel/ObjectInspectorPanel이 이미 공유하고 있으므로,
 	// 여기서는 ray 검사 결과를 m_selectedObjectIndex에 반영하기만 하면 된다.
@@ -265,7 +343,7 @@ void DemoScene::HandlePickingInput(InputManager& inputManager, Camera* camera)
 		return;
 	}
 
-	if (ImGui::GetIO().WantCaptureMouse)
+	if (ImGui::GetIO().WantTextInput)
 	{
 		return;
 	}
@@ -275,11 +353,18 @@ void DemoScene::HandlePickingInput(InputManager& inputManager, Camera* camera)
 		return;
 	}
 
+	// 기즈모 핸들을 누른 클릭은 "선택 바꾸기"가 아니라 "선택한 물체 옮기기"이다.
+	// 여기서 피킹까지 하면 핸들 뒤에 있는 다른 물체가 선택되어 버린다.
+	if (GetSelectedObject() && (ImGuizmo::IsOver() || ImGuizmo::IsUsing()))
+	{
+		return;
+	}
+
 	const PickingResult result = m_pickingManager.Pick(
 		m_objects,
-		inputManager.GetMousePos(),
-		m_renderViewportWidth,
-		m_pGraphicsEngine->GetScreenHeight(),
+		Vector2(local->x, local->y),
+		viewport.PixelWidth(),
+		viewport.PixelHeight(),
 		camera);
 
 	if (result.hit)
@@ -748,6 +833,13 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 	object->SetObjectPos(position);
 	object->mEditorRotationDegrees = desc.rotationDegrees;
 
+	// Inspector의 Rendering 항목과 RenderDispatcher가 읽는 렌더 설정이다.
+	object->mRenderType = desc.renderType;
+	object->mRenderPath = effectiveRenderPath;
+	object->mRenderPresetName = desc.renderPresetName;
+	object->mVertexShaderOverride = desc.vertexShaderOverride;
+	object->mPixelShaderOverride = desc.pixelShaderOverride;
+
 	RenderObject* rawObject = object.get();
 	m_objects.push_back(std::move(object));
 
@@ -768,6 +860,13 @@ void DemoScene::CreateObjectFromDesc(const SceneObjectCreateDesc& desc, Matrix p
 		desc.renderType != SceneRenderType::Billboard)
 	{
 		m_shadowRenderItems.push_back({ rawObject, desc.renderType, effectiveRenderPath });
+	}
+
+	// 저장된 프리셋 참조가 있으면 지금의 프리셋 내용으로 다시 풀어 낸다.
+	// 씬을 저장한 뒤에 프리셋을 고쳤더라도 다시 열었을 때 최신 내용이 적용된다.
+	if (!rawObject->mRenderPresetName.empty())
+	{
+		ApplyRenderPresetToObject(m_objects.size() - 1);
 	}
 
 	if (saveScene)
@@ -805,14 +904,42 @@ void DemoScene::CreateRenderItems()
 
 void DemoScene::SaveSceneToFile() const
 {
-	std::ofstream file(SavedScenePath, std::ios::trunc);
+	// 편집이 한 번 끝날 때마다 호출된다. 두 가지 일을 한다.
+	// 1. 실행 취소 기록에 남길 변경이 생겼다고 표시한다. (실제 기록은 UpdateEditor가 조작이 끝난 뒤에 남긴다.)
+	// 2. 현재 씬 파일에 저장한다.
+	//
+	// Play 중에는 아무것도 하지 않는다. 실행 중에 바뀐 상태가 편집 원본 파일이나
+	// 실행 취소 기록에 섞이면 Stop을 눌러도 원래 씬으로 돌아갈 수 없기 때문이다.
+	if (m_isPlaying)
+	{
+		return;
+	}
+	m_historyDirty = true;
+
+	std::ofstream file(m_scenePath, std::ios::trunc);
 	if (!file.is_open())
 	{
 		return;
 	}
+	WriteScene(file);
+}
+
+std::string DemoScene::SerializeScene() const
+{
+	std::ostringstream stream;
+	WriteScene(stream);
+	return stream.str();
+}
+
+void DemoScene::WriteScene(std::ostream& file) const
+{
+	// 파일 저장, 실행 취소 스냅샷, Play 시작 시점의 백업이 모두 이 형식을 쓴다.
+	// 한 가지 형식만 있으면 "저장했다 다시 열기"가 되는 값은 실행 취소와 Stop 복원도 자동으로 된다.
 
 	// Version 6부터 PBR Shading Model과 Thin Film 전용 굴절률/두께 값도 저장한다.
-	file << "DearsScene 6\n";
+	// Version 7부터 Vertex/Pixel Shader 재정의도 저장한다.
+	// Version 8부터 오브젝트에 지정한 렌더 프리셋의 이름도 저장한다.
+	file << "DearsScene 8\n";
 	file << m_objects.size() << '\n';
 
 	for (size_t index = 0; index < m_objects.size(); ++index)
@@ -838,6 +965,9 @@ void DemoScene::SaveSceneToFile() const
 			<< ToString(desc.renderType) << ' '
 			<< ToString(desc.renderPath) << ' '
 			<< ToString(object->GetShadingModel()) << ' '
+			<< std::quoted(object->mVertexShaderOverride) << ' '
+			<< std::quoted(object->mPixelShaderOverride) << ' '
+			<< std::quoted(object->mRenderPresetName) << ' '
 			<< desc.castShadow << ' '
 			<< object->mPSPBRConstantBufferData.material.metallic << ' '
 			<< object->mPSPBRConstantBufferData.material.roughness << ' '
@@ -867,26 +997,81 @@ void DemoScene::SaveSceneToFile() const
 	}
 }
 
-void DemoScene::LoadSceneFromFile()
+bool DemoScene::LoadSceneFromFile(const std::string& scenePath)
 {
-	std::ifstream file(SavedScenePath);
-	if (!file.is_open())
+	try
 	{
-		return;
+		std::string loadedPath = scenePath;
+		std::ifstream file(loadedPath);
+		if (file.is_open() && ReadScene(file))
+		{
+			m_scenePath.swap(loadedPath);
+			m_sceneFileError.clear();
+			return true;
+		}
 	}
+	catch (const std::exception&)
+	{
+		// Construction happened in a temporary scene; the live scene is untouched.
+	}
+	m_sceneFileError = "Cannot open scene (unreadable, invalid or unsupported): " + scenePath;
+	return false;
+}
 
+void DemoScene::ClearSceneObjects()
+{
+	// 렌더 목록은 RenderObject 포인터를 들고 있으므로 오브젝트보다 먼저 비운다.
+	m_mainRenderItems.clear();
+	m_shadowRenderItems.clear();
+	m_objects.clear();
+	m_objectNames.clear();
+	m_objectCreateDescs.clear();
+	m_selectedObjectIndex = -1;
+}
+
+bool DemoScene::RestoreScene(const std::string& serializedScene)
+{
+	const int previousSelection = m_selectedObjectIndex;
+	try
+	{
+		std::istringstream stream(serializedScene);
+		if (ReadScene(stream))
+		{
+			m_selectedObjectIndex =
+				previousSelection >= 0 && previousSelection < static_cast<int>(m_objects.size())
+				? previousSelection : -1;
+			return true;
+		}
+	}
+	catch (const std::exception&)
+	{
+	}
+	m_sceneFileError = "Cannot restore scene: invalid snapshot or object creation failed.";
+	return false;
+}
+
+bool DemoScene::ReadScene(std::istream& file)
+{
+	struct ParsedObject
+	{
+		SceneObjectCreateDesc desc;
+		Matrix position, rotation, scale;
+	};
+	std::vector<ParsedObject> parsed;
 	std::string magic;
 	int version = 0;
-	file >> magic >> version;
-	if (magic != "DearsScene" || version < 1 || version > 6)
+	if (!(file >> magic >> version) || magic != "DearsScene" || version < 1 || version > 8)
 	{
-		return;
+		return false;
 	}
 
-	size_t objectCount = 0;
-	file >> objectCount;
+	long long objectCount = 0;
+	if (!(file >> objectCount) || objectCount < 0)
+	{
+		return false;
+	}
 
-	for (size_t index = 0; index < objectCount; ++index)
+	for (long long index = 0; index < objectCount; ++index)
 	{
 		SceneObjectCreateDesc desc;
 		std::string renderTypeName;
@@ -909,20 +1094,31 @@ void DemoScene::LoadSceneFromFile()
 			>> std::quoted(desc.pbrHeightTextureName)
 			>> renderTypeName))
 		{
-			return;
+			return false;
 		}
 
 		if (version >= 2 && !(file >> renderPathName))
 		{
-			return;
+			return false;
 		}
 		if (version >= 6 && !(file >> shadingModelName))
 		{
-			return;
+			return false;
+		}
+		// Version 6 이하에는 셰이더 재정의가 없으므로 빈 문자열(= 종류별 기본 셰이더)을 그대로 쓴다.
+		if (version >= 7 && !(file
+			>> std::quoted(desc.vertexShaderOverride)
+			>> std::quoted(desc.pixelShaderOverride)))
+		{
+			return false;
+		}
+		if (version >= 8 && !(file >> std::quoted(desc.renderPresetName)))
+		{
+			return false;
 		}
 		if (!(file >> desc.castShadow))
 		{
-			return;
+			return false;
 		}
 
 		// 구버전 Scene에는 PBR 숫자 설정이 없으므로 desc의 기본값을 그대로 사용한다.
@@ -932,7 +1128,7 @@ void DemoScene::LoadSceneFromFile()
 			>> desc.pbrRoughness
 			>> desc.pbrHeightScale))
 		{
-			return;
+			return false;
 		}
 
 		// Version 5 이하에는 Thin Film이 렌더 목록에 연결되지 않았으므로
@@ -943,7 +1139,7 @@ void DemoScene::LoadSceneFromFile()
 			>> desc.thinFilmThicknessModulation
 			>> desc.thinFilmThickness))
 		{
-			return;
+			return false;
 		}
 
 		if (version >= 4 && !(file
@@ -957,7 +1153,7 @@ void DemoScene::LoadSceneFromFile()
 			>> desc.lightRange
 			>> desc.spotPower))
 		{
-			return;
+			return false;
 		}
 
 		// Version 4까지는 그림자 카메라 설정이 하드코딩되어 있었다.
@@ -968,19 +1164,56 @@ void DemoScene::LoadSceneFromFile()
 			>> desc.shadowFovY
 			>> desc.shadowWidth))
 		{
-			return;
+			return false;
 		}
 
 		if (!ReadMatrix(file, position) || !ReadMatrix(file, rotation) || !ReadMatrix(file, scale))
 		{
-			return;
+			return false;
 		}
 
 		desc.renderType = ParseSceneRenderType(renderTypeName);
 		desc.renderPath = ParseSceneRenderPath(renderPathName);
 		desc.shadingModel = ParseMaterialShadingModel(shadingModelName);
-		CreateObjectFromDesc(desc, position, rotation, scale, false);
+		if (ToString(desc.renderType) != renderTypeName ||
+			ToString(desc.renderPath) != renderPathName ||
+			ToString(desc.shadingModel) != shadingModelName)
+		{
+			return false;
+		}
+		for (float value : {
+			desc.pbrMetallic, desc.pbrRoughness, desc.pbrHeightScale,
+			desc.thinFilmOutsideIor, desc.thinFilmIor, desc.thinFilmThicknessModulation,
+			desc.rotationDegrees.x, desc.rotationDegrees.y, desc.rotationDegrees.z,
+			desc.lightStrength, desc.lightColor.x, desc.lightColor.y, desc.lightColor.z,
+			desc.lightRange, desc.spotPower, desc.shadowNear, desc.shadowFar,
+			desc.shadowFovY, desc.shadowWidth })
+		{
+			if (!std::isfinite(value)) return false;
+		}
+		parsed.push_back({ std::move(desc), position, rotation, scale });
 	}
+	// Validate the complete stream before constructing or replacing any live state.
+	file >> std::ws;
+	if (file.bad() || !file.eof()) return false;
+
+	DemoScene loaded(m_pGraphicsEngine);
+	loaded.m_renderPresets = m_renderPresets;
+	for (const ParsedObject& object : parsed)
+	{
+		loaded.CreateObjectFromDesc(
+			object.desc, object.position, object.rotation, object.scale, false);
+	}
+
+	// All parsing and object construction succeeded. Panel references to these
+	// vector objects remain valid; render-item pointers move with their owners.
+	m_mainRenderItems.swap(loaded.m_mainRenderItems);
+	m_shadowRenderItems.swap(loaded.m_shadowRenderItems);
+	m_objects.swap(loaded.m_objects);
+	m_objectNames.swap(loaded.m_objectNames);
+	m_objectCreateDescs.swap(loaded.m_objectCreateDescs);
+	m_selectedObjectIndex = -1;
+	return true;
 }
 
 void DemoScene::HandleSceneObjectEdited()
@@ -994,6 +1227,11 @@ void DemoScene::HandleSceneObjectEdited()
 		if (object)
 		{
 			desc.shadingModel = object->GetShadingModel();
+
+			// Shading Model처럼 프리셋 결과에 영향을 주는 값이 바뀌었을 수 있으므로
+			// 프리셋을 다시 풀어서 오브젝트 설정과 렌더 목록을 맞춘다.
+			ApplyRenderPresetToObject(static_cast<size_t>(m_selectedObjectIndex));
+
 			desc.thinFilmOutsideIor = object->mPSThinFilmConstantBufferData.n1;
 			desc.thinFilmIor = object->mPSThinFilmConstantBufferData.n2;
 			desc.thinFilmThicknessModulation = object->mPSThinFilmConstantBufferData.time;
@@ -1004,6 +1242,7 @@ void DemoScene::HandleSceneObjectEdited()
 			if (desc.shadingModel == MaterialShadingModel::ThinFilm)
 			{
 				desc.renderPath = SceneRenderPath::Forward;
+				object->mRenderPath = SceneRenderPath::Forward;
 				for (SceneRenderItem& item : m_mainRenderItems)
 				{
 					if (item.object == object)
@@ -1016,6 +1255,127 @@ void DemoScene::HandleSceneObjectEdited()
 	}
 
 	SaveSceneToFile();
+}
+
+void DemoScene::ApplyRenderPresetToObject(size_t objectIndex)
+{
+	if (objectIndex >= m_objects.size() || objectIndex >= m_objectCreateDescs.size())
+	{
+		return;
+	}
+
+	RenderObject* object = m_objects[objectIndex].get();
+	if (!object || object->mIsLight)
+	{
+		return;
+	}
+	SceneObjectCreateDesc& desc = m_objectCreateDescs[objectIndex];
+
+	// 오브젝트는 프리셋을 이름으로만 기억한다. 지워진 프리셋을 가리키고 있으면 참조를 풀고
+	// 오브젝트 고유의 기본 방식(종류별 기본 셰이더 + 생성할 때 고른 렌더 경로)으로 되돌린다.
+	const RenderPreset* preset = m_renderPresets.Find(object->mRenderPresetName);
+	if (!preset)
+	{
+		object->mRenderPresetName.clear();
+	}
+
+	// desc.renderPath는 프리셋이 없을 때 쓰는 오브젝트 고유의 경로라서 프리셋으로 덮어쓰지 않는다.
+	// 그래야 프리셋을 해제했을 때 원래 경로로 돌아갈 수 있다.
+	object->mVertexShaderOverride = preset ? preset->vertexShader : std::string();
+	object->mPixelShaderOverride = preset ? preset->pixelShader : std::string();
+	object->mRenderPath = preset ? preset->renderPath : desc.renderPath;
+
+	// Thin Film Pixel Shader는 전용 b3 상수 버퍼를 읽는다. PBR 재질을 가진 오브젝트가 프리셋으로
+	// 처음 Thin Film을 쓰게 되면 그 버퍼를 만들어 둔다. SetShadingModel(ThinFilm)이 PBR 설정을
+	// 복사해 버퍼를 만들어 주므로 잠깐 거쳤다가, 오브젝트 고유의 Shading Model은 원래대로 돌려놓는다.
+	const MeshRoute route = ResolveMeshRoute(
+		object->mRenderType,
+		object->mRenderPath,
+		object->GetShadingModel(),
+		object->mVertexShaderOverride,
+		object->mPixelShaderOverride);
+	if (route.pixelShader == ShaderCatalog::PixelShader::ThinFilm &&
+		object->mIs_PSPBRConstant &&
+		!object->mIs_PSThinFilmConstant)
+	{
+		const MaterialShadingModel ownShadingModel = object->GetShadingModel();
+		object->SetShadingModel(MaterialShadingModel::ThinFilm);
+		object->SetShadingModel(ownShadingModel);
+	}
+
+	desc.renderPresetName = object->mRenderPresetName;
+	desc.vertexShaderOverride = object->mVertexShaderOverride;
+	desc.pixelShaderOverride = object->mPixelShaderOverride;
+
+	// 렌더 목록의 renderPath는 Geometry/Forward 패스가 오브젝트를 나누는 기준이므로
+	// 오브젝트 쪽 값과 항상 같아야 한다.
+	for (SceneRenderItem& item : m_mainRenderItems)
+	{
+		if (item.object == object)
+		{
+			item.renderPath = object->mRenderPath;
+		}
+	}
+	for (SceneRenderItem& item : m_shadowRenderItems)
+	{
+		if (item.object == object)
+		{
+			item.renderPath = object->mRenderPath;
+		}
+	}
+}
+
+void DemoScene::AssignRenderPreset(int objectIndex, const std::string& presetName)
+{
+	if (objectIndex < 0 || objectIndex >= static_cast<int>(m_objects.size()))
+	{
+		return;
+	}
+
+	RenderObject* object = m_objects[objectIndex].get();
+	if (!object || object->mIsLight)
+	{
+		return;
+	}
+
+	// 빈 이름이나 없는 프리셋은 "프리셋 해제"로 처리된다. (ApplyRenderPresetToObject가 참조를 푼다.)
+	object->mRenderPresetName = presetName;
+	ApplyRenderPresetToObject(static_cast<size_t>(objectIndex));
+	SaveSceneToFile();
+}
+
+void DemoScene::HandleRenderPresetLibraryEdited()
+{
+	// 프리셋은 여러 오브젝트가 함께 쓰는 에셋이다. 내용이 바뀌거나 지워졌으면
+	// 그 프리셋을 쓰는 오브젝트를 찾아다니는 대신 전부 다시 풀어서 항상 일치하게 만든다.
+	for (size_t index = 0; index < m_objects.size(); ++index)
+	{
+		if (m_objects[index] && !m_objects[index]->mRenderPresetName.empty())
+		{
+			ApplyRenderPresetToObject(index);
+		}
+	}
+
+	m_renderPresets.Save(RenderPresetsPath);
+	SaveSceneToFile();
+}
+
+void DemoScene::HandleRenderPresetRenamed(const std::string& oldName, const std::string& newName)
+{
+	// 오브젝트는 이름으로 프리셋을 참조하므로 이름이 바뀌면 참조도 따라가야 한다.
+	// 저장은 뒤이어 호출되는 HandleRenderPresetLibraryEdited()가 한다.
+	for (size_t index = 0; index < m_objects.size(); ++index)
+	{
+		RenderObject* object = m_objects[index].get();
+		if (object && object->mRenderPresetName == oldName)
+		{
+			object->mRenderPresetName = newName;
+			if (index < m_objectCreateDescs.size())
+			{
+				m_objectCreateDescs[index].renderPresetName = newName;
+			}
+		}
+	}
 }
 
 void DemoScene::DeleteSelectedObject()

@@ -1,0 +1,28 @@
+{
+  "name": "dears-engine",
+  "version-string": "0.1.0",
+  "builtin-baseline": "f66dbb920ac13f3b7d25b9bdb6999e9ff82f7ce8",
+  "dependencies": [
+    "assimp",
+    "directxtk",
+    "directxtex",
+    {
+      "name": "imgui",
+      "features": [
+        "dx11-binding",
+        "win32-binding"
+      ]
+    }
+  ],
+  "overrides": [
+    {
+      "name": "assimp",
+      "version": "5.3.1",
+      "port-version": 4
+    },
+    {
+      "name": "directxtk",
+      "version-date": "2024-02-21"
+    }
+  ]
+}

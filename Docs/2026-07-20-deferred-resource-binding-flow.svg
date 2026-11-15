@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1180" viewBox="0 0 1400 1180">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#9a9a9a"/>
+    </marker>
+    <style>
+      .title { font: 700 30px 'Malgun Gothic', sans-serif; fill: #f0f0f0; }
+      .head { font: 700 19px 'Malgun Gothic', sans-serif; fill: #f0f0f0; }
+      .body { font: 15px 'Malgun Gothic', sans-serif; fill: #d0d0d0; }
+      .small { font: 14px 'Malgun Gothic', sans-serif; fill: #b8b8b8; }
+      .accent { font: 700 14px 'Malgun Gothic', sans-serif; fill: #e5c07b; }
+      .box { fill: #303030; stroke: #666666; stroke-width: 1.5; }
+      .pass { fill: #353535; stroke: #777777; stroke-width: 1.5; }
+      .scene { fill: #2c3943; stroke: #718392; stroke-width: 1.5; }
+      .final { fill: #3b3543; stroke: #81738c; stroke-width: 1.5; }
+      .line { fill: none; stroke: #9a9a9a; stroke-width: 1.6; marker-end: url(#arrow); }
+      .reuse { fill: none; stroke: #d19a66; stroke-width: 2; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1400" height="1180" fill="#121212"/>
+  <text x="700" y="48" text-anchor="middle" class="title">Geometry - Lighting - Forward 리소스 바인딩 흐름</text>
+  <text x="700" y="82" text-anchor="middle" class="body">텍스처를 복사하는 것이 아니라, 같은 Texture2D를 바라보는 View와 연결 방향만 바꾼다.</text>
+
+  <rect x="500" y="120" width="400" height="64" class="box"/>
+  <text x="700" y="160" text-anchor="middle" class="head">Deferred Render Queue</text>
+  <path d="M700 184 V230" class="line"/>
+
+  <rect x="500" y="230" width="400" height="92" class="pass"/>
+  <text x="700" y="267" text-anchor="middle" class="head">1. Deferred Geometry Pass</text>
+  <text x="700" y="297" text-anchor="middle" class="body">메시를 그려 표면 정보와 깊이를 기록</text>
+
+  <path d="M590 322 C590 360 190 350 190 400" class="line"/>
+  <path d="M660 322 C660 360 530 350 530 400" class="line"/>
+  <path d="M740 322 C740 360 870 350 870 400" class="line"/>
+  <path d="M810 322 C810 360 1210 350 1210 400" class="line"/>
+
+  <rect x="50" y="400" width="280" height="132" class="box"/>
+  <text x="190" y="438" text-anchor="middle" class="head">G-Buffer: Albedo</text>
+  <text x="190" y="472" text-anchor="middle" class="accent">Geometry: RTV로 쓰기</text>
+  <text x="190" y="502" text-anchor="middle" class="small">Lighting: SRV t20으로 읽기</text>
+
+  <rect x="390" y="400" width="280" height="132" class="box"/>
+  <text x="530" y="438" text-anchor="middle" class="head">G-Buffer: World Normal</text>
+  <text x="530" y="472" text-anchor="middle" class="accent">Geometry: RTV로 쓰기</text>
+  <text x="530" y="502" text-anchor="middle" class="small">Lighting: SRV t21로 읽기</text>
+
+  <rect x="730" y="400" width="280" height="132" class="box"/>
+  <text x="870" y="438" text-anchor="middle" class="head">G-Buffer: M/R/AO</text>
+  <text x="870" y="472" text-anchor="middle" class="accent">Geometry: RTV로 쓰기</text>
+  <text x="870" y="502" text-anchor="middle" class="small">Lighting: SRV t22로 읽기</text>
+
+  <rect x="1070" y="400" width="280" height="132" class="box"/>
+  <text x="1210" y="438" text-anchor="middle" class="head">G-Buffer: Depth</text>
+  <text x="1210" y="472" text-anchor="middle" class="accent">Geometry: DSV로 쓰기</text>
+  <text x="1210" y="502" text-anchor="middle" class="small">Lighting: SRV t23으로 읽기</text>
+
+  <path d="M190 532 C190 610 520 590 570 650" class="line"/>
+  <path d="M530 532 C530 580 620 600 640 650" class="line"/>
+  <path d="M870 532 C870 580 780 600 760 650" class="line"/>
+  <path d="M1210 532 C1210 610 880 590 830 650" class="line"/>
+
+  <text x="700" y="590" text-anchor="middle" class="small">RTV/DSV 출력 연결 해제 후, 같은 텍스처를 SRV 입력으로 연결</text>
+  <rect x="500" y="650" width="400" height="96" class="pass"/>
+  <text x="700" y="687" text-anchor="middle" class="head">2. Deferred Lighting Pass</text>
+  <text x="700" y="717" text-anchor="middle" class="body">Fullscreen Triangle에서 G-Buffer + Light + Shadow + IBL 계산</text>
+
+  <path d="M700 746 V800" class="line"/>
+  <rect x="470" y="800" width="460" height="88" class="scene"/>
+  <text x="700" y="836" text-anchor="middle" class="head">Back Buffer: Deferred Scene Color</text>
+  <text x="700" y="866" text-anchor="middle" class="body">Lighting 결과가 들어 있는 현재 화면</text>
+
+  <rect x="70" y="830" width="300" height="76" class="box"/>
+  <text x="220" y="862" text-anchor="middle" class="head">Forward Render Queue</text>
+  <text x="220" y="888" text-anchor="middle" class="small">Forward / Thin Film / 특수 재질</text>
+
+  <path d="M700 888 V950" class="line"/>
+  <path d="M370 868 C430 868 430 998 500 998" class="line"/>
+  <path d="M1210 532 V900 C1210 998 980 998 900 998" class="reuse"/>
+  <text x="1200" y="770" text-anchor="end" class="accent">Depth SRV 해제</text>
+  <text x="1200" y="796" text-anchor="end" class="accent">Geometry Depth를 DSV로 재연결</text>
+
+  <rect x="500" y="950" width="400" height="96" class="pass"/>
+  <text x="700" y="987" text-anchor="middle" class="head">3. Forward / Special Pass</text>
+  <text x="700" y="1017" text-anchor="middle" class="body">Geometry Depth와 비교하며 Back Buffer에 추가</text>
+
+  <path d="M700 1046 V1090" class="line"/>
+  <rect x="500" y="1090" width="400" height="64" class="final"/>
+  <text x="700" y="1130" text-anchor="middle" class="head">Final Back Buffer - Present</text>
+</svg>

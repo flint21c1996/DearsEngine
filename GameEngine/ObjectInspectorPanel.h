@@ -9,6 +9,8 @@
 #include "EditorResourceCatalog.h"
 #include "IEditorPanel.h"
 #include "RenderObject.h"
+#include "RenderPreset.h"
+#include "RenderRouting.h"
 #include "SceneHierarchyPanel.h"
 
 using DirectX::SimpleMath::Matrix;
@@ -20,11 +22,17 @@ public:
 		DearsGraphicsEngine* graphicsEngine,
 		std::vector<std::unique_ptr<RenderObject>>& objects,
 		int& selectedIndex,
-		std::function<void()> objectEditedCallback = nullptr)
+		std::function<void()> objectEditedCallback = nullptr,
+		const RenderPresetLibrary* renderPresets = nullptr,
+		std::function<void(int, const std::string&)> assignRenderPresetCallback = nullptr,
+		std::function<void(int, const std::string&)> assignDiffuseTextureCallback = nullptr)
 		: m_pGraphicsEngine(graphicsEngine)
 		, m_objects(objects)
 		, m_selectedIndex(selectedIndex)
 		, m_objectEditedCallback(objectEditedCallback)
+		, m_pRenderPresets(renderPresets)
+		, m_assignRenderPresetCallback(assignRenderPresetCallback)
+		, m_assignDiffuseTextureCallback(assignDiffuseTextureCallback)
 	{}
 
 	const char* GetName() const override { return "Inspector"; }
@@ -35,16 +43,14 @@ public:
 		float panelW = static_cast<float>(GetEditorPanelWidth(screenSize.x));
 		float topH    = screenSize.y * 0.45f + 110.0f;
 
-		ImGui::SetNextWindowPos(ImVec2(screenSize.x - panelW, topH), ImGuiCond_Always);
-		ImGui::SetNextWindowSize(ImVec2(panelW, screenSize.y - topH), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(screenSize.x - panelW, topH), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(panelW, screenSize.y - topH), ImGuiCond_FirstUseEver);
 
 		ImGuiWindowFlags flags =
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoCollapse;
 
 		ImGui::Begin("Inspector", nullptr, flags);
-		ImGui::SetWindowFontScale(0.8f);
+		// Use the DPI-scaled editor font.
 
 		if (m_selectedIndex < 0 || m_selectedIndex >= (int)m_objects.size())
 		{
@@ -176,9 +182,24 @@ public:
 			DrawTextRow("Vertex Buffer", obj->mEditorVertexBufferName);
 			DrawTextRow("Picking FBX", obj->mEditorModelName.empty() ? obj->mEditorVertexBufferName : obj->mEditorModelName);
 
-			if (!obj->mEditorDiffuseTextureName.empty())
+			// 일반(비 PBR) 메시는 Diffuse 칸을 항상 보여 준다. 텍스처가 없어도 칸이 있어야
+			// Content Browser에서 텍스처를 끌어다 놓을 자리가 생긴다.
+			if (!obj->mIs_PSPBRConstant || !obj->mEditorDiffuseTextureName.empty())
 			{
+				ImGui::BeginGroup();
 				DrawTextureRow("Diffuse", obj->mEditorDiffuseTextureName);
+				ImGui::EndGroup();
+				if (!obj->mIs_PSPBRConstant && m_assignDiffuseTextureCallback && ImGui::BeginDragDropTarget())
+				{
+					// 페이로드 이름은 ContentBrowserPanel.h의 TextureAssetDragPayloadType과 같다.
+					if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DEARS_ASSET_TEXTURE"))
+					{
+						m_assignDiffuseTextureCallback(
+							m_selectedIndex,
+							std::string(static_cast<const char*>(payload->Data)));
+					}
+					ImGui::EndDragDropTarget();
+				}
 			}
 
 			if (!obj->mEditorAnimationName.empty())
@@ -200,6 +221,8 @@ public:
 				int shadingModelIndex = static_cast<int>(obj->GetShadingModel());
 				if (ImGui::Combo("Shading Model", &shadingModelIndex, shadingModelNames, 2))
 				{
+					// 렌더 프리셋이 Pixel Shader를 직접 정하고 있으면 그쪽이 우선 적용되고,
+					// 이 값은 프리셋이 Pixel Shader를 Auto로 둔 경우에 쓰인다.
 					obj->SetShadingModel(static_cast<MaterialShadingModel>(shadingModelIndex));
 					NotifyObjectEdited();
 				}
@@ -264,6 +287,8 @@ public:
 			}
 		}
 
+		DrawRenderingSection(obj);
+
 		// --- Render Flags ---
 		if (ImGui::CollapsingHeader("Render Flags"))
 		{
@@ -287,6 +312,138 @@ public:
 	}
 
 private:
+	// --- Rendering ---
+	// "이 오브젝트를 어떻게 그릴지"는 렌더 프리셋 하나로 정한다.
+	//
+	// Vertex Shader / Pixel Shader / Render Path를 오브젝트마다 따로 고르지 않고,
+	// Render Presets 패널에서 만든 프리셋을 이 칸에 끌어다 놓거나 목록에서 고른다.
+	// 프리셋이 없으면(None) 오브젝트 종류의 기본 방식으로 그린다.
+	//
+	// 아래 "적용 중" 줄은 RenderDispatcher와 똑같이 ResolveMeshRoute()로 계산하므로
+	// 패널에 표시되는 내용과 화면에 그려지는 결과가 항상 일치한다.
+	void DrawRenderingSection(RenderObject* obj)
+	{
+		if (obj->mIsLight)
+		{
+			return;
+		}
+
+		const MeshRoute route = ResolveMeshRoute(
+			obj->mRenderType,
+			obj->mRenderPath,
+			obj->GetShadingModel(),
+			obj->mVertexShaderOverride,
+			obj->mPixelShaderOverride);
+		if (!route.isConfigurable)
+		{
+			// CubeMap처럼 전용 경로로만 그리는 종류는 프리셋을 받지 않는다.
+			return;
+		}
+
+		if (!ImGui::CollapsingHeader("Rendering", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			return;
+		}
+
+		// 프리셋 칸: 목록에서 고를 수도 있고, 프리셋 타일을 끌어다 놓을 수도 있다.
+		const std::string currentPreset = obj->mRenderPresetName;
+		const char* preview = currentPreset.empty() ? "None (Default)" : currentPreset.c_str();
+		if (ImGui::BeginCombo("Render Preset", preview))
+		{
+			if (ImGui::Selectable("None (Default)", currentPreset.empty()))
+			{
+				AssignRenderPreset(std::string());
+			}
+			if (m_pRenderPresets)
+			{
+				for (const RenderPreset& preset : m_pRenderPresets->GetPresets())
+				{
+					if (ImGui::Selectable(preset.name.c_str(), currentPreset == preset.name))
+					{
+						AssignRenderPreset(preset.name);
+					}
+				}
+			}
+			ImGui::EndCombo();
+		}
+		if (ImGui::BeginDragDropTarget())
+		{
+			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(RenderPresetDragPayloadType))
+			{
+				AssignRenderPreset(std::string(static_cast<const char*>(payload->Data)));
+			}
+			ImGui::EndDragDropTarget();
+		}
+
+		// 지금 실제로 적용되는 결과를 한 줄로 보여 준다.
+		ImGui::TextDisabled(
+			"%s pass: %s + %s",
+			route.deferred ? "Geometry" : "Forward",
+			route.vertexShader.c_str(),
+			route.pixelShader.c_str());
+
+		// 프리셋이 요청한 것과 실제 적용된 것이 다르면 이유를 알려 준다.
+		// (예: 일반 메시에 PBR 전용 Pixel Shader 프리셋, PBR이 아닌 메시에 Deferred 프리셋)
+		const RenderPreset* preset = m_pRenderPresets ? m_pRenderPresets->Find(currentPreset) : nullptr;
+		if (preset)
+		{
+			if (!preset->pixelShader.empty() && !route.deferred && preset->pixelShader != route.pixelShader)
+			{
+				ImGui::TextColored(
+					ImVec4(1.0f, 0.75f, 0.2f, 1.0f),
+					"Preset pixel shader '%s' does not fit this mesh.",
+					preset->pixelShader.c_str());
+			}
+			if (preset->renderPath == SceneRenderPath::Deferred && !route.deferred)
+			{
+				ImGui::TextColored(
+					ImVec4(1.0f, 0.75f, 0.2f, 1.0f),
+					"Deferred needs PBR shaders: drawn in Forward.");
+			}
+		}
+
+		// 셰이더가 읽는 데이터가 오브젝트에 없으면 제대로 보이지 않는다.
+		// 크래시가 나지는 않으므로 막지 않고 이유만 알려 준다.
+		const ShaderInfo* activeVertexShader = ShaderCatalog::FindVertexShader(route.vertexShader);
+		const ShaderLinkage linkage = activeVertexShader ? activeVertexShader->linkage : ShaderLinkage::Basic;
+		const char* missingData = nullptr;
+		if (route.vertexShader == ShaderCatalog::VertexShader::Skinned && !obj->mIs_VSBoneConstant)
+		{
+			missingData = "No bone buffer: mesh will collapse.";
+		}
+		else if (route.vertexShader == ShaderCatalog::VertexShader::Equipment && !obj->mIs_VSTargetBoneConstant)
+		{
+			missingData = "No target bone buffer: mesh will collapse.";
+		}
+		else if (route.vertexShader == ShaderCatalog::VertexShader::Water && !obj->mIs_VSWaterConstant)
+		{
+			missingData = "No water buffer: UV will not scroll.";
+		}
+		else if (linkage == ShaderLinkage::Pbr && (!obj->mIs_VSPBRConstant || !obj->mIs_PSPBRConstant))
+		{
+			missingData = "No PBR material data: surface will look wrong.";
+		}
+		else if (linkage == ShaderLinkage::Basic && !obj->mIs_PSconstant)
+		{
+			missingData = "No basic material buffer: surface will look wrong.";
+		}
+		if (missingData)
+		{
+			ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "%s", missingData);
+		}
+
+		ImGui::Spacing();
+	}
+
+	void AssignRenderPreset(const std::string& presetName)
+	{
+		// 프리셋을 오브젝트의 셰이더/경로 설정으로 풀어 내고 씬에 저장하는 일은 Scene이 한다.
+		if (m_assignRenderPresetCallback)
+		{
+			m_assignRenderPresetCallback(m_selectedIndex, presetName);
+		}
+	}
+
 	void DrawTextRow(const char* label, const std::string& value)
 	{
 		ImGui::TextDisabled("%s", label);
@@ -329,5 +486,9 @@ private:
 	std::vector<std::unique_ptr<RenderObject>>& m_objects;
 	int& m_selectedIndex;
 	std::function<void()> m_objectEditedCallback;
+	// 프리셋 목록은 Scene이 소유한다. Inspector는 읽기만 하고, 지정은 콜백으로 Scene에 요청한다.
+	const RenderPresetLibrary* m_pRenderPresets = nullptr;
+	std::function<void(int, const std::string&)> m_assignRenderPresetCallback;
+	std::function<void(int, const std::string&)> m_assignDiffuseTextureCallback;
 	bool m_uniformScale = true;
 };

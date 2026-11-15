@@ -52,7 +52,8 @@ public:
 	void UICanvasSet(Vector2 _posXY, Vector2 _sizeWH);	// 캔占쏙옙占쏙옙 占쏙옙占쏙옙 (占쏙옙占쏙옙 占쏙옙치xy, 占쏙옙占싸쇽옙占쏙옙)
 	void UICanvasSetFin();										// 캔占쏙옙占쏙옙 占쏙옙占쏙옙占쏙옙 占쏙옙占쏙옙占쏙옙占쏙옙 占쏙옙占쏙옙
 	void NewUISetWindow(Vector2 _posXY, Vector2 _sizeWH, const std::string _windowName); // 占쏙옙占싸울옙 창占쏙옙 占쏙옙占쏙옙 占쏙옙 占쏙옙占?(占쏙옙占쏙옙 占쏙옙치xy, 占쏙옙占싸쇽옙占쏙옙, 占쏙옙占쏙옙창占쏙옙 占싱몌옙(占쌩븝옙x))
-	void SetUICurrentWindow();							// 占쏙옙占쏙옙 占쏙옙占쏙옙占쏙옙 占쏙옙占쏙옙占쏙옙占쏙옙, 占썩본 占쌓몌옙占쏙옙 占쌉쇽옙占쏙옙 占쌕뤄옙 占쏙옙占쏙옙 호占쏙옙
+	void SetUICurrentWindow();
+	void SetCanvasOrigin(ImVec2 origin) { m_canvasOrigin = origin; }							// 占쏙옙占쏙옙 占쏙옙占쏙옙占쏙옙 占쏙옙占쏙옙占쏙옙占쏙옙, 占썩본 占쌓몌옙占쏙옙 占쌉쇽옙占쏙옙 占쌕뤄옙 占쏙옙占쏙옙 호占쏙옙
 
 	/// 占썩본 占쌓몌옙占쏙옙
 	// 占쌔쏙옙트
@@ -96,6 +97,15 @@ public:
 
 private:
 	std::vector<IEditorPanel*> m_panels;
+	ImVec2 m_canvasOrigin{};
+	ImVec2 CanvasPoint(float x, float y) const
+	{
+		return ImVec2(window->Pos.x + m_canvasOrigin.x - window->Scroll.x + x,
+			window->Pos.y + m_canvasOrigin.y - window->Scroll.y + y);
+	}
+	HWND m_editorWindow = nullptr;
+	float m_lastDpiScale = 0;
+	ImGuiStyle m_baseStyle;
 	void Drag(Vector2& _posXY);
 };
 

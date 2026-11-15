@@ -21,7 +21,8 @@ bool GBuffer::Initialize(ID3D11Device* device, ID3D11DeviceContext* context, UIN
 
 bool GBuffer::Resize(UINT width, UINT height)
 {
-	if (!m_device || width == 0 || height == 0)
+	if (!m_device || width == 0 || height == 0 || width > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION ||
+		height > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION)
 	{
 		return false;
 	}
@@ -38,10 +39,12 @@ bool GBuffer::Resize(UINT width, UINT height)
 	// Albedo는 일반 색상 범위이므로 8-bit UNORM이면 충분하다.
 	// Normal은 -1~1 방향값의 작은 차이가 조명에 크게 보이므로 16-bit float를 사용한다.
 	// Material은 Metallic/Roughness/AO처럼 0~1 값들이므로 8-bit UNORM으로 묶는다.
-	return CreateColorTarget(static_cast<size_t>(Target::Albedo), DXGI_FORMAT_R8G8B8A8_UNORM) &&
+	const bool ready = CreateColorTarget(static_cast<size_t>(Target::Albedo), DXGI_FORMAT_R8G8B8A8_UNORM) &&
 		CreateColorTarget(static_cast<size_t>(Target::Normal), DXGI_FORMAT_R16G16B16A16_FLOAT) &&
 		CreateColorTarget(static_cast<size_t>(Target::Material), DXGI_FORMAT_R8G8B8A8_UNORM) &&
 		CreateDepthTarget();
+	if (!ready) ReleaseResources();
+	return ready;
 }
 
 void GBuffer::BindForGeometryPass()

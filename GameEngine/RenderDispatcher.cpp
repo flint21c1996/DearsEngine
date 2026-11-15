@@ -1,9 +1,12 @@
 ﻿#include "RenderDispatcher.h"
 
+#include <algorithm>
+
 #include "Camera.h"
-#include "DearsGraphicsEngine.h"
+#include "IDearsRenderer.h"
 #include "ModelBuffer.h"
 #include "RenderObject.h"
+#include "RenderRouting.h"
 
 namespace
 {
@@ -41,21 +44,30 @@ float CalculateDistanceBasedOutlineScale(const RenderObject& object, Camera* cam
 	return 1.0f + outlineAmount;
 }
 
-bool IsDeferredDefaultLitPbr(const SceneRenderItem& item)
+MeshRoute ResolveItemRoute(const SceneRenderItem& item)
 {
-	// 현재 Deferred Lighting Shader가 해석할 수 있는 G-Buffer 형식은
-	// Default Lit PBR Material로 한정되어 있다. Geometry와 Forward 필터가
-	// 서로 다른 조건을 사용하면 오브젝트가 두 번 그려지거나 아예 사라질 수 있으므로
-	// 하나의 판정 함수를 두 패스에서 함께 사용한다.
-	return item.renderPath == SceneRenderPath::Deferred &&
-		item.renderType == SceneRenderType::PbrMesh &&
-		item.object &&
-		item.object->GetShadingModel() == MaterialShadingModel::DefaultLit;
+	// 오브젝트를 Geometry(Deferred)와 Forward 중 어느 패스에서, 어떤 셰이더로 그릴지 한 곳에서 판정한다.
+	// Geometry와 Forward 필터가 서로 다른 조건을 사용하면 오브젝트가 두 번 그려지거나
+	// 아예 사라질 수 있으므로, 두 패스와 Inspector가 모두 같은 함수(ResolveMeshRoute)를 쓴다.
+	//
+	// 셰이더를 재정의하지 않은 오브젝트는 예전과 같다:
+	// Deferred로 지정한 Default Lit PBR 메시만 G-Buffer로 가고 나머지는 Forward로 간다.
+	if (!item.object)
+	{
+		return MeshRoute();
+	}
+
+	return ResolveMeshRoute(
+		item.renderType,
+		item.renderPath,
+		item.object->GetShadingModel(),
+		item.object->mVertexShaderOverride,
+		item.object->mPixelShaderOverride);
 }
 }
 
-RenderDispatcher::RenderDispatcher(DearsGraphicsEngine* graphicsEngine)
-	: m_pGraphicsEngine(graphicsEngine)
+RenderDispatcher::RenderDispatcher(IDearsRenderer* renderer)
+	: m_pRenderer(renderer)
 {
 }
 
@@ -72,10 +84,10 @@ void RenderDispatcher::RenderShadowItems(const std::vector<SceneRenderItem>& ite
 
 void RenderDispatcher::RenderGeometryItems(const std::vector<SceneRenderItem>& items)
 {
-	// 첫 디퍼드 대상은 표면 데이터가 이미 준비된 PBR 메시로 제한한다.
+	// 디퍼드 대상은 G-Buffer를 채울 수 있는 PBR 계열 셰이더를 쓰는 메시로 제한한다.
 	for (const SceneRenderItem& item : items)
 	{
-		if (IsDeferredDefaultLitPbr(item))
+		if (ResolveItemRoute(item).deferred)
 		{
 			RenderGeometryItem(item);
 		}
@@ -89,7 +101,7 @@ void RenderDispatcher::RenderForwardItems(const std::vector<SceneRenderItem>& it
 	// G-Buffer 조명이 잘못되어도 정상처럼 보이는 문제가 생긴다.
 	for (const SceneRenderItem& item : items)
 	{
-		if (IsDeferredDefaultLitPbr(item))
+		if (ResolveItemRoute(item).deferred)
 		{
 			continue;
 		}
@@ -99,7 +111,7 @@ void RenderDispatcher::RenderForwardItems(const std::vector<SceneRenderItem>& it
 
 void RenderDispatcher::RenderShadowItem(const SceneRenderItem& item)
 {
-	if (!m_pGraphicsEngine || !item.object)
+	if (!m_pRenderer || !item.object)
 	{
 		return;
 	}
@@ -115,31 +127,20 @@ void RenderDispatcher::RenderShadowItem(const SceneRenderItem& item)
 	// StaticMesh는 일반 depth, SkinnedMesh는 bone buffer가 필요한 depth,
 	// EquipmentMesh는 target bone matrix가 필요한 depth 경로를 탄다.
 	//
-	// 지금은 여기서 DX11용 DearsGraphicsEngine 함수를 직접 부르지만,
-	// RHI를 도입하면 이 클래스가 "공통 shadow draw command"를 만들거나
-	// 선택된 백엔드에 draw 요청을 전달하는 위치로 바뀔 가능성이 높다.
-	switch (item.renderType)
-	{
-	case SceneRenderType::PbrMesh:
-		// PBR 메시는 Height Map이 실루엣을 바꿀 수 있으므로 전용 Shadow VS가 필요하다.
-		// 원본 정점만 그리면 화면의 돌출된 표면과 그림자 모양이 서로 달라진다.
-		m_pGraphicsEngine->RenderPbrDepthMap(modelBuffer);
-		break;
-	case SceneRenderType::SkinnedMesh:
-		m_pGraphicsEngine->RenderAniDepthMap(modelBuffer);
-		break;
-	case SceneRenderType::EquipmentMesh:
-		m_pGraphicsEngine->RenderEquipDepthMap(modelBuffer);
-		break;
-	default:
-		m_pGraphicsEngine->RenderDepthMap(modelBuffer);
-		break;
-	}
+	// 여기서는 "어떤 방식의 그림자 캐스터인지"만 고르고,
+	// 그 방식이 실제로 어떤 PSO/셰이더로 이어지는지는 렌더러 구현이 결정한다.
+	//
+	// PBR 메시는 Height Map이 실루엣을 바꿀 수 있으므로 전용 Shadow VS가 필요하다.
+	// 원본 정점만 그리면 화면의 돌출된 표면과 그림자 모양이 서로 달라진다.
+	// Inspector에서 Vertex Shader를 바꾼 오브젝트는 그 셰이더에 맞는 그림자 경로를 따라간다.
+	m_pRenderer->DrawShadowCaster(
+		modelBuffer,
+		ResolveShadowCasterMode(item.renderType, item.object->mVertexShaderOverride));
 }
 
 void RenderDispatcher::RenderGeometryItem(const SceneRenderItem& item)
 {
-	if (!m_pGraphicsEngine || !item.object)
+	if (!m_pRenderer || !item.object)
 	{
 		return;
 	}
@@ -152,12 +153,18 @@ void RenderDispatcher::RenderGeometryItem(const SceneRenderItem& item)
 
 	// 최종 조명 색상 대신 Albedo/Normal/Material G-Buffer만 기록한다.
 	// 이 항목의 최종 색상은 뒤의 Fullscreen Deferred Lighting Pass에서 만들어진다.
-	m_pGraphicsEngine->Rend_DeferredGeometry(modelBuffer);
+	const MeshRoute route = ResolveItemRoute(item);
+	if (route.useNamedShaders &&
+		m_pRenderer->DrawMeshWithShaders(modelBuffer, route.vertexShader, route.pixelShader))
+	{
+		return;
+	}
+	m_pRenderer->DrawMesh(modelBuffer, MeshDrawMode::DeferredGeometry);
 }
 
 void RenderDispatcher::RenderForwardItem(const SceneRenderItem& item)
 {
-	if (!m_pGraphicsEngine || !item.object)
+	if (!m_pRenderer || !item.object)
 	{
 		return;
 	}
@@ -168,16 +175,26 @@ void RenderDispatcher::RenderForwardItem(const SceneRenderItem& item)
 		return;
 	}
 
-	// Forward pass에서는 씬이 넘긴 renderType에 따라 현재 DX11 렌더 함수를 고른다.
-	// 이 switch는 지금 당장은 "렌더 타입 -> DX11 렌더 함수" 매핑이지만,
-	// 나중에는 "렌더 타입 -> RHI pipeline / draw command" 매핑으로 옮겨갈 부분이다.
+	// Forward pass에서는 씬이 넘긴 renderType을 렌더러의 MeshDrawMode로 바꾼다.
+	// "씬이 말하는 오브젝트 종류 -> 렌더러가 이해하는 그리기 방식" 변환만 여기서 하고,
+	// 그리기 방식이 어떤 PSO로 이어지는지는 렌더러 구현 안에 있다.
+	//
+	// Inspector에서 셰이더를 직접 고른 오브젝트는 그 이름 조합으로 그린다.
+	// 조합을 만들 수 없으면(false) 아래의 종류별 기본 경로로 대신 그려서 오브젝트가 사라지지 않게 한다.
+	const MeshRoute route = ResolveItemRoute(item);
+	if (route.useNamedShaders &&
+		m_pRenderer->DrawMeshWithShaders(modelBuffer, route.vertexShader, route.pixelShader))
+	{
+		return;
+	}
+
 	switch (item.renderType)
 	{
 	case SceneRenderType::CubeMap:
-		m_pGraphicsEngine->Rend_CubeMap(modelBuffer);
+		m_pRenderer->DrawMesh(modelBuffer, MeshDrawMode::CubeMap);
 		break;
 	case SceneRenderType::Billboard:
-		m_pGraphicsEngine->Rend_BillBoard(modelBuffer);
+		m_pRenderer->DrawMesh(modelBuffer, MeshDrawMode::Billboard);
 		break;
 	case SceneRenderType::PbrMesh:
 		// Thin Film은 별도의 프레임 Pass가 아니라 Forward Pass 안에서 선택하는
@@ -185,28 +202,28 @@ void RenderDispatcher::RenderForwardItem(const SceneRenderItem& item)
 		// Pixel Shader와 b3 상수 버퍼만 Thin Film 경로로 교체한다.
 		if (item.object->GetShadingModel() == MaterialShadingModel::ThinFilm)
 		{
-			m_pGraphicsEngine->Rend_ThinFilm(modelBuffer);
+			m_pRenderer->DrawMesh(modelBuffer, MeshDrawMode::ThinFilm);
 		}
 		else
 		{
-			m_pGraphicsEngine->Rend_PBR(modelBuffer);
+			m_pRenderer->DrawMesh(modelBuffer, MeshDrawMode::Pbr);
 		}
 		break;
 	case SceneRenderType::SkinnedMesh:
-		m_pGraphicsEngine->Rend_AnimateModel(modelBuffer);
+		m_pRenderer->DrawMesh(modelBuffer, MeshDrawMode::Skinned);
 		break;
 	case SceneRenderType::EquipmentMesh:
-		m_pGraphicsEngine->Rend_EquipmentModel(modelBuffer);
+		m_pRenderer->DrawMesh(modelBuffer, MeshDrawMode::Equipment);
 		break;
 	default:
-		m_pGraphicsEngine->Rend_Model(modelBuffer);
+		m_pRenderer->DrawMesh(modelBuffer, MeshDrawMode::Static);
 		break;
 	}
 }
 
 void RenderDispatcher::RenderSelectedOutline(RenderObject* object, Camera* camera)
 {
-	if (!m_pGraphicsEngine || !object)
+	if (!m_pRenderer || !object)
 	{
 		return;
 	}
@@ -221,5 +238,5 @@ void RenderDispatcher::RenderSelectedOutline(RenderObject* object, Camera* camer
 	// 선택 상태는 DemoScene이 들고 있지만, "어떤 렌더 함수로 강조할지"는
 	// 렌더 디스패처가 알고 있는 편이 GameEngine을 단순하게 유지한다.
 	object->ConfigureOutline(CalculateDistanceBasedOutlineScale(*object, camera), Vector3(1.0f, 0.45f, 0.0f));
-	m_pGraphicsEngine->Rend_EdgeModel(modelBuffer);
+	m_pRenderer->DrawMesh(modelBuffer, MeshDrawMode::Outline);
 }

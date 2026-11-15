@@ -102,6 +102,7 @@ bool GBufferDebugRenderer::Resize(UINT width, UINT height)
 			FAILED(m_device->CreateRenderTargetView(m_textures[index].Get(), nullptr, m_renderTargetViews[index].GetAddressOf())) ||
 			FAILED(m_device->CreateShaderResourceView(m_textures[index].Get(), nullptr, m_shaderResourceViews[index].GetAddressOf())))
 		{
+			ReleaseTargets(); // Never mark a partial allocation as a reusable surface.
 			return false;
 		}
 	}

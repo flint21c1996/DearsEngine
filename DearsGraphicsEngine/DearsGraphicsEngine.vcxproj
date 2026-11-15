@@ -107,6 +107,7 @@
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)ThirdParty\imgui;$(SolutionDir)ThirdParty\imgui\backends;$(SolutionDir)ThirdParty\ImGuizmo;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -127,6 +128,7 @@
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)ThirdParty\imgui;$(SolutionDir)ThirdParty\imgui\backends;$(SolutionDir)ThirdParty\ImGuizmo;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -167,7 +169,17 @@
     <ClCompile Include="PostProcessRenderer.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="RendererHelper.cpp" />
+    <ClCompile Include="RenderPipeline.cpp" />
+    <ClCompile Include="RenderTargetPool.cpp" />
     <ClCompile Include="UiRenderer.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\imgui.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\backends\imgui_impl_dx11.cpp" />
+    <ClCompile Include="..\ThirdParty\imgui\backends\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\ThirdParty\ImGuizmo\ImGuizmo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="그래픽스 관련.txt" />
@@ -194,7 +206,13 @@
     <ClInclude Include="GraphicsResourceContainer.h" />
     <ClInclude Include="GraphicsResourceManager.h" />
     <ClInclude Include="DearsImGui.h" />
+    <ClInclude Include="IDearsRenderer.h" />
     <ClInclude Include="IEditorPanel.h" />
+    <ClInclude Include="IRenderPass.h" />
+    <ClInclude Include="RenderPassIO.h" />
+    <ClInclude Include="RenderPipeline.h" />
+    <ClInclude Include="RenderTargetPool.h" />
+    <ClInclude Include="ShaderCatalog.h" />
     <ClInclude Include="LayerEnum.h" />
     <ClInclude Include="LightHelper.h" />
     <ClInclude Include="Light.h" />
