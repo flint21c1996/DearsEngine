@@ -107,7 +107,7 @@
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)DearsGraphicsEngine;$(SolutionDir)DearsTweening</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)ThirdParty\imgui;$(SolutionDir)ThirdParty\imgui\backends;$(SolutionDir)ThirdParty\ImGuizmo;$(SolutionDir)DearsGraphicsEngine;$(SolutionDir)DearsTweening</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -131,7 +131,7 @@
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>..\DearsGraphicsEngine;..\DearsTweening;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)ThirdParty\imgui;$(SolutionDir)ThirdParty\imgui\backends;$(SolutionDir)ThirdParty\ImGuizmo;..\DearsGraphicsEngine;..\DearsTweening;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -147,6 +147,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AStar.h" />
+    <ClInclude Include="ContentBrowserPanel.h" />
     <ClInclude Include="DemoScene.h" />
     <ClInclude Include="EditorResourceCatalog.h" />
     <ClInclude Include="Entity.h" />
@@ -162,6 +163,11 @@
     <ClInclude Include="tempObject.h" />
     <ClInclude Include="RenderObject.h" />
     <ClInclude Include="RenderDispatcher.h" />
+    <ClInclude Include="SceneHistory.h" />
+    <ClInclude Include="RenderPipelinePanel.h" />
+    <ClInclude Include="RenderPreset.h" />
+    <ClInclude Include="RenderPresetPanel.h" />
+    <ClInclude Include="RenderRouting.h" />
     <ClInclude Include="SceneHierarchyPanel.h" />
     <ClInclude Include="ObjectInspectorPanel.h" />
     <ClInclude Include="LightShadowMapPanel.h" />
@@ -172,6 +178,7 @@
   <ItemGroup>
     <ClCompile Include="AStar.cpp" />
     <ClCompile Include="DemoScene.cpp" />
+    <ClCompile Include="DemoSceneEditor.cpp" />
     <ClCompile Include="Entity.cpp" />
     <ClCompile Include="EntityManager.cpp" />
     <ClCompile Include="GameEngine.cpp" />

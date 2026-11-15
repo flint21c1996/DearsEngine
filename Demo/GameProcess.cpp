@@ -2,6 +2,7 @@
 #include "GameEngine.h"
 //#include "../GameEngine/GameEngine.h"
 #include "imgui.h"
+#include <imgui_impl_win32.h>
 
 #ifdef _DEBUG
 #include<iostream>
@@ -26,6 +27,15 @@ GameProcess::~GameProcess()
 
 HRESULT GameProcess::Initialize(HINSTANCE hInstance)
 {
+	ImGui_ImplWin32_EnableDpiAwareness();
+	RECT work{0, 0, m_ScreenWidth, m_ScreenHeight};
+	SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
+	m_ScreenWidth = int((work.right - work.left) * 0.9f);
+	m_ScreenHeight = int((work.bottom - work.top) * 0.9f);
+	RECT outer{0, 0, m_ScreenWidth, m_ScreenHeight};
+	AdjustWindowRectExForDpi(&outer, WS_OVERLAPPEDWINDOW, FALSE, 0, GetDpiForSystem());
+	m_WindowPosX = work.left + ((work.right - work.left) - (outer.right - outer.left)) / 2;
+	m_WindowPosY = work.top + ((work.bottom - work.top) - (outer.bottom - outer.top)) / 2;
 	//운영체제에서 창 클래스를 정의하고 등록한다. WNDCLASSEX는 창 클래스의 속성을 정의하는 구조체이다. 
 	WNDCLASSEX wc = {
 		sizeof(WNDCLASSEX),												//구조체의 크기를 나타낸다. 
@@ -48,15 +58,15 @@ HRESULT GameProcess::Initialize(HINSTANCE hInstance)
 	m_hWnd = CreateWindow(
 		wc.lpszClassName,												// 앞서 등록한 창클래스의 이름. 이름을 통해 CreateWindow함수는 어떤 창 클래스를 사용하여 창을 생성할지 알수 있다.
 		L"MangoWaffle Graphics",										// 생성될 창의 제목. 클래스의 이름과는 다르다.
-		WS_POPUP,											// 창의 스타일을 설정한다. 무슨 창이 있는지는 가서 한번 봐봐
+		WS_OVERLAPPEDWINDOW,											// 창의 스타일을 설정한다. 무슨 창이 있는지는 가서 한번 봐봐
 		m_WindowPosX,													// 윈도우 좌측 상단의 x 좌표	
 		m_WindowPosY,													// 윈도우 좌측 상단의 y 좌표	
-		m_ScreenWidth,													// 윈도우 가로 방향 해상도	
-		m_ScreenHeight,													// 윈도우 세로 방향 해상도	
+		outer.right - outer.left,													// 윈도우 가로 방향 해상도
+		outer.bottom - outer.top,													// 윈도우 세로 방향 해상도
 		NULL,
 		NULL,
 		wc.hInstance,													//앞서 GetModuleHandle(NULL) 함수를 통해 가져온 인스턴스 핸들
-		NULL);
+		this);
 
 	if (!m_hWnd)
 	{
@@ -71,6 +81,9 @@ HRESULT GameProcess::Initialize(HINSTANCE hInstance)
 	ShowWindow(m_hWnd, SW_SHOWDEFAULT);											// ShowWindow 함수를 호출하여 창을 화면에 표시, hwnd는 앞서 CreateWindow 함수를 통해 생성된 창의 핸들, SW_SHOWDEFAULT는 창을 기본 상태로 표시하도록 지시
 	UpdateWindow(m_hWnd);														// UpdateWindow 함수를 호출하여 창을 즉시 업데이트
 
+	RECT client{};
+	GetClientRect(m_hWnd, &client);
+	m_ScreenWidth = client.right; m_ScreenHeight = client.bottom;
 	m_pGameEngine = new GameEngine(m_hWnd, m_ScreenWidth, m_ScreenHeight);
 	m_pGameEngine->Initialize();
 	return S_OK;
@@ -78,24 +91,25 @@ HRESULT GameProcess::Initialize(HINSTANCE hInstance)
 
 void GameProcess::Loop()
 {
-	while (true)
-	{
-		if (PeekMessage(&m_Msg, NULL, 0, 0, PM_REMOVE))
-		{
-			if (m_Msg.message == WM_QUIT) break;
-
-			// TranslateMessage는 WM_KEYDOWN 같은 키 입력을 WM_CHAR 문자 입력으로 변환한다.
-			// ImGui::InputText는 실제 글자를 입력받을 때 WM_CHAR를 사용하므로,
-			// 이 호출이 없으면 텍스트 박스에 커서는 떠도 문자가 들어가지 않는다.
-			TranslateMessage(&m_Msg);
-			DispatchMessage(&m_Msg);
-		}
-
-		//게임엔진의 루프로 들어간다. 
-		m_pGameEngine->GameLoop();
-	}
-
+    for (;;)
+    {
+        while (PeekMessage(&m_Msg, NULL, 0, 0, PM_REMOVE))
+        {
+            if (m_Msg.message == WM_QUIT) return;
+            TranslateMessage(&m_Msg);
+            DispatchMessage(&m_Msg);
+        }
+        if (m_clientSize.minimized) { WaitMessage(); continue; }
+        if (m_clientSize.pending)
+        {
+            m_surfaceReady = m_pGameEngine->ResizeClient(m_clientSize.width, m_clientSize.height);
+            m_clientSize.pending = false;
+        }
+        if (m_surfaceReady) m_pGameEngine->GameLoop();
+        else WaitMessage();
+    }
 }
+
 
 void GameProcess::Finalize()
 {
@@ -107,15 +121,30 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT mes
 //WndProc함수는 창에 대한 피드백만 주고 받게.
 LRESULT CALLBACK GameProcess::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+auto* self = reinterpret_cast<GameProcess*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
+	if (message == WM_NCCREATE)
 	{
-		return true;
+		self = static_cast<GameProcess*>(reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams);
+		SetWindowLongPtrW(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
 	}
+	const bool handled = ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam) != 0;
 
 	switch (message)
 	{
 
-	case WM_SIZE:																//윈도우의 크기가 변경될 때 발생하는 메세지 
+	case WM_DPICHANGED:
+	{
+		const auto* suggested = reinterpret_cast<const RECT*>(lParam);
+		SetWindowPos(hWnd, nullptr, suggested->left, suggested->top, suggested->right - suggested->left,
+			suggested->bottom - suggested->top, SWP_NOZORDER | SWP_NOACTIVATE);
+		return 0;
+	}
+	case WM_SIZE:
+		if (self)
+		{
+			self->m_clientSize.Notify(int(LOWORD(lParam)), int(HIWORD(lParam)), wParam == SIZE_MINIMIZED);
+			if (!self->m_surfaceReady && !self->m_clientSize.minimized) self->m_clientSize.pending = true;
+		}																//윈도우의 크기가 변경될 때 발생하는 메세지
 		// Reset and resize swapchain											// 이 메세지를 처리하여 스왑체인을 재설정한다.
 		return 0;
 	case WM_SYSCOMMAND:															//시스템 명령이 발생할 때 발생하는 메시지
@@ -133,5 +162,6 @@ LRESULT CALLBACK GameProcess::WndProc(HWND hWnd, UINT message, WPARAM wParam, LP
 		return 0;
 	}
 
+	if (handled) return 1;
 	return ::DefWindowProc(hWnd, message, wParam, lParam);
 }

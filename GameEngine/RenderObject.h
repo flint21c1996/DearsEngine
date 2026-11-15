@@ -99,6 +99,18 @@ public:
 	// 기본값은 기존 PBRPixelShader를 사용하는 Default Lit이다.
 	MaterialShadingModel mShadingModel = MaterialShadingModel::DefaultLit;
 
+	// "이 오브젝트를 어떻게 그릴지" 설정이다.
+	// mRenderType은 생성할 때 정해지는 메시 구조이다.
+	// mRenderPresetName은 이 오브젝트에 끌어다 놓은 렌더 프리셋의 이름이고(비어 있으면 기본 방식),
+	// 그 아래 세 값은 Scene이 프리셋을 풀어서 채워 넣는 결과이다. 직접 고치지 말고 프리셋을 바꾼다.
+	// 셰이더 이름은 ShaderCatalog의 이름이며, 비어 있으면 mRenderType의 기본 셰이더를 쓴다.
+	// 실제로 적용되는 조합은 ResolveMeshRoute()(RenderRouting.h)가 이 값들로 결정한다.
+	std::string mRenderPresetName;
+	SceneRenderType mRenderType = SceneRenderType::StaticMesh;
+	SceneRenderPath mRenderPath = SceneRenderPath::Forward;
+	std::string mVertexShaderOverride;
+	std::string mPixelShaderOverride;
+
 	// 에디터에서 어떤 리소스를 골라 이 오브젝트를 만들었는지 기록한다.
 	// 렌더링에는 ModelBuffer의 실제 포인터/SRV가 쓰이지만,
 	// Inspector는 사람이 읽을 수 있는 리소스 이름도 필요하다.

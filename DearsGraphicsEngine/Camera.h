@@ -18,6 +18,7 @@ private:
 	float mOrthoGraphicScreenWidth = 192.0f;
 	float mOrthoGraphicScreenHeight = 108.0f;
 
+	float mPixelOrthoScale = 0; // Zero means explicit world-space orthographic extents.
 	float mAspect;		// 화면 비율
 	float mSpeed;		// 움직이는 속도
 

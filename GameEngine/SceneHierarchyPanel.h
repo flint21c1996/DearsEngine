@@ -10,6 +10,7 @@
 #include "EditorResourceCatalog.h"
 #include "IEditorPanel.h"
 #include "RenderObject.h"
+#include "RenderPreset.h"
 
 static constexpr float EDITOR_PANEL_WIDTH_RATIO = 1.0f / 6.0f;
 
@@ -56,6 +57,11 @@ struct SceneObjectCreateDesc
 	SceneRenderType renderType = SceneRenderType::StaticMesh;
 	SceneRenderPath renderPath = SceneRenderPath::Forward;
 	MaterialShadingModel shadingModel = MaterialShadingModel::DefaultLit;
+	// 이 오브젝트에 지정한 렌더 프리셋의 이름이다. 비어 있으면 renderType/renderPath의 기본 방식으로 그린다.
+	std::string renderPresetName;
+	// 프리셋에서 풀어 낸 셰이더 재정의이다. 비어 있으면 renderType의 기본 셰이더를 쓴다.
+	std::string vertexShaderOverride;
+	std::string pixelShaderOverride;
 	bool castShadow = true;
 };
 
@@ -67,12 +73,16 @@ public:
 		std::vector<std::unique_ptr<RenderObject>>& objects,
 		std::vector<std::string>& objectNames,
 		int& selectedIndex,
-		std::function<void(const SceneObjectCreateDesc&)> createObjectCallback)
+		std::function<void(const SceneObjectCreateDesc&)> createObjectCallback,
+		std::function<void(int, const std::string&)> renderPresetDroppedCallback = nullptr,
+		std::function<void(int, const std::string&)> textureDroppedCallback = nullptr)
 		: m_pGraphicsEngine(graphicsEngine)
 		, m_objects(objects)
 		, m_objectNames(objectNames)
 		, m_selectedIndex(selectedIndex)
 		, m_createObjectCallback(createObjectCallback)
+		, m_renderPresetDroppedCallback(renderPresetDroppedCallback)
+		, m_textureDroppedCallback(textureDroppedCallback)
 	{}
 
 	const char* GetName() const override { return "Scene Hierarchy"; }
@@ -83,16 +93,14 @@ public:
 		float panelW = static_cast<float>(GetEditorPanelWidth(screenSize.x));
 		float topH    = screenSize.y * 0.45f;
 
-		ImGui::SetNextWindowPos(ImVec2(screenSize.x - panelW, 0.0f), ImGuiCond_Always);
-		ImGui::SetNextWindowSize(ImVec2(panelW, topH), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(screenSize.x - panelW, 0.0f), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(panelW, topH), ImGuiCond_FirstUseEver);
 
 		ImGuiWindowFlags flags =
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoCollapse;
 
 		ImGui::Begin("Scene Hierarchy", nullptr, flags);
-		ImGui::SetWindowFontScale(0.8f);
+		// Use the DPI-scaled editor font.
 
 		for (int i = 0; i < (int)m_objects.size(); i++)
 		{
@@ -101,8 +109,34 @@ public:
 				: ("Object " + std::to_string(i));
 
 			bool selected = (m_selectedIndex == i);
+			// 이름이 같은 오브젝트가 있어도 각 줄이 서로 다른 ImGui 항목이 되도록 인덱스를 ID로 쓴다.
+			ImGui::PushID(i);
 			if (ImGui::Selectable(label.c_str(), selected))
 				m_selectedIndex = i;
+
+			// Render Presets 패널에서 끌어 온 프리셋을 이 오브젝트에 놓으면 그 프리셋으로 그리게 된다.
+			// 라이트는 그릴 메시가 없으므로 드롭을 받지 않는다.
+			if (m_renderPresetDroppedCallback && m_objects[i] && !m_objects[i]->mIsLight &&
+				ImGui::BeginDragDropTarget())
+			{
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(RenderPresetDragPayloadType))
+				{
+					m_selectedIndex = i;
+					m_renderPresetDroppedCallback(i, std::string(static_cast<const char*>(payload->Data)));
+				}
+				// Content Browser의 텍스처를 놓으면 그 오브젝트의 Diffuse 텍스처가 바뀐다.
+				// (페이로드 이름은 ContentBrowserPanel.h의 TextureAssetDragPayloadType과 같다.)
+				if (m_textureDroppedCallback)
+				{
+					if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DEARS_ASSET_TEXTURE"))
+					{
+						m_selectedIndex = i;
+						m_textureDroppedCallback(i, std::string(static_cast<const char*>(payload->Data)));
+					}
+				}
+				ImGui::EndDragDropTarget();
+			}
+			ImGui::PopID();
 		}
 
 		ImGui::Separator();
@@ -460,4 +494,6 @@ private:
 	std::vector<std::string>& m_objectNames;
 	int& m_selectedIndex;
 	std::function<void(const SceneObjectCreateDesc&)> m_createObjectCallback;
+	std::function<void(int, const std::string&)> m_renderPresetDroppedCallback;
+	std::function<void(int, const std::string&)> m_textureDroppedCallback;
 };

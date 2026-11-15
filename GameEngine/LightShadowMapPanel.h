@@ -41,12 +41,10 @@ public:
 		constexpr float panelHeight = previewHeight + 70.0f;
 		ImGui::SetNextWindowPos(
 			ImVec2(12.0f, displaySize.y - panelHeight - 12.0f),
-			ImGuiCond_Always);
-		ImGui::SetNextWindowSize(ImVec2(panelWidth, panelHeight), ImGuiCond_Always);
+			ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(panelWidth, panelHeight), ImGuiCond_FirstUseEver);
 
 		const ImGuiWindowFlags flags =
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoCollapse;
 		ImGui::Begin(GetName(), nullptr, flags);
 

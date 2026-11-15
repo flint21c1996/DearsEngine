@@ -50,11 +50,15 @@ bool Renderer::Initialize(GraphicsResourceManager* _pResourceManager)
 
 void Renderer::SetViewportWidth(int viewportWidth)
 {
-	m_pD3dScreenViewport.Width = static_cast<float>(viewportWidth);
+	if (viewportWidth > 0) m_pD3dScreenViewport.Width = static_cast<float>(viewportWidth);
 }
 
 void Renderer::BeginRender()
 {
+	ID3D11ShaderResourceView* empty[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT]{};
+	m_pDeviceContext->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, empty);
+	const float editorBackground[4] = {0.08f, 0.08f, 0.09f, 1};
+	m_pDeviceContext->ClearRenderTargetView(m_presentRenderTarget.Get(), editorBackground);
 	// 占쏙옙占쏙옙占쏙옙占쏙옙 占쏙옙占쏙옙트占쏙옙 占쏙옙占쏙옙占싼댐옙. (1占쏙옙占쏙옙, m_pD3dScreenViewport 占쏙옙占쏙옙)
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
 
@@ -89,9 +93,46 @@ void Renderer::BindMainRenderTarget(ID3D11DepthStencilView* depthStencilView)
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
 }
 
+void Renderer::BeginShadowFrame()
+{
+	m_shadowFrame.BeginFrame();
+	RefreshShadowBindings();
+}
+
+void Renderer::BeginShadowProduction()
+{
+	m_shadowFrame.BeginProduction();
+	RefreshShadowBindings();
+}
+
+void Renderer::EndShadowProduction(bool success)
+{
+	// A malformed or throwing callback must not leave a shadow DSV active.
+	if (m_activeShadowDSV)
+	{
+		BindMainRenderTarget();
+		m_activeShadowDSV = nullptr;
+		m_activeShadowViewport = nullptr;
+	}
+	m_shadowFrame.EndProduction(success);
+	RefreshShadowBindings();
+}
+
+void Renderer::RefreshShadowBindings()
+{
+	ID3D11ShaderResourceView* shadows[2] = {
+		m_shadowFrame.TwoDimensionalMask() ? m_twoDimensionalShadowArraySRV.Get() : nullptr,
+		m_shadowFrame.PointMask() ? m_pointShadowCubeSRV.Get() : nullptr
+	};
+	m_pDeviceContext->PSSetShaderResources(15, 2, shadows);
+	// Refresh retained b1 even for passes intentionally reusing their context.
+	if (m_hasCommonData) UpdateCommonConstantBuffer(m_commonData);
+}
+
 void Renderer::BeginTwoDimensionalShadowPass(UINT lightIndex)
 {
-	if (lightIndex >= m_twoDimensionalShadowDSVs.size())
+	if (!m_shadowFrame.IsProducing()) { BeginShadowFrame(); return; }
+	if (lightIndex >= m_twoDimensionalShadowDSVs.size() || !m_twoDimensionalShadowDSVs[lightIndex])
 	{
 		return;
 	}
@@ -103,6 +144,7 @@ void Renderer::BeginTwoDimensionalShadowPass(UINT lightIndex)
 
 	m_pDeviceContext->ClearDepthStencilView(
 		m_twoDimensionalShadowDSVs[lightIndex].Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+	m_shadowFrame.RecordTwoDimensional(lightIndex);
 	m_activeShadowDSV = m_twoDimensionalShadowDSVs[lightIndex].Get();
 	m_activeShadowViewport = &m_shadowViewport;
 	m_pDeviceContext->RSSetViewports(1, m_activeShadowViewport);
@@ -111,11 +153,13 @@ void Renderer::BeginTwoDimensionalShadowPass(UINT lightIndex)
 
 void Renderer::BeginPointShadowFace(UINT lightIndex, UINT faceIndex)
 {
+	if (!m_shadowFrame.IsProducing()) { BeginShadowFrame(); return; }
 	if (lightIndex >= MAX_LIGHTS || faceIndex >= 6)
 	{
 		return;
 	}
 	const UINT arraySlice = lightIndex * 6 + faceIndex;
+	if (!m_pointShadowCubeDSVs[arraySlice]) return;
 
 	// Point Light는 한 위치에서 +X, -X, +Y, -Y, +Z, -Z를 각각 렌더링한다.
 	// 매 호출은 TextureCube 배열의 한 면만 DSV로 선택하며, 실제 메시 draw 코드는
@@ -123,6 +167,7 @@ void Renderer::BeginPointShadowFace(UINT lightIndex, UINT faceIndex)
 	ID3D11ShaderResourceView* nullShadowResources[2] = { nullptr, nullptr };
 	m_pDeviceContext->PSSetShaderResources(15, 2, nullShadowResources);
 
+	m_shadowFrame.RecordPointFace(lightIndex, faceIndex);
 	m_activeShadowDSV = m_pointShadowCubeDSVs[arraySlice].Get();
 	m_activeShadowViewport = &m_pointShadowViewport;
 	m_pDeviceContext->ClearDepthStencilView(
@@ -139,14 +184,10 @@ void Renderer::EndShadowPass()
 		1, m_pRenderTargetView.GetAddressOf(), mpDepthStencilView.Get());
 	m_pDeviceContext->RSSetViewports(1, &m_pD3dScreenViewport);
 
-	ID3D11ShaderResourceView* shadowResources[2] =
-	{
-		m_twoDimensionalShadowArraySRV.Get(),
-		m_pointShadowCubeSRV.Get()
-	};
-	m_pDeviceContext->PSSetShaderResources(15, 2, shadowResources);
+	m_shadowFrame.SealWrites();
 	m_activeShadowDSV = nullptr;
 	m_activeShadowViewport = nullptr;
+	RefreshShadowBindings();
 }
 
 void Renderer::SetCommonShaderResource(ComPtr<ID3D11ShaderResourceView> _environmentTexture, ComPtr<ID3D11ShaderResourceView> _diffuseTexture,
@@ -181,14 +222,8 @@ bool Renderer::SetCommonShaderResourceToGPU()
 	};
 	m_pDeviceContext->PSSetShaderResources(10, 4, pixelResources);
 
-	// 그림자 패스가 실행되지 않는 프레임에도 마지막으로 완성된 Shadow Map은 읽을 수 있다.
-	// 실제 Depth 쓰기 직전에는 Begin*ShadowPass()가 이 슬롯을 안전하게 해제한다.
-	ID3D11ShaderResourceView* shadowResources[2] =
-	{
-		m_twoDimensionalShadowArraySRV.Get(),
-		m_pointShadowCubeSRV.Get()
-	};
-	m_pDeviceContext->PSSetShaderResources(15, 2, shadowResources);
+	// Rebind only maps published by a completed current-frame producer.
+	RefreshShadowBindings();
 	return true;
 }
 
@@ -293,7 +328,8 @@ bool Renderer::InitalizeD3D()
 	 
 	// 占쏙옙占쏙옙 占쏙옙占쏙옙 타占쏙옙 占쏙옙 占쏙옙占쏙옙
 	RendererHelper::CreateRenderTargetView(m_pDevice, mpSwapChain, m_pRenderTargetView, mpBackBuffer);
-	HRESULT hr = m_pDevice->CreateShaderResourceView(mpBackBuffer.Get(), nullptr, mpMainRenderTargetSRV.GetAddressOf());
+	m_presentRenderTarget = m_pRenderTargetView;
+	m_clientWidth = m_ScreenWidth; m_clientHeight = m_ScreenHeight;
 
 	// 占썩본 占쏙옙 占쏙옙트 占쏙옙占쏙옙
 	RendererHelper::SetViewPort(m_pDeviceContext, m_startScreenWidth, m_startScreenHeight, m_endScreenWidth, m_endScreenHeight, m_pD3dScreenViewport);
@@ -308,11 +344,11 @@ bool Renderer::InitalizeD3D()
 		m_shadowViewport);
 	
 	// 占쏙옙占쏙옙 占쏙옙占쌕쏙옙 占쏙옙 占쏙옙占쏙옙
-	RendererHelper::CreateDepthStencilBuffer(m_pDevice, m_numQualityLevels, m_endScreenWidth, m_endScreenHeight, mpDepthStencilView);
+	// Main depth is allocated together with the world texture below.
 
 	//占쏙옙占쏙옙占?占쏙옙占쏙옙 타占쏙옙
-	RendererHelper::CreateRenderTargetView(m_pDevice, mpSwapChain, m_pTempTargetview, mpTempBuffer, 1, 1920 * 0.5, 1080 * 0.5);
-	hr = m_pDevice->CreateShaderResourceView(mpTempBuffer.Get(), nullptr, mpTempTargetSRV.GetAddressOf());
+	if (!SetWorldSize(m_ScreenWidth, m_ScreenHeight)) return false;
+	// World and temporary color targets are both sampleable and share pixel dimensions.
 
 	if (!CreateTwoDimensionalShadowArray())
 	{
@@ -474,7 +510,12 @@ void Renderer::LightUpdate(CommonConstantBufferData* _psBufferData)
 
 void Renderer::UpdateCommonConstantBuffer(CommonConstantBufferData& _CommonBufferData)
 {
-	RendererHelper::UpdateBuffer(m_pDeviceContext, _CommonBufferData, mpCommonConstantBuffer);
+	m_commonData = _CommonBufferData;
+	m_commonData.shadow2DMask = m_shadowFrame.TwoDimensionalMask();
+	m_commonData.shadowCubeMask = m_shadowFrame.PointMask();
+	m_commonData.shadowPadding = 0;
+	m_hasCommonData = true;
+	RendererHelper::UpdateBuffer(m_pDeviceContext, m_commonData, mpCommonConstantBuffer);
 
 	// 占쏙옙占싱댐옙占쏙옙 占싹곤옙占쏙옙 占쏙옙占쏙옙 register(b1)***
 	m_pDeviceContext->VSSetConstantBuffers(1, 1, mpCommonConstantBuffer.GetAddressOf());
@@ -658,6 +699,8 @@ void Renderer::RenderEdge(ModelBuffer* _modelbuffer)
 
 void Renderer::RenderSampler(ModelBuffer* _modelbuffer)
 {
+	ID3D11ShaderResourceView* empty = nullptr;
+	m_pDeviceContext->PSSetShaderResources(0, 1, &empty);
 	// 占쏙옙占쌔쏙옙/占싸듸옙占쏙옙 占쏙옙占쏙옙 占쏙옙占쏙옙
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
@@ -680,6 +723,8 @@ void Renderer::RenderSampler(ModelBuffer* _modelbuffer)
 /////
 void Renderer::RenderPostProcessing(ModelBuffer* _modelbuffer)
 {
+	ID3D11ShaderResourceView* empty = nullptr;
+	m_pDeviceContext->PSSetShaderResources(0, 1, &empty);
 	// 占쏙옙占쌔쏙옙/占싸듸옙占쏙옙 占쏙옙占쏙옙 占쏙옙占쏙옙
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
@@ -736,3 +781,56 @@ void Renderer::Rend_InstancedModels(ModelBuffer* _modelBuffers)
 
 }
 
+
+bool Renderer::SetWorldSize(int width, int height)
+{
+    if (!m_pDevice || !m_pDeviceContext || width <= 0 || height <= 0 ||
+        width > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION || height > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION) return false;
+    const auto* current = m_worldTargets.Get(m_worldTarget);
+    if (current && current->width == UINT(width) && current->height == UINT(height)) return true;
+    RenderTargetPool staged = m_worldTargets;
+    staged.Initialize(m_pDevice.Get(), UINT(width), UINT(height));
+    auto world = m_worldTarget;
+    auto temp = m_worldTempTarget;
+    if (!world.IsValid()) world = staged.Create({.name="EditorWorld", .width=UINT(width), .height=UINT(height)});
+    else if (!staged.Resize(world, UINT(width), UINT(height))) return false;
+    if (!temp.IsValid()) temp = staged.Create({.name="EditorPostProcess", .width=UINT(width), .height=UINT(height),
+        .format=RenderTargetFormat::Rgba16Float, .withDepth=false});
+    else if (!staged.Resize(temp, UINT(width), UINT(height))) return false;
+    if (!world.IsValid() || !temp.IsValid()) return false;
+    m_worldTargets = std::move(staged);
+    m_worldTarget = world; m_worldTempTarget = temp;
+    const auto* output = m_worldTargets.Get(world);
+    const auto* scratch = m_worldTargets.Get(temp);
+    m_pRenderTargetView = output->renderTargetView;
+    mpMainRenderTargetSRV = output->shaderResourceView;
+    mpDepthStencilView = output->depthStencilView;
+    m_pTempTargetview = scratch->renderTargetView;
+    mpTempTargetSRV = scratch->shaderResourceView;
+    mpTempBuffer = scratch->colorTexture;
+    m_pD3dScreenViewport = output->viewport;
+    m_pD3dtempViewport = scratch->viewport;
+    return true;
+}
+
+bool Renderer::ResizeClient(int width, int height)
+{
+    if (!mpSwapChain || width <= 0 || height <= 0) return false;
+    if (width == m_clientWidth && height == m_clientHeight && m_presentRenderTarget) return true;
+    m_pDeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
+    // No UI draw data from the previous frame may survive this call.
+    m_presentRenderTarget.Reset();
+    mpBackBuffer.Reset();
+    if (FAILED(mpSwapChain->ResizeBuffers(0, UINT(width), UINT(height), DXGI_FORMAT_UNKNOWN, 0))) return false;
+    if (FAILED(mpSwapChain->GetBuffer(0, IID_PPV_ARGS(mpBackBuffer.GetAddressOf()))) ||
+        FAILED(m_pDevice->CreateRenderTargetView(mpBackBuffer.Get(), nullptr, m_presentRenderTarget.GetAddressOf()))) return false;
+    m_clientWidth = width; m_clientHeight = height;
+    return true;
+}
+
+void Renderer::BindPresentationTarget()
+{
+    m_pDeviceContext->OMSetRenderTargets(1, m_presentRenderTarget.GetAddressOf(), nullptr);
+    const D3D11_VIEWPORT viewport{0, 0, float(m_clientWidth), float(m_clientHeight), 0, 1};
+    m_pDeviceContext->RSSetViewports(1, &viewport);
+}

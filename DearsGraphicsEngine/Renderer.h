@@ -8,8 +8,10 @@
 #include "GraphicsResourceManager.h"
 #include "RendererHelper.h"
 #include "Camera.h"
+#include "RenderTargetPool.h"
 #include "PipelineStateObject.h "
 #include "GraphicsCommon.h"
+#include "ShadowFrameState.h"
 
 using Microsoft::WRL::ComPtr;
 using DirectX::SimpleMath::Vector3;
@@ -42,6 +44,10 @@ private:
 
 	// ?뚮뜑 ?寃?
 	ComPtr<ID3D11Texture2D> mpBackBuffer;
+	ComPtr<ID3D11RenderTargetView> m_presentRenderTarget;
+	RenderTargetPool m_worldTargets;
+	RenderTargetHandle m_worldTarget, m_worldTempTarget;
+	int m_clientWidth = 0, m_clientHeight = 0;
 	ComPtr<ID3D11ShaderResourceView> mpMainRenderTargetSRV;
 	ComPtr<ID3D11RenderTargetView> m_pRenderTargetView;
 
@@ -88,6 +94,10 @@ private:
 
 	// 怨듭슜 ?곸닔 踰꾪띁
 	ComPtr<ID3D11Buffer> mpCommonConstantBuffer;
+	CommonConstantBufferData m_commonData{};
+	ShadowFrameState<MAX_LIGHTS> m_shadowFrame;
+	bool m_hasCommonData = false;
+	void RefreshShadowBindings();
 
 	UINT m_numQualityLevels;
 
@@ -102,16 +112,28 @@ public:
 	// 외부에서 ComPtr를 보관하거나 리소스를 교체하지 못하게 raw pointer로 반환한다.
 	ID3D11ShaderResourceView* GetShadowMapShaderResourceView() const { return m_twoDimensionalShadowArraySRV.Get(); }
 	ID3D11ShaderResourceView* GetPointShadowCubeShaderResourceView() const { return m_pointShadowCubeSRV.Get(); }
+	// RenderPassIO로 패스 출력을 조합할 때 필요한 메인 출력 리소스이다. 소유권은 Renderer에 남는다.
+	ID3D11RenderTargetView* GetBackBufferRenderTargetView() const { return m_pRenderTargetView.Get(); }
+	ID3D11DepthStencilView* GetMainDepthStencilView() const { return mpDepthStencilView.Get(); }
+	// 에디터 패널 폭만큼 줄어든 실제 3D 표시 영역이다.
+	const D3D11_VIEWPORT& GetMainViewport() const { return m_pD3dScreenViewport; }
 
 	void SetCamera(Camera* _pTargetCamera);
 	bool Initialize(GraphicsResourceManager* _pResourceManager);
 	void SetViewportWidth(int viewportWidth);
+	bool SetWorldSize(int width, int height);
+	bool ResizeClient(int width, int height);
+	void BindPresentationTarget();
+	ID3D11ShaderResourceView* GetWorldShaderResourceView() const { return mpMainRenderTargetSRV.Get(); }
 	void BeginRender();
 
 	// G-Buffer 쓰기가 끝난 뒤 최종 조명/포워드 결과를 다시 백 버퍼에 기록한다.
 	// depthStencilView를 받는 이유는 Geometry Pass의 깊이를 Forward Pass에서도
 	// 이어서 사용해야 불투명 물체 앞뒤 관계가 유지되기 때문이다.
 	void BindMainRenderTarget(ID3D11DepthStencilView* depthStencilView = nullptr);
+	void BeginShadowFrame();
+	void BeginShadowProduction();
+	void EndShadowProduction(bool success);
 	void BeginTwoDimensionalShadowPass(UINT lightIndex);
 	void BeginPointShadowFace(UINT lightIndex, UINT faceIndex);
 	void EndShadowPass();

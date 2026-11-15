@@ -1,5 +1,6 @@
 #pragma once
 #include <windows.h>
+#include "EditorViewportState.h"
 
 class GameEngine;
 
@@ -23,6 +24,8 @@ private:
 
 	//게임엔진
 	GameEngine* m_pGameEngine;
+	EditorClientSize m_clientSize;
+	bool m_surfaceReady = true;
 public:
 	//게임 프로세스
 	HRESULT Initialize(HINSTANCE hInstance);		//게임엔진 초기화

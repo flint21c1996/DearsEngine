@@ -376,3 +376,4 @@ FodyWeavers.xsd
 /TestAsset/MyCube3/MyCube3DiffuseHDR.dds
 /TestAsset/MyCube3/MyCube3EnvHDR.dds
 /TestAsset/MyCube3/MyCube3SpecularHDR.dds
+/vcpkg_installed/

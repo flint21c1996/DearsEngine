@@ -2,7 +2,7 @@
 
 #include "IScene.h"
 
-class DearsGraphicsEngine;
+class IDearsRenderer;
 class Camera;
 class RenderObject;
 
@@ -11,13 +11,13 @@ class RenderObject;
 // GameEngine은 "어떤 렌더 패스를 실행할지"와 "어떤 씬 목록을 처리할지"까지만 알고,
 // RenderDispatcher는 각 SceneRenderType이 어떤 렌더 경로로 이어지는지 판단한다.
 //
-// 지금은 DearsGraphicsEngine의 DX11 기반 함수들을 직접 호출하지만,
-// RHI가 들어오면 이 클래스가 DX11/DX12/Vulkan 공통 draw command를 만들거나
-// 선택된 백엔드로 렌더 요청을 넘기는 위치가 될 수 있다.
+// DX11 구현 클래스가 아니라 IDearsRenderer 인터페이스에만 의존한다.
+// SceneRenderType을 MeshDrawMode/ShadowCasterMode로 바꿔서 넘기기만 하므로,
+// 백엔드가 바뀌거나 테스트용 가짜 렌더러를 넣어도 이 클래스는 그대로 쓸 수 있다.
 class RenderDispatcher
 {
 public:
-	explicit RenderDispatcher(DearsGraphicsEngine* graphicsEngine);
+	explicit RenderDispatcher(IDearsRenderer* renderer);
 
 	void RenderShadowItems(const std::vector<SceneRenderItem>& items);
 	void RenderGeometryItems(const std::vector<SceneRenderItem>& items);
@@ -28,5 +28,5 @@ public:
 	void RenderSelectedOutline(RenderObject* object, Camera* camera);
 
 private:
-	DearsGraphicsEngine* m_pGraphicsEngine = nullptr;
+	IDearsRenderer* m_pRenderer = nullptr;
 };

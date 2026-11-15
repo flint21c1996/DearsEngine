@@ -1,0 +1,8 @@
+DearsRenderPresets 1
+6
+"Lit" "" "Lit" Forward
+"Unlit" "" "Unlit" Forward
+"PBR Forward" "Pbr" "PbrLit" Forward
+"PBR Deferred" "Pbr" "" Deferred
+"Thin Film" "Pbr" "ThinFilm" Forward
+"New Preset" "" "" Forward

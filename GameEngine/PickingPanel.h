@@ -23,16 +23,14 @@ public:
 		float y = screenSize.y * 0.45f;
 		float h = 110.0f;
 
-		ImGui::SetNextWindowPos(ImVec2(screenSize.x - panelW, y), ImGuiCond_Always);
-		ImGui::SetNextWindowSize(ImVec2(panelW, h), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(screenSize.x - panelW, y), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(panelW, h), ImGuiCond_FirstUseEver);
 
 		ImGuiWindowFlags flags =
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoCollapse;
 
 		ImGui::Begin("Picking", nullptr, flags);
-		ImGui::SetWindowFontScale(0.8f);
+		// Use the DPI-scaled editor font.
 
 		int mode = static_cast<int>(m_pickingManager.GetMode());
 		if (ImGui::RadioButton("AABB", mode == static_cast<int>(PickingMode::AABB)))

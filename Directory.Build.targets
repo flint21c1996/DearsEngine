@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Platform)'=='x64'">
+    <IncludePath>$(VcpkgInstalledDir)$(VcpkgTriplet)\include;$(VcpkgInstalledDir)$(VcpkgTriplet)\include\directxmath;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <!-- Use the already installed manifest dependencies; no machine-wide integration. -->
+  <PropertyGroup Condition="'$(Platform)'=='x64' and '$(Configuration)'=='Debug'">
+    <DearsDependencyLibDir>$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\lib\</DearsDependencyLibDir>
+    <DearsDependencyBinDir>$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\bin\</DearsDependencyBinDir>
+    <DearsDependencyLibraries>assimp-vc143-mtd.lib;DirectXTK.lib;DirectXTex.lib</DearsDependencyLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='x64' and '$(Configuration)'=='Release'">
+    <DearsDependencyLibDir>$(VcpkgInstalledDir)$(VcpkgTriplet)\lib\</DearsDependencyLibDir>
+    <DearsDependencyBinDir>$(VcpkgInstalledDir)$(VcpkgTriplet)\bin\</DearsDependencyBinDir>
+    <DearsDependencyLibraries>assimp-vc143-mt.lib;DirectXTK.lib;DirectXTex.lib</DearsDependencyLibraries>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64' and ('$(Configuration)'=='Debug' or '$(Configuration)'=='Release')">
+    <Link>
+      <AdditionalLibraryDirectories>$(DearsDependencyLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(DearsDependencyLibraries);%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <!-- Copy the installed manifest's runtime DLLs, including transitive imports,
+       beside executables. Debug and Release never share a runtime directory. -->
+  <Target Name="CopyDearsDependencyRuntime" AfterTargets="Build"
+          Condition="'$(Platform)'=='x64' and '$(ConfigurationType)'=='Application' and '$(DearsDependencyBinDir)'!=''">
+    <ItemGroup>
+      <DearsDependencyRuntime Include="$(DearsDependencyBinDir)*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DearsDependencyRuntime)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

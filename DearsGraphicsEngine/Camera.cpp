@@ -131,6 +131,7 @@ void Camera::SetPerspective()
 
 void Camera::SetOrthgraphic(float _scale)
 {
+	mPixelOrthoScale = _scale;
 	mOrthoGraphicScreenWidth = mScreenWidth * _scale;
 	mOrthoGraphicScreenHeight = mScreenHeight * _scale;
 	isPerspective = false;
@@ -138,6 +139,7 @@ void Camera::SetOrthgraphic(float _scale)
 
 void Camera::SetOrthographicSize(float width, float height)
 {
+	mPixelOrthoScale = 0;
 	// 0에 가까운 크기는 유효한 투영행렬을 만들 수 없으므로 최소 범위를 보장한다.
 	mOrthoGraphicScreenWidth = (std::max)(width, 0.1f);
 	mOrthoGraphicScreenHeight = (std::max)(height, 0.1f);
@@ -260,7 +262,13 @@ void Camera::MoveRight(float dt)
 
 void Camera::SetAspectRatio(int _screenWidth, int _screenHeight)
 {
+	if (_screenWidth <= 0 || _screenHeight <= 0) return;
 	mScreenWidth = _screenWidth;
 	mScreenHeight = _screenHeight;
 	mAspect = static_cast<float>(mScreenWidth) / static_cast<float>(mScreenHeight);
+	if (!isPerspective && mPixelOrthoScale != 0)
+	{
+		mOrthoGraphicScreenWidth = mScreenWidth * mPixelOrthoScale;
+		mOrthoGraphicScreenHeight = mScreenHeight * mPixelOrthoScale;
+	}
 }

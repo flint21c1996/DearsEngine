@@ -58,12 +58,15 @@ public:
 		int viewportHeight,
 		Camera* camera);
 
-private:
+	// 뷰포트 이미지 안의 픽셀 위치를 월드 공간의 ray로 바꾼다.
+	// 피킹 말고도 "끌어다 놓은 위치에 오브젝트 만들기"처럼 화면 위치를 월드로 옮길 때 쓴다.
 	PickingRay BuildRayFromScreen(
 		const Vector2& mousePosition,
 		int viewportWidth,
 		int viewportHeight,
 		Camera* camera) const;
+
+private:
 
 	bool PickObjectAABB(const PickingRay& worldRay, RenderObject& object, float& distance) const;
 	bool PickObjectOBB(const PickingRay& worldRay, RenderObject& object, float& distance) const;

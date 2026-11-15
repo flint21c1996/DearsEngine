@@ -34,18 +34,16 @@ public:
 		// 최종 화면을 가리지 않도록 3D 뷰포트 하단에 얕은 가로 패널로 배치한다.
 		ImGui::SetNextWindowPos(
 			ImVec2(panelMargin, displaySize.y - panelHeight - panelMargin),
-			ImGuiCond_Always);
+			ImGuiCond_FirstUseEver);
 		ImGui::SetNextWindowSize(
 			ImVec2(renderWidth - panelMargin * 2.0f, panelHeight),
-			ImGuiCond_Always);
+			ImGuiCond_FirstUseEver);
 
 		const ImGuiWindowFlags flags =
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoCollapse;
 
 		ImGui::Begin(GetName(), nullptr, flags);
-		ImGui::SetWindowFontScale(0.8f);
+		// Use the DPI-scaled editor font.
 
 		const std::array<const char*, 7> labels = {
 			"Albedo", "World Normal", "Metallic", "Roughness", "AO", "Depth", "World Position"

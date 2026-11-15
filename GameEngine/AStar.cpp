@@ -1,4 +1,7 @@
-#include "Astar.h"
+#include "AStar.h"
+#include <algorithm>
+#include <cmath>
+#include <unordered_map>
 
 AStar::AStar()
 {
@@ -133,7 +136,7 @@ std::vector<Vector2> AStar::Astar(const Vector2& _startPoint, const Vector2& _go
 {
 	std::vector<Vector2> obstacles = ConvertMapToVector(_map);
 	Vector2 mapStart = { 0.0f, 0.0f };
-	Vector2 mapEnd = { static_cast<float>(_map[0].size()), static_cast<float>(_map.size()) };
+	Vector2 mapEnd = { static_cast<float>(_map[0].size() - 1), static_cast<float>(_map.size() - 1) };
 
 	return BasicAstar(_startPoint, _goalPoint, obstacles, mapStart, mapEnd);
 }

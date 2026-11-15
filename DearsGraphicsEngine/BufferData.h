@@ -27,8 +27,12 @@ struct CommonConstantBufferData
 	Light light[MAX_LIGHTS];
 
 	UINT lightNum;
-	Vector3 dummy;
+	UINT shadow2DMask = 0;
+	UINT shadowCubeMask = 0;
+	UINT shadowPadding = 0;
 };
+static_assert(sizeof(CommonConstantBufferData) == 6 * 64 + 16 + sizeof(Light) * MAX_LIGHTS + 16,
+	"CommonConstantBufferData must match Common.hlsli register layout");
 
 struct VSConstantBufferData
 {

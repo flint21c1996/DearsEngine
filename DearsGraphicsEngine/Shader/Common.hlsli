@@ -74,7 +74,9 @@ cbuffer CommonConstantBufferData : register(b1)
     Light lights[MAX_LIGHTS];
     
     unsigned int lightNum;
-    float3 dummy10;
+    uint shadow2DMask;
+    uint shadowCubeMask;
+    uint shadowPadding;
 }
 
 // 원근 Shadow Map의 NDC Depth 변화량은 라이트 카메라에서 멀어질수록 작아진다.
@@ -118,6 +120,9 @@ float Calculate2DShadowFactor(
     float3 positionWorld,
     float3 normalWorld)
 {
+    // Missing current-frame production means neutral visibility, preserving light.
+    bool hasCurrent2DShadow = lightIndex < MAX_LIGHTS &&
+        (shadow2DMask & (1u << lightIndex)) != 0;
     float result = 1.0f;
     // Shadow Map을 만들 때 기록한 표면과, 메인 패스에서 다시 계산한 표면의 깊이는
     // 래스터라이즈 해상도와 부동소수점 보간 차이 때문에 완전히 같지 않을 수 있다.
@@ -139,7 +144,7 @@ float Calculate2DShadowFactor(
 
     float4 lightSpacePosition = mul(
         float4(biasedReceiverPosition, 1.0f), light.viewProj);
-    if (lightSpacePosition.w > 0.0f)
+    if (hasCurrent2DShadow && lightSpacePosition.w > 0.0f)
     {
         float receiverDistance = lightSpacePosition.w;
         lightSpacePosition.xyz /= lightSpacePosition.w;
@@ -184,12 +189,15 @@ float CalculatePointShadowFactor(
     float3 positionWorld,
     float3 normalWorld)
 {
+    // Missing current-frame production means neutral visibility, preserving light.
+    bool hasCurrentPointShadow = lightIndex < MAX_LIGHTS &&
+        (shadowCubeMask & (1u << lightIndex)) != 0;
     float result = 1.0f;
     float3 lightToPixel = positionWorld - light.position;
     float distanceToLight = length(lightToPixel);
     float nearPlane = max(light.shadowNear, 0.001f);
     float farPlane = max(light.shadowFar, nearPlane + 0.001f);
-    if (distanceToLight > nearPlane && distanceToLight < farPlane)
+    if (hasCurrentPointShadow && distanceToLight > nearPlane && distanceToLight < farPlane)
     {
         // 각 Cube 면 카메라의 view-space Z는 방향 벡터의 가장 큰 절댓값과 같다.
         // Shadow Pass가 일반 D32 투영 깊이를 기록하므로, 거리 자체가 아니라 동일한 NDC 깊이로 변환해 비교한다.

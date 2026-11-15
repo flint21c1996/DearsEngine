@@ -10,11 +10,14 @@
 #include "BufferData.h"
 #include "GraphicsAssetManager.h"
 #include "GraphicsResourceManager.h"
+#include "IDearsRenderer.h"
 #include "LightHelper.h"
 #include "ModelBuffer.h"
 #include "Renderer.h"
 #include "RenderContext.h"
+#include "RenderPipeline.h"
 #include "UiRenderer.h"
+#include "EditorViewportState.h"
 using DirectX::SimpleMath::Vector3;
 using DirectX::SimpleMath::Vector4;
 using DirectX::SimpleMath::Quaternion;
@@ -29,14 +32,18 @@ class ShadowMapDebugRenderer;
 class MeshRenderer;
 class ParticleRenderer;
 class PostProcessRenderer;
+class RenderTargetPool;
 struct RenderContext;
 class UiRenderer;
 
-class DearsGraphicsEngine
+// IDearsRenderer의 DX11 구현이다.
+// 프레임/패스/그리기 계약은 IDearsRenderer에 있고, 이 클래스에만 있는 public 함수는
+// 아직 DX11 타입을 노출하는 리소스/상수 버퍼/UI 계열이다.
+class DearsGraphicsEngine : public IDearsRenderer
 {
 public:
 	DearsGraphicsEngine(HWND _hWnd, int screenWidth, int screenHeight);
-	~DearsGraphicsEngine();
+	~DearsGraphicsEngine() override;
 
 	/// Window占쏙옙占쏙옙 占쌉쇽옙
 private:
@@ -88,6 +95,23 @@ private:
 	// 이 값을 기준으로 동작할 수 있다.
 	RenderPassType m_currentRenderPassType = RenderPassType::Unknown;
 
+	// 게임 엔진이 구성하는 프레임의 패스 목록이다.
+	// 그래픽스 엔진은 목록의 내용과 순서를 정하지 않고 RenderFrame()에서 실행만 한다.
+	RenderPipeline m_renderPipeline;
+
+	// 게임 엔진이 CreateRenderTarget()으로 만든 오프스크린 타깃의 DX11 리소스를 소유한다.
+	std::unique_ptr<RenderTargetPool> m_pRenderTargetPool;
+	bool m_viewportSurfaceReady = false;
+	bool EnsureViewportSurface(int width, int height);
+
+	// RenderPassIO를 적용하면서 추적하는 바인딩 상태이다.
+	// 같은 리소스를 출력과 입력으로 동시에 묶지 않도록, 다음 패스가 시작될 때 무엇을 풀어야 하는지 기억한다.
+	bool m_isGBufferBoundAsInput = false;
+	std::vector<UINT> m_boundRenderTargetInputSlots;
+
+	// RenderPassIO 한 개를 실제 DX11 바인딩(OMSetRenderTargets, PSSetShaderResources 등)으로 옮긴다.
+	void ApplyRenderPassIO(const RenderPassIO& requestedIO);
+
 	// 현재 공통 상수버퍼 계산에 사용할 카메라이다.
 	// Camera의 소유권은 GameEngine/Scene 쪽에 있고, 그래픽스 엔진은 포인터만 빌려 쓴다.
 	// 그래서 delete하지 않으며, 반드시 SetCamera() 또는 ApplyRenderContext()를 통해 갱신한다.
@@ -106,10 +130,32 @@ public:
 	void Update();
 	
 	void BeginRender();
+	void BeginEditorFrame();
+	bool ResizeClient(int width, int height);
+	const EditorViewportState& GetEditorViewport() const { return m_pUiRenderer->GetViewportState(); }
+	bool ShowViewportOverlay() const { return m_pUiRenderer->ShowViewportOverlay(); }
 	
 	void EndRender();
 
 	void Finalize();
+
+	/// IDearsRenderer ---------------------------------------------------------------------------------
+	// 게임 엔진과 렌더 패스는 가능하면 아래 함수들만 사용한다.
+	// Rend_XXX / RenderXXXDepthMap 같은 종류별 함수는 기존 호출부 호환을 위해 남겨 두었다.
+	RenderPipeline& GetRenderPipeline() override { return m_renderPipeline; }
+	void RenderFrame() override;
+	RenderTargetHandle CreateRenderTarget(const RenderTargetDesc& desc) override;
+	RenderTargetHandle FindRenderTarget(const std::string& name) const override;
+	void DrawMesh(ModelBuffer* modelBuffer, MeshDrawMode mode) override;
+	bool DrawMeshWithShaders(
+		ModelBuffer* modelBuffer,
+		const std::string& vertexShader,
+		const std::string& pixelShader) override;
+	void DrawShadowCaster(ModelBuffer* modelBuffer, ShadowCasterMode mode) override;
+	void DrawDeferredLighting() override;
+	void DrawParticles() override;
+	void DrawPostProcess() override;
+	void DrawLightGizmo(const Light& light, bool drawShadowFrustum, float shadowAspect) override;
 
 	void RendParticle();
 	void AddParticle(unsigned int particleNum, CSParticleData& particleData);
@@ -175,7 +221,10 @@ public:
 	}
 
 	void UpdateCommonConstantBuffer(CommonConstantBufferData& _CommonBufferData);
-	void ApplyRenderContext(const RenderContext& renderContext);
+	void ApplyRenderContext(const RenderContext& renderContext) override;
+	void BeginShadowFrame() override;
+	void BeginShadowProduction() override;
+	void EndShadowProduction(bool success) override;
 	RenderPassType GetCurrentRenderPassType() const { return m_currentRenderPassType; }
 	const char* GetCurrentRenderPassName() const { return ToRenderPassName(m_currentRenderPassType); }
 
@@ -225,9 +274,9 @@ public:
 	// GameEngine은 라이트/면 인덱스만 전달하고 DX11 Array DSV 선택은 그래픽스 계층에 맡긴다.
 	// lightIndex는 CommonConstantBuffer의 lights[] 인덱스와 같고,
 	// Point의 faceIndex 순서는 +X, -X, +Y, -Y, +Z, -Z이다.
-	void BeginTwoDimensionalShadowPass(UINT lightIndex);
-	void BeginPointShadowFace(UINT lightIndex, UINT faceIndex);
-	void EndShadowPass();
+	void BeginTwoDimensionalShadowPass(UINT lightIndex) override;
+	void BeginPointShadowFace(UINT lightIndex, UINT faceIndex) override;
+	void EndShadowPass() override;
 	void RenderShadowMapDebugPreview(UINT lightIndex, float nearPlane, float farPlane, bool isPerspective);
 	void RenderPointShadowMapDebugPreview(UINT lightIndex, float nearPlane, float farPlane);
 
@@ -257,9 +306,20 @@ public:
 	/// UI -------------------------------------------------------------------------------------------------
 
 	void AddEditorPanel(IEditorPanel* panel);
+	// 에디터 창의 기본 도킹 자리를 정한다. windowName은 그 창이 ImGui::Begin에 넘기는 이름이다.
+	void SetEditorDockSlot(const std::string& windowName, EditorDockSlot slot) { m_pUiRenderer->SetDockSlot(windowName, slot); }
+	// 메인 메뉴 바의 Window 메뉴 앞에 File/Edit/Play 같은 항목을 그릴 콜백을 등록한다.
+	void SetEditorMenuBarCallback(std::function<void()> callback) { m_pUiRenderer->SetMenuBarCallback(std::move(callback)); }
+	// 월드(Viewport) 이미지에 끌어다 놓기: 받을 페이로드 종류를 등록하고, 놓인 것을 프레임마다 꺼내 간다.
+	// x/y는 Viewport 이미지 안의 픽셀 위치라서 피킹에 그대로 쓸 수 있다.
+	void SetViewportDropTypes(std::vector<std::string> types) { m_pUiRenderer->SetViewportDropTypes(std::move(types)); }
+	bool ConsumeViewportDrop(std::string& type, std::string& data, float& x, float& y) { return m_pUiRenderer->ConsumeViewportDrop(type, data, x, y); }
 	void SetRenderViewportWidth(int viewportWidth);
 	// 에디터 계층이 DX11 SRV 타입을 직접 알지 않도록 Shadow Map 이미지를 그래픽스 UI 경계에서 그린다.
 	bool UIDrawShadowMapDebugPreview(Vector2 size) const;
+	// 오프스크린 렌더 타깃의 내용을 현재 ImGui 창에 이미지로 그린다. (미니맵, 타깃 디버그 확인용)
+	// 타깃에 쓰는 패스가 끝난 뒤의 내용이 프레임 끝 ImGui 렌더에서 표시된다.
+	bool UIDrawRenderTarget(RenderTargetHandle target, Vector2 size) const;
 
 	void AddFont(std::string _basePath, std::string _fileName, float _size, bool _isKorean);
 

@@ -3,6 +3,7 @@
 #include "BufferData.h"
 
 class Camera;
+struct RenderPassIO;
 
 // 렌더러가 구분해서 다룰 수 있는 렌더 패스 종류이다.
 //
@@ -30,6 +31,9 @@ enum class RenderPassType
 	SelectionOutline,
 	Debug,
 	Ui,
+	// 게임 엔진이 직접 정의한 패스이다. ApplyRenderContext()는 렌더 타깃을 바꾸지 않으므로
+	// 직전 패스가 묶어 둔 출력 대상에 이어서 그린다.
+	Custom,
 };
 
 // 디버깅이나 로그 출력에서 사용할 수 있도록 RenderPassType을 문자열로 바꾼다.
@@ -57,6 +61,8 @@ inline const char* ToRenderPassName(RenderPassType passType)
 		return "DebugPass";
 	case RenderPassType::Ui:
 		return "UiPass";
+	case RenderPassType::Custom:
+		return "CustomPass";
 	default:
 		return "UnknownPass";
 	}
@@ -74,6 +80,11 @@ struct RenderContext
 	RenderPassType passType = RenderPassType::Unknown;
 	Camera* camera = nullptr;
 	CommonConstantBufferData* commonBuffer = nullptr;
+
+	// 이 패스가 어디에 쓰고 무엇을 읽을지에 대한 명시적 구성이다. (RenderPassIO.h)
+	// nullptr이면 passType의 기본 구성을 쓰고, 기본 구성이 없는 타입은 직전 상태를 유지한다.
+	// ApplyRenderContext() 호출 동안만 유효하면 된다.
+	const RenderPassIO* io = nullptr;
 
 	const char* GetPassName() const
 	{
